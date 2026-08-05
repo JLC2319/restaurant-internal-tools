@@ -369,7 +369,7 @@ relevant one before starting.
 | R&D recipe bank | `features/rdBank` | |
 | Training modules | `features/training` | **Done** — blocks + publish gate + completions; translation gate pending |
 | Media storage | `features/media` | **Photos & streamed video done**; transcoding still open |
-| Reader app | web only | iPad-first, approved content only |
+| Reader app | web only | **Done** — `/reader` browses live recipes + published training; detail views render only the live/published snapshot, even for chefs |
 
 ### Phase 2 (post-commitment)
 

@@ -71,15 +71,21 @@ pnpm -F @rit/scripts verify-email <email>                   # flip emailVerified
 - **Platform console** (`apps/admin`) — superAdmin-only dashboard on port 4322:
   cross-tenant stats, org provisioning/suspension, and user management, backed
   by `/api/platform` routes that answer 404 to non-staff.
+- **Recipes** — structured recipes with sub-recipes, immutable versions, one
+  live version per lineage, forking, and human allergen sign-off.
+- **Training** — modules built from rich text, photos and video behind a
+  publish gate, with per-person completions.
+- **Reader** — iPad-first `/reader` surface for the line: live recipes and
+  published training only, even for chefs.
 
 ## What is not
 
-Every Phase 1 feature. Each has a folder under `apps/api/src/features/` with a
-README covering the files to create, the design decisions to settle, and the
-invariants to preserve:
+The remaining Phase 1 features. Each has a folder under
+`apps/api/src/features/` with a README covering the files to create, the design
+decisions to settle, and the invariants to preserve:
 
-`recipes` · `translations` · `allergens` · `rdBank` · `training` · `media` ·
-`lineChecks` (Phase 2)
+`translations` · `allergens` · `rdBank` · `lineChecks` (Phase 2) — plus video
+transcoding in `media`
 
 Also unbuilt: email sending (so invites only work for users who already have an
 account), offline capture, and any external integration (Toast, Craftable,

@@ -61,7 +61,7 @@ function Caption({ text }: { text: string | null }) {
   )
 }
 
-function BlockView({ block, index }: { block: TrainingBlockView; index: number }) {
+export function BlockView({ block, index }: { block: TrainingBlockView; index: number }) {
   switch (block.kind) {
     case 'text':
       return <RichText doc={block.doc} />
@@ -155,7 +155,7 @@ function CompletionsPanel({ trainingId }: { trainingId: string }) {
   )
 }
 
-function CompletionCard({ training }: { training: TrainingDetailData }) {
+export function CompletionCard({ training }: { training: TrainingDetailData }) {
   const queryClient = useQueryClient()
   const [error, setError] = useState<string | null>(null)
   const done = training.myCompletion != null
