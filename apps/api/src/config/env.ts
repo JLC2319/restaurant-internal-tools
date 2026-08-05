@@ -54,13 +54,16 @@ export const env = {
     .filter(Boolean),
   webUrl: (process.env.WEB_URL ?? 'http://localhost:4321').replace(/\/$/, ''),
 
-  // Anthropic — LLM translation of recipes and training content. The feature is
-  // on whenever a key is present; TRANSLATION_ENABLED=false force-disables it
-  // without having to pull the key out of the deployment.
+  // Anthropic — LLM features (recipe translation, recipe drafting from
+  // photos). Each feature is on whenever a key is present; its own
+  // *_ENABLED=false flag force-disables it without pulling the key out of the
+  // deployment, so one misbehaving feature can be switched off alone.
   anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? '',
   llmModel: process.env.LLM_MODEL ?? 'claude-sonnet-5',
   translationEnabled:
     Boolean(process.env.ANTHROPIC_API_KEY) && process.env.TRANSLATION_ENABLED !== 'false',
+  aiDraftingEnabled:
+    Boolean(process.env.ANTHROPIC_API_KEY) && process.env.AI_DRAFTING_ENABLED !== 'false',
 
   // Cloudflare R2 — plating photos and training media.
   r2AccountId: process.env.CLOUDFLARE_ACCOUNT_ID ?? '',

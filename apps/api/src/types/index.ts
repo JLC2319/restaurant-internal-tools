@@ -2,6 +2,7 @@ import type { Document, Types } from 'mongoose';
 import type {
   Allergen,
   ApprovalStatus,
+  ContentOrigin,
   Dietary,
   IngredientKind,
   Locale,
@@ -27,6 +28,7 @@ import type {
 export type {
   Allergen,
   ApprovalStatus,
+  ContentOrigin,
   Dietary,
   IngredientKind,
   Locale,
@@ -243,6 +245,46 @@ export interface IRecipeVersion extends Document {
   /** Denormalised from the head — safe because a lineage's scope never mutates. */
   scope: IScope;
   createdBy: Types.ObjectId;
+  createdAt: Date;
+  modifiedAt: Date;
+}
+
+/**
+ * The translated text of one recipe, aligned by index with the source
+ * version's arrays. `ingredients[i].name` is null for sub-recipe lines —
+ * those names belong to the referenced lineage.
+ */
+export interface ITranslationPayload {
+  name: string;
+  description: string;
+  ingredients: { name: string | null; note: string | null }[];
+  steps: string[];
+}
+
+/**
+ * One recipe's translation into one locale — the machine output plus its
+ * review state. SAFETY: only `approved` and non-stale translations reach the
+ * reader; see translation.service.ts for how staleness is derived from
+ * `sourceVersionId` + `sourceHash`.
+ */
+export interface IRecipeTranslation extends Document {
+  scope: IScope;
+  recipeId: Types.ObjectId;
+  locale: Locale;
+  status: ApprovalStatus;
+  origin: ContentOrigin;
+  /** The live snapshot this translation was made from. */
+  sourceVersionId: Types.ObjectId;
+  sourceVersion: number;
+  /** Hash of the translatable projection (name + text), for cheap staleness checks. */
+  sourceHash: string;
+  payload: ITranslationPayload;
+  /** LLM model id that produced the machine text. Named to dodge Document#model(). */
+  llmModel: string | null;
+  requestedBy: Types.ObjectId;
+  requestedAt: Date;
+  approvedBy: Types.ObjectId | null;
+  approvedAt: Date | null;
   createdAt: Date;
   modifiedAt: Date;
 }

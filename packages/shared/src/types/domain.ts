@@ -96,6 +96,14 @@ export type Locale = (typeof localeValues)[number];
 /** The locale content is authored in. Never machine-translated. */
 export const SOURCE_LOCALE: Locale = 'en';
 
+/**
+ * Locales a document may be machine-translated *into* — every locale except
+ * the authoring one. Kept as its own const array so request schemas can say
+ * "a translation target" without re-deriving it.
+ */
+export const targetLocaleValues = ['es'] as const;
+export type TargetLocale = (typeof targetLocaleValues)[number];
+
 // ── Review / approval gate ────────────────────────────────────────────────────
 
 /**
@@ -214,6 +222,21 @@ export const MAX_RECIPE_PHOTOS = 8;
 
 /** Upload ceiling for a single photo, in bytes. Modern phone photos land ~3–6MB. */
 export const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
+
+// ── AI recipe drafting ────────────────────────────────────────────────────────
+
+/**
+ * Photos per AI drafting request — enough for a multi-page recipe document or
+ * a handful of cards in one go.
+ */
+export const MAX_DRAFT_PHOTOS = 8;
+
+/**
+ * Combined byte ceiling for one drafting request's photos. The vision API caps
+ * the whole request at 32MB *after* base64 inflation (~4/3), so raw bytes must
+ * stay comfortably under that.
+ */
+export const MAX_DRAFT_TOTAL_BYTES = 20 * 1024 * 1024;
 
 /**
  * Video formats accepted for training videos, matched against the *sniffed*

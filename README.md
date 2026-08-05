@@ -77,6 +77,12 @@ pnpm -F @rit/scripts verify-email <email>                   # flip emailVerified
   publish gate, with per-person completions.
 - **Reader** — iPad-first `/reader` surface for the line: live recipes and
   published training only, even for chefs.
+- **Translations** — LLM EN→ES translation of live recipes behind a mandatory
+  human review gate. Chefs translate, review side by side, edit and approve;
+  the reader's Español toggle only ever shows approved, current text.
+- **AI drafting** — photos of recipe cards/pages in, structured recipe
+  proposals out. Review-first: nothing is saved until a chef creates each
+  proposal as an ordinary unpublished draft.
 
 ## What is not
 
@@ -84,7 +90,7 @@ The remaining Phase 1 features. Each has a folder under
 `apps/api/src/features/` with a README covering the files to create, the design
 decisions to settle, and the invariants to preserve:
 
-`translations` · `allergens` · `rdBank` · `lineChecks` (Phase 2) — plus video
+`allergens` · `rdBank` · `lineChecks` (Phase 2) — plus video
 transcoding in `media`
 
 Also unbuilt: email sending (so invites only work for users who already have an

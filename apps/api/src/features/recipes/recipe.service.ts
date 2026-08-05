@@ -24,6 +24,7 @@ import { AppError } from '../../lib/AppError';
 import { escapeRegex } from '../../lib/regex';
 import { assertCanWriteAt, assertRole, scopeForWrite, scopeReadFilter } from '../../lib/scope';
 import { assertPhotosAttachable, resolveAssets } from '../media/media.service';
+import { invalidateForActiveVersion } from '../translations/translation.service';
 import { Property } from '../tenancy/property.model';
 import { Location } from '../tenancy/location.model';
 import { Recipe } from './recipe.model';
@@ -700,6 +701,13 @@ export async function activateVersion(
   head.activeVersionId = version._id as Types.ObjectId;
   head.activeVersion = version.version;
   await head.save();
+
+  // SAFETY: a different version going live is the recipes-world "source edit"
+  // — approved translations of the old version fall back to pending_review so
+  // the Spanish can never silently describe a recipe staff no longer read.
+  // Re-activating the same version leaves its approval standing.
+  await invalidateForActiveVersion(id, version._id as Types.ObjectId);
+
   return getRecipe(ctx, id);
 }
 

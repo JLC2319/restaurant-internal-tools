@@ -14,6 +14,7 @@ import {
   Search,
   ShieldAlert,
   ShieldCheck,
+  Sparkles,
   X,
 } from 'lucide-react'
 import { createRecipe, listRecipes, recipesScopeKey } from '../api/recipes'
@@ -312,10 +313,14 @@ function Browser() {
                 },
               ]}
             />
+            <a href="/recipes/draft" className={`${subtleButtonClass} ml-auto`}>
+              <Sparkles className="size-4 text-ember-600" aria-hidden />
+              Draft from photos
+            </a>
             <button
               type="button"
               onClick={() => setShowForm((v) => !v)}
-              className={`${primaryButtonClass} ml-auto`}
+              className={primaryButtonClass}
             >
               <Plus className="size-4" aria-hidden />
               New recipe

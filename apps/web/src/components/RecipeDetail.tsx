@@ -37,6 +37,7 @@ import { getTenantTree } from '../api/tenancy'
 import { useActiveRole } from './useActiveRole'
 import { PlatingGallery } from './PlatingGallery'
 import { QueryProvider } from './QueryProvider'
+import { TranslationPanel } from './TranslationPanel'
 import {
   Badge,
   ErrorNote,
@@ -790,6 +791,8 @@ function Detail({ recipeId }: { recipeId: string }) {
           </div>
         )}
       </div>
+
+      {recipe.canManage && <TranslationPanel recipe={recipe} />}
     </div>
   )
 }

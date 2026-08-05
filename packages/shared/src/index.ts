@@ -70,6 +70,22 @@ export type {
 } from './schemas/recipes.js';
 
 export {
+  translatedIngredientSchema,
+  translationPayloadSchema,
+  translationLocaleSchema,
+  updateTranslationSchema,
+} from './schemas/translations.js';
+export type {
+  TranslatedIngredientInput,
+  TranslationPayloadInput,
+  TranslationLocaleInput,
+  UpdateTranslationInput,
+} from './schemas/translations.js';
+
+export { draftRecipesSchema } from './schemas/drafting.js';
+export type { DraftRecipesInput } from './schemas/drafting.js';
+
+export {
   richTextDocSchema,
   emptyRichTextDoc,
   docToPlainText,
@@ -124,6 +140,7 @@ export {
   userStatusValues,
   localeValues,
   SOURCE_LOCALE,
+  targetLocaleValues,
   approvalStatusValues,
   PUBLISHABLE_STATUS,
   contentOriginValues,
@@ -137,6 +154,8 @@ export {
   videoMimeValues,
   MAX_RECIPE_PHOTOS,
   MAX_PHOTO_BYTES,
+  MAX_DRAFT_PHOTOS,
+  MAX_DRAFT_TOTAL_BYTES,
   MAX_VIDEO_BYTES,
   trainingStatusValues,
   trainingBlockKindValues,
@@ -158,6 +177,7 @@ export type {
   UserStatus,
   UserName,
   Locale,
+  TargetLocale,
   ApprovalStatus,
   ContentOrigin,
   Allergen,
@@ -209,6 +229,12 @@ export type {
   RecipeDetail,
   RecipeVersionSummary,
   RecipeVersionDetail,
+  TranslationPayloadView,
+  RecipeTranslationView,
+  RecipeTranslationState,
+  RecipeDraftProposal,
+  DraftRecipesResponse,
+  DraftConfigView,
   TrainingBlockView,
   TrainingSummary,
   TrainingDetail,

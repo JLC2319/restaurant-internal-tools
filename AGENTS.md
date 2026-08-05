@@ -334,9 +334,10 @@ wearing gloves and moving fast.
 | `CORS_ORIGIN` | | (empty) | Comma-separated allowed origins in production |
 | `TRUST_PROXY` | | `1` | Reverse-proxy hops. Drives `req.ip`, which every rate limiter keys on. Never `true` — clients could then forge `X-Forwarded-For` and pick their own bucket. |
 | `WEB_URL` | | `http://localhost:4321` | Used for links in outbound mail |
-| `ANTHROPIC_API_KEY` | | (empty) | Enables machine translation. Feature is off when unset. |
-| `LLM_MODEL` | | `claude-sonnet-5` | Model for translation |
-| `TRANSLATION_ENABLED` | | `true` | Set `false` to disable without removing the key |
+| `ANTHROPIC_API_KEY` | | (empty) | Enables the LLM features (translation, recipe drafting). All off when unset. |
+| `LLM_MODEL` | | `claude-sonnet-5` | Model for every LLM call |
+| `TRANSLATION_ENABLED` | | `true` | Set `false` to disable machine translation without removing the key |
+| `AI_DRAFTING_ENABLED` | | `true` | Set `false` to disable AI recipe drafting without removing the key |
 | `CLOUDFLARE_ACCOUNT_ID`, `R2_*` | | (empty) | Media storage |
 
 ### Web (`apps/web/.env`)
@@ -363,8 +364,9 @@ relevant one before starting.
 
 | Feature | Folder | Note |
 |---|---|---|
-| Recipe data model | `features/recipes` | Build first; everything else reads from it |
-| LLM EN→ES translation + review gate | `features/translations` | Demo centrepiece |
+| Recipe data model | `features/recipes` | **Done** — everything else reads from it |
+| LLM EN→ES translation + review gate | `features/translations` | **Done** — machine output lands `pending_review`; chef edits/approves; activating a different version (or renaming) makes approved text stale and staff-invisible; reader's Español toggle renders approved+current only |
+| AI recipe drafting | `features/drafting` | **Done** — photos → structured proposals (review-first; nothing persists until a chef creates each as an ordinary unpublished draft). Tags transcribed only, never inferred |
 | Allergen lookup | `features/allergens` | Exclusion-based; highest liability |
 | R&D recipe bank | `features/rdBank` | |
 | Training modules | `features/training` | **Done** — blocks + publish gate + completions; translation gate pending |

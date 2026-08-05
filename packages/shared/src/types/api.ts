@@ -1,6 +1,7 @@
 import type {
   Allergen,
   ApprovalStatus,
+  ContentOrigin,
   Dietary,
   IngredientKind,
   Locale,
@@ -304,6 +305,97 @@ export interface RecipeVersionSummary {
 
 export interface RecipeVersionDetail extends RecipeVersionSummary {
   content: RecipeContentView;
+}
+
+// ── Recipe translations ───────────────────────────────────────────────────────
+
+/**
+ * The translated *text* of a recipe. Arrays align by index with the source
+ * version's ingredients/steps; numbers, units, photos and tags always render
+ * from the source, so the translation can never contradict the recipe about
+ * what is in the dish. `ingredients[i].name` is null for sub-recipe lines.
+ */
+export interface TranslationPayloadView {
+  name: string;
+  description: string;
+  ingredients: { name: string | null; note: string | null }[];
+  steps: string[];
+}
+
+/** One recipe's translation into one locale, with its review state. */
+export interface RecipeTranslationView {
+  _id: string;
+  recipeId: string;
+  locale: Locale;
+  /** SAFETY: only `approved` (and not stale) may be shown to kitchen staff. */
+  status: ApprovalStatus;
+  /** `machine` until a reviewer edits it; drives the "AI-assisted" badge. */
+  origin: ContentOrigin;
+  /** The live version number this translation was made from. */
+  sourceVersion: number;
+  /**
+   * True when the live version or recipe name has changed since this
+   * translation was produced. A stale translation never reaches the reader,
+   * whatever its status says.
+   */
+  stale: boolean;
+  payload: TranslationPayloadView;
+  /** The LLM that produced the current machine text; null after human rewrite from scratch. */
+  model: string | null;
+  requestedBy: string;
+  requestedAt: string;
+  approvedBy: string | null;
+  approvedAt: string | null;
+  modifiedAt: string;
+}
+
+/**
+ * Role-aware translation state for one recipe+locale. Staff get `translation`
+ * only when it is approved and current — the review gate, encoded in the
+ * response shape. Reviewers get the full document plus `stale`.
+ */
+export interface RecipeTranslationState {
+  /** Machine translation is configured server-side (key present + enabled). */
+  enabled: boolean;
+  /** Whether the caller may trigger, edit and approve translations here. */
+  canManage: boolean;
+  translation: RecipeTranslationView | null;
+}
+
+// ── AI recipe drafting ────────────────────────────────────────────────────────
+
+/**
+ * One recipe extracted from submitted photos. Nothing here is persisted — the
+ * caller reviews a proposal and explicitly creates a recipe from it (which
+ * lands as an ordinary unpublished draft). Allergen/dietary tags are
+ * transcribed only when the source states them, never inferred, and enter the
+ * normal pending-review pipeline on create.
+ */
+export interface RecipeDraftProposal {
+  name: string;
+  description: string;
+  yield: QuantityValue;
+  ingredients: { name: string; quantity: QuantityValue; note: string | null }[];
+  steps: string[];
+  allergens: Allergen[];
+  dietary: Dietary[];
+  times: { prepMinutes: number | null; cookMinutes: number | null } | null;
+  /** What the model could not read or had to adapt — shown to the reviewer. */
+  notes: string | null;
+}
+
+/** Response of POST /api/drafts/recipes. */
+export interface DraftRecipesResponse {
+  proposals: RecipeDraftProposal[];
+  /** Batch-level commentary (an unreadable page, a photo that isn't a recipe). */
+  notes: string | null;
+  /** Which model produced the proposals, for the audit trail. */
+  model: string;
+}
+
+/** Response of GET /api/drafts/config. */
+export interface DraftConfigView {
+  enabled: boolean;
 }
 
 // ── Training ──────────────────────────────────────────────────────────────────
