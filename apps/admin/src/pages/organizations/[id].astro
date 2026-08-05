@@ -1,0 +1,13 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { OrgDetail } from '../../components/OrgDetail';
+
+// On-demand only: org ids are runtime data, not a build-time route list.
+export const prerender = false;
+
+const { id } = Astro.params;
+---
+
+<AdminLayout title="Organization">
+  <OrgDetail client:load orgId={id!} />
+</AdminLayout>

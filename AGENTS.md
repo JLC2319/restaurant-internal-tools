@@ -16,6 +16,7 @@ reservation systems already in place.
 |---|---|
 | API | http://localhost:8888 |
 | Web | http://localhost:4321 |
+| Admin | http://localhost:4322 |
 
 **This repository is currently a scaffold.** Sections 2–8 describe code that
 exists. Section 9 describes the features that do not — do not assume any of it
@@ -27,6 +28,7 @@ is implemented.
 
 ```
 apps/
+  admin/        @rit/admin    — Astro + React platform console (superAdmin only, port 4322)
   api/          @rit/api      — Express REST API
   scripts/      @rit/scripts  — Database scripts (tsx, no build step)
   web/          @rit/web      — Astro + React frontend
@@ -153,6 +155,22 @@ the caller's memberships and sets `req.tenant: TenantContext`. Rules it enforces
 
 `owner > admin > director > manager > chef > staff`, ranked by `roleRank` in
 `@rit/shared`. Compare with `roleAtLeast`, never by string equality.
+
+### Platform routes (`/api/platform`)
+
+The one router that deliberately sees every tenant. It serves the platform
+console (`apps/admin`) and sits behind `authenticate` + `requireSuperAdmin`
+instead of `resolveTenant` — no scope headers, no `scopeReadFilter`. Rules:
+
+- A non-superAdmin caller gets **404, not 403** — the console's routes are
+  invisible to customers, same existence-hiding rule as everywhere else.
+- `requireSuperAdmin` reads the role from the database on every request, so
+  revoking a superAdmin takes effect immediately, not at token expiry.
+- A superAdmin cannot suspend or demote **their own** account (409) — any
+  removal is done by another superAdmin, so one always remains.
+- Platform org creation names the owner by email; the account must already
+  exist (no email sending yet), and it reuses `tenancy.createOrganization` so
+  the org-always-has-an-owner invariant holds.
 
 Invariants already enforced in `tenancy.service.ts`, worth preserving:
 
@@ -308,7 +326,7 @@ wearing gloves and moving fast.
 
 | Variable | Required | Default | Notes |
 |---|---|---|---|
-| `MONGO_CONNECTION_STRING` | ✅ | — | MongoDB URI |
+| `MONGODB_URI` | ✅ | — | MongoDB URI |
 | `JWT_SECRET` | ✅ | — | High-entropy random string |
 | `JWT_EXPIRES_IN` | | `7d` | Token lifetime |
 | `PORT` | | `8888` | Listen port |
@@ -326,6 +344,12 @@ wearing gloves and moving fast.
 | Variable | Default | Notes |
 |---|---|---|
 | `PUBLIC_API_BASE_URL` | `http://localhost:8888` | Must start with `PUBLIC_` |
+
+### Admin (`apps/admin/.env`)
+
+| Variable | Default | Notes |
+|---|---|---|
+| `PUBLIC_API_BASE_URL` | `http://localhost:8888` | Same API as the customer app |
 
 ---
 

@@ -8,6 +8,7 @@ import { notFound } from './middleware/notFound';
 import { errorHandler } from './middleware/errorHandler';
 import { authRouter } from './features/auth/auth.router';
 import { tenancyRouter } from './features/tenancy/tenancy.router';
+import { platformRouter } from './features/platform/platform.router';
 
 const app = express();
 
@@ -42,6 +43,8 @@ app.get('/health', (_req, res) => {
 // ── Feature routes ────────────────────────────────────────────────────────────
 app.use('/api/auth', authRouter);
 app.use('/api/tenancy', tenancyRouter);
+// superAdmin-only console routes (apps/admin). No resolveTenant — cross-tenant.
+app.use('/api/platform', platformRouter);
 
 // Phase 1 feature routers mount here as they are built. Each one goes behind
 // `authenticate` + `resolveTenant` — see apps/api/src/features/*/README.md.

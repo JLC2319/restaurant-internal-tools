@@ -18,6 +18,7 @@ Mirrors the `meusmenu-monorepo` conventions.
 |---|---|---|
 | API | `@rit/api` | Express 5 · Mongoose 9 · Zod 4 · JWT |
 | Web | `@rit/web` | Astro 7 (MPA) · React 19 islands · Tailwind 4 · TanStack Query 5 |
+| Admin | `@rit/admin` | Same stack as web — superAdmin console on port 4322 |
 | Shared | `@rit/shared` | Zod schemas + derived types, no framework deps |
 | Scripts | `@rit/scripts` | tsx, no build step |
 
@@ -27,30 +28,35 @@ pnpm 11 workspaces, Node ≥ 22, Vitest throughout.
 
 ```bash
 pnpm install
-cp apps/api/.env.example apps/api/.env   # set MONGO_CONNECTION_STRING + JWT_SECRET
+cp apps/api/.env.example apps/api/.env   # set MONGODB_URI + JWT_SECRET
 cp apps/web/.env.example apps/web/.env
 
 pnpm build:shared                        # shared must compile before the apps
-pnpm -F @rit/scripts seed-demo-tenant -- owner@example.com 'change-me-please'
-pnpm dev                                 # API on :8888, web on :4321
+pnpm -F @rit/scripts seed-demo-tenant owner@example.com 'change-me-please'
+pnpm dev                                 # API on :8888, web on :4321, admin on :4322
 ```
 
-Sign in at <http://localhost:4321/login>.
+Sign in at <http://localhost:4321/login>. The platform console is at
+<http://localhost:4322/login> — it needs an account with
+`platformRole: superAdmin` (see `set-platform-role` below).
 
 ## Commands
 
 ```bash
-pnpm dev              # API + web in parallel
+pnpm dev              # API + web + admin in parallel
 pnpm dev:api          # API only (tsx watch)
 pnpm dev:web          # web only (astro dev)
+pnpm dev:admin        # platform console only (astro dev, port 4322)
 pnpm build            # build everything in dependency order
 pnpm typecheck        # shared + api
 pnpm test             # shared + api
 pnpm test:coverage    # with V8 coverage
 
-pnpm -F @rit/scripts stats                                     # per-tenant summary
-pnpm -F @rit/scripts seed-demo-tenant -- <email> '<password>'  # demo org/properties/locations
-pnpm -F @rit/scripts set-platform-role -- <email> superAdmin   # platform staff access
+pnpm -F @rit/scripts stats                                  # per-tenant summary
+pnpm -F @rit/scripts seed-demo-tenant <email> '<password>'  # demo org/properties/locations
+pnpm -F @rit/scripts set-platform-role <email> superAdmin   # platform staff access
+pnpm -F @rit/scripts create-user <email> '<password>'       # pre-verified account
+pnpm -F @rit/scripts verify-email <email>                   # flip emailVerified by hand
 ```
 
 ## What is built
@@ -60,8 +66,11 @@ pnpm -F @rit/scripts set-platform-role -- <email> superAdmin   # platform staff 
 - **Multi-tenancy** — Organization → Property → Location, with per-scope
   memberships and roles. Scope travels in request headers; `lib/scope.ts` is the
   one place read filters and write permissions are decided.
-- **Web shell** — auth-gated layout, login form, scope switcher, typed API
-  client that attaches the scope headers automatically.
+- **Web shell** — auth-gated layout, login/sign-up forms, scope switcher, typed
+  API client that attaches the scope headers automatically.
+- **Platform console** (`apps/admin`) — superAdmin-only dashboard on port 4322:
+  cross-tenant stats, org provisioning/suspension, and user management, backed
+  by `/api/platform` routes that answer 404 to non-staff.
 
 ## What is not
 

@@ -44,6 +44,19 @@ export type {
   UpdateMembershipInput,
 } from './schemas/tenancy.js';
 
+export {
+  platformListQuerySchema,
+  platformCreateOrganizationSchema,
+  platformUpdateOrganizationSchema,
+  platformUpdateUserSchema,
+} from './schemas/platform.js';
+export type {
+  PlatformListQuery,
+  PlatformCreateOrganizationInput,
+  PlatformUpdateOrganizationInput,
+  PlatformUpdateUserInput,
+} from './schemas/platform.js';
+
 // ── Domain constants & types ──────────────────────────────────────────────────
 
 export {
@@ -101,4 +114,9 @@ export type {
   LocationSummary,
   MembershipSummary,
   TenantTree,
+  PlatformStats,
+  PlatformOrganizationRow,
+  PlatformOrgMember,
+  PlatformOrganizationDetail,
+  PlatformUserRow,
 } from './types/api.js';

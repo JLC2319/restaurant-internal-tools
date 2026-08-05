@@ -1,0 +1,100 @@
+---
+import CommonHead from '../components/CommonHead.astro';
+import { SignOutButton } from '../components/SignOutButton';
+import { siteShortName, navLinks } from '../assets/site-content/site-info';
+import '../styles/global.css';
+
+interface Props {
+  title?: string;
+  description?: string;
+  /** Send unauthenticated visitors to /login before first paint. */
+  requireAuth?: boolean;
+}
+
+const { title, description, requireAuth = true } = Astro.props;
+---
+
+<html lang="en" class="h-full">
+  <head>
+    <CommonHead title={title} description={description} />
+
+    <!--
+      Same pre-paint guard as apps/web, keyed on the console's own token. It
+      only proves a token exists — the API's requireSuperAdmin decides whether
+      any of these pages actually have data to show.
+    -->
+    <script is:inline define:vars={{ requireAuth }}>
+      (function () {
+        var token = localStorage.getItem('rit_admin_token');
+        if (token) {
+          document.documentElement.setAttribute('data-authed', '');
+        } else {
+          document.documentElement.removeAttribute('data-authed');
+          if (requireAuth && location.pathname !== '/login') {
+            location.replace('/login?next=' + encodeURIComponent(location.pathname));
+          }
+        }
+      })();
+    </script>
+  </head>
+
+  <body class="min-h-full flex flex-col bg-salt-100 text-steel-900 font-sans antialiased">
+    <!-- The citron strip marks admin-land: every page here can touch every tenant. -->
+    <div class="h-1 bg-citron-400"></div>
+
+    <header class="bg-steel-900 text-salt-50" data-requires-auth>
+      <div class="mx-auto flex max-w-[1400px] items-center gap-4 px-4 py-2 tablet:px-6">
+        <a href="/" class="flex shrink-0 items-center gap-2 text-lg font-semibold tracking-tight">
+          {siteShortName}
+          <span
+            class="rounded-full bg-citron-400 px-2 py-0.5 text-2xs font-semibold tracking-wide text-steel-900 uppercase"
+          >
+            superAdmin
+          </span>
+        </a>
+
+        <nav aria-label="Main navigation" class="hidden tablet:flex gap-1">
+          {
+            navLinks.map(({ label, href }) => (
+              <a
+                href={href}
+                class="rounded-md px-3 py-2 text-sm font-medium text-salt-300 transition-colors hover:bg-steel-700 hover:text-salt-50"
+              >
+                {label}
+              </a>
+            ))
+          }
+        </nav>
+
+        <div class="ml-auto flex items-center gap-2">
+          <slot name="header-actions" />
+          <SignOutButton client:load />
+        </div>
+      </div>
+
+      <nav
+        aria-label="Main navigation"
+        class="flex gap-1 overflow-x-auto border-t border-steel-700 px-4 pb-2 tablet:hidden"
+      >
+        {
+          navLinks.map(({ label, href }) => (
+            <a
+              href={href}
+              class="min-h-touch shrink-0 rounded-md px-3 py-2 text-sm font-medium text-salt-300 transition-colors hover:bg-steel-700 hover:text-salt-50"
+            >
+              {label}
+            </a>
+          ))
+        }
+      </nav>
+    </header>
+
+    <main class="mx-auto w-full max-w-[1400px] flex-1 px-4 py-6 tablet:px-6 tablet:py-8">
+      <slot />
+    </main>
+
+    <footer class="px-4 py-6 text-center text-xs text-salt-600">
+      Platform console — staff access only. Actions here affect live customer tenants.
+    </footer>
+  </body>
+</html>

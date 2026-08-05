@@ -121,3 +121,47 @@ export interface TenantTree {
   org: OrganizationSummary;
   properties: (PropertySummary & { locations: LocationSummary[] })[];
 }
+
+// ── Platform console (superAdmin only) ────────────────────────────────────────
+
+/** Headline counts for the platform dashboard. */
+export interface PlatformStats {
+  users: number;
+  organizations: number;
+  properties: number;
+  locations: number;
+  activeMemberships: number;
+}
+
+/** One row of the cross-tenant organization list. */
+export interface PlatformOrganizationRow extends OrganizationSummary {
+  locales: Locale[];
+  createdAt: string;
+  counts: { properties: number; locations: number; members: number };
+}
+
+/** One member row inside the platform org-detail view. */
+export interface PlatformOrgMember {
+  membershipId: string;
+  role: TenantRole;
+  status: MembershipStatus;
+  tier: TenantTier;
+  propertyId: string | null;
+  locationId: string | null;
+  user: { _id: string; name: UserName; email: string };
+}
+
+/** Everything the platform console shows about one organization. */
+export interface PlatformOrganizationDetail {
+  org: PlatformOrganizationRow;
+  properties: PropertySummary[];
+  locations: LocationSummary[];
+  members: PlatformOrgMember[];
+}
+
+/** One row of the cross-tenant user list. */
+export interface PlatformUserRow extends AuthUser {
+  membershipCount: number;
+  lastLoginAt: string | null;
+  createdAt: string;
+}

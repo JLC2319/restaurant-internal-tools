@@ -28,7 +28,7 @@ import { User } from '../auth/auth.model';
 
 type Lean<T> = T & { _id: unknown };
 
-function shapeOrg(org: Lean<{ name: string; slug: string; status: string }>): OrganizationSummary {
+export function shapeOrg(org: Lean<{ name: string; slug: string; status: string }>): OrganizationSummary {
   return {
     _id: String(org._id),
     name: org.name,
@@ -37,7 +37,7 @@ function shapeOrg(org: Lean<{ name: string; slug: string; status: string }>): Or
   };
 }
 
-function shapeProperty(
+export function shapeProperty(
   p: Lean<{ orgId: unknown; name: string; slug: string; status: string }>
 ): PropertySummary {
   return {
@@ -49,7 +49,7 @@ function shapeProperty(
   };
 }
 
-function shapeLocation(
+export function shapeLocation(
   l: Lean<{
     orgId: unknown;
     propertyId: unknown;
