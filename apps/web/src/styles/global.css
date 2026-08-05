@@ -1,0 +1,24 @@
+@import 'tailwindcss';
+@config "../../tailwind.config.mjs";
+
+/* ── Auth-gated visibility ────────────────────────────────────────────────
+   The inline script in BaseLayout sets `data-authed` on <html> before first
+   paint. Gating on an attribute rather than in React avoids a flash of the
+   wrong content on every page load. */
+html:not([data-authed]) [data-requires-auth] {
+  display: none !important;
+}
+html[data-authed] [data-requires-anon] {
+  display: none !important;
+}
+
+/* ── iOS Safari auto-zoom ─────────────────────────────────────────────────
+   Safari zooms the viewport whenever a focused input has font-size < 16px,
+   which on a wall-mounted iPad leaves the page stuck mid-zoom. */
+@media screen and (max-width: 1024px) {
+  input,
+  select,
+  textarea {
+    font-size: 1rem !important;
+  }
+}

@@ -1,0 +1,13 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+settings:
+  onlyBuiltDependencies:
+    - esbuild
+    - sharp
+allowBuilds:
+  '@parcel/watcher': true
+  esbuild: true
+  mongodb-memory-server: true
+  sharp: true
