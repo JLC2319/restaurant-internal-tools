@@ -2,7 +2,7 @@
  * Seeds a demo tenant so the app is walkable immediately after a fresh clone:
  * one org, two properties, three locations, and an owner account.
  *
- *   pnpm -F @rit/scripts seed-demo-tenant -- owner@example.com 'a-long-password'
+ *   pnpm -F @rit/scripts seed-demo-tenant owner@example.com 'a-long-password'
  *
  * Idempotent — re-running updates the existing records rather than duplicating
  * them, so it is safe to point at a database you have already seeded.
@@ -26,7 +26,7 @@ const PROPERTIES = [
 
 await run(async () => {
   if (!email || !password) {
-    throw new Error("Usage: seed-demo-tenant -- <owner-email> '<password>'");
+    throw new Error("Usage: seed-demo-tenant <owner-email> '<password>'");
   }
   if (password.length < 12) {
     throw new Error('Password must be at least 12 characters (matches registerSchema)');

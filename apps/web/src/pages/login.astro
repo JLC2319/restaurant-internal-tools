@@ -27,5 +27,10 @@ const suspended = Astro.url.searchParams.get('suspended') === '1';
     <div class="rounded-lg border border-salt-300 bg-white p-6 shadow-sm">
       <LoginForm client:load next={next} />
     </div>
+
+    <p class="mt-4 text-center text-sm text-salt-600">
+      New here?
+      <a href="/signup" class="font-medium text-ember-600 hover:text-ember-700">Create an account</a>
+    </p>
   </div>
 </BaseLayout>

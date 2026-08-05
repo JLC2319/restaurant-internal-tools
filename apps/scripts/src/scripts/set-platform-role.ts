@@ -2,8 +2,8 @@
  * Grants or removes platform staff access. `superAdmin` bypasses tenant role
  * checks everywhere, so this is us, never a customer.
  *
- *   pnpm -F @rit/scripts set-platform-role -- someone@example.com superAdmin
- *   pnpm -F @rit/scripts set-platform-role -- someone@example.com user
+ *   pnpm -F @rit/scripts set-platform-role someone@example.com superAdmin
+ *   pnpm -F @rit/scripts set-platform-role someone@example.com user
  */
 import { platformRoleValues } from '@rit/shared';
 import type { PlatformRole } from '@rit/shared';
@@ -14,7 +14,7 @@ const [email, role] = process.argv.slice(2);
 
 await run(async () => {
   if (!email || !role) {
-    throw new Error(`Usage: set-platform-role -- <email> <${platformRoleValues.join('|')}>`);
+    throw new Error(`Usage: set-platform-role <email> <${platformRoleValues.join('|')}>`);
   }
   if (!platformRoleValues.includes(role as PlatformRole)) {
     throw new Error(`Unknown role '${role}'. Expected one of: ${platformRoleValues.join(', ')}`);
