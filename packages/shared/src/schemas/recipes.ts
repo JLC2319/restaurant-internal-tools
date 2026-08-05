@@ -119,6 +119,15 @@ export const approveAllergensSchema = z.object({
 export const listRecipesQuerySchema = paginationSchema.extend({
   q: z.string().trim().max(120).optional(),
   status: z.enum(recipeStatusValues).default('active'),
+  /**
+   * `live=true` returns only lineages with an active version — the reader's
+   * view. Arrives as a query-string literal, hence the enum rather than a
+   * boolean (z.coerce.boolean would read "false" as true).
+   */
+  live: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((v) => v === 'true'),
 });
 
 export type QuantityInput = z.infer<typeof quantitySchema>;

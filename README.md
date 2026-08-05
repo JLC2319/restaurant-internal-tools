@@ -1,14 +1,13 @@
 # Restaurant Internal Tools
 
-Back-of-house tooling for a ~57-location restaurant group: structured recipes,
-training content, LLM-assisted EN→ES translation behind a human review gate,
-and allergen lookup. Replaces the isolated legacy tool and the spreadsheets
-around it.
+Back-of-house tooling for a ~57-location restaurant group: structured recipes
+with human-verified allergen tags, training content, and LLM-assisted EN→ES
+translation behind a human review gate. Replaces the isolated legacy tool and
+the spreadsheets around it.
 
 **Status: scaffold.** Workspaces, configuration, authentication, multi-tenancy
-and error handling are implemented. The Phase 1 features are empty folders with
-a README each describing what to build. See
-[AGENTS.md](AGENTS.md) for the full reference.
+and error handling are implemented, along with the Phase 1 features listed
+under "What is built" below. See [AGENTS.md](AGENTS.md) for the full reference.
 
 ## Stack
 
@@ -86,12 +85,9 @@ pnpm -F @rit/scripts verify-email <email>                   # flip emailVerified
 
 ## What is not
 
-The remaining Phase 1 features. Each has a folder under
-`apps/api/src/features/` with a README covering the files to create, the design
-decisions to settle, and the invariants to preserve:
-
-`allergens` · `rdBank` · `lineChecks` (Phase 2) — plus video
-transcoding in `media`
+Configurable line checks (`features/lineChecks`, Phase 2 — its README covers
+the files to create and the invariants to preserve) and video transcoding in
+`media`.
 
 Also unbuilt: email sending (so invites only work for users who already have an
 account), offline capture, and any external integration (Toast, Craftable,

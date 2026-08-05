@@ -1,7 +1,7 @@
 # `recipes`
 
-The spine of the product — allergens, translations, rdBank and training all
-read from this model. Mounted in `app.ts` as `/api/recipes`.
+The spine of the product — translations, drafting and training all read from
+this model. Mounted in `app.ts` as `/api/recipes`.
 
 ## Shape
 

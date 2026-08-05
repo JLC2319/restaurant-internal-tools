@@ -61,11 +61,6 @@ app.use('/api/translations', translationRouter);
 // AI recipe drafting from photos — multipart, parses its own bodies.
 app.use('/api/drafts', draftRouter);
 
-// Phase 1 feature routers mount here as they are built. Each one goes behind
-// `authenticate` + `resolveTenant` — see apps/api/src/features/*/README.md.
-//   app.use('/api/allergens', allergenRouter);
-//   app.use('/api/rd-bank', rdBankRouter);
-
 // Error handling (must be last).
 app.use(notFound);
 app.use(errorHandler);

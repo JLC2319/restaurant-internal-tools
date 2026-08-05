@@ -128,10 +128,10 @@ export type ContentOrigin = (typeof contentOriginValues)[number];
  * Allergen tags. The first nine are the FDA major allergens; the rest are
  * common enough in back-of-house allergen sheets to be worth structuring.
  *
- * SAFETY: this list is exclusion-based. The allergen lookup answers "which
- * dishes must this guest avoid", so an *absent* tag is a claim of safety.
- * Never let a tag be set by anything but a human sign-off — see
- * `ApprovalStatus` and the liability notes in AGENTS.md.
+ * SAFETY: staff read these tags to answer "which dishes must this guest
+ * avoid", so an *absent* tag is a claim of safety. Never let a tag be set by
+ * anything but a human sign-off — see `ApprovalStatus` and the liability
+ * notes in AGENTS.md.
  */
 export const allergenValues = [
   'milk',

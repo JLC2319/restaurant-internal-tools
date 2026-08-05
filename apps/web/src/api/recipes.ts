@@ -29,6 +29,8 @@ export interface ListRecipesParams {
   page?: number
   limit?: number
   status?: RecipeStatus
+  /** Only lineages with a live version — the reader's shelf. */
+  live?: boolean
 }
 
 export function listRecipes(
@@ -39,6 +41,7 @@ export function listRecipes(
   if (params.page) query.set('page', String(params.page))
   if (params.limit) query.set('limit', String(params.limit))
   if (params.status) query.set('status', params.status)
+  if (params.live) query.set('live', 'true')
   const qs = query.toString()
   return apiRequest<PaginatedResponse<RecipeSummary>>(`/api/recipes${qs ? `?${qs}` : ''}`)
 }

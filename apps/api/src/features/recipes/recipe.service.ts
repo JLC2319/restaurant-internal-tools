@@ -456,7 +456,10 @@ export async function listRecipes(
     // Readers never see archived lineages or unpublished work-in-progress.
     status: reader ? 'active' : query.status,
   };
-  if (reader) filter.activeVersionId = { $ne: null };
+  // Readers are always restricted to live lineages; any caller may narrow to
+  // them explicitly (the reader browser does, so chefs browsing it never see
+  // unpublished work either).
+  if (reader || query.live) filter.activeVersionId = { $ne: null };
   if (query.q) filter.name = { $regex: escapeRegex(query.q), $options: 'i' };
 
   const skip = (query.page - 1) * query.limit;

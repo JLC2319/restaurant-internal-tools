@@ -367,8 +367,6 @@ relevant one before starting.
 | Recipe data model | `features/recipes` | **Done** — everything else reads from it |
 | LLM EN→ES translation + review gate | `features/translations` | **Done** — machine output lands `pending_review`; chef edits/approves; activating a different version (or renaming) makes approved text stale and staff-invisible; reader's Español toggle renders approved+current only |
 | AI recipe drafting | `features/drafting` | **Done** — photos → structured proposals (review-first; nothing persists until a chef creates each as an ordinary unpublished draft). Tags transcribed only, never inferred |
-| Allergen lookup | `features/allergens` | Exclusion-based; highest liability |
-| R&D recipe bank | `features/rdBank` | |
 | Training modules | `features/training` | **Done** — blocks + publish gate + completions; translation gate pending |
 | Media storage | `features/media` | **Photos & streamed video done**; transcoding still open |
 | Reader app | web only | **Done** — `/reader` browses live recipes + published training; detail views render only the live/published snapshot, even for chefs |
@@ -412,12 +410,11 @@ convenience everywhere:
    `PUBLISHABLE_STATUS` in `@rit/shared` encode this. `approved` is the only
    readable state. Record who approved and when. Editing a source document must
    knock its approved translations back to `pending_review`.
-2. **An absent allergen tag is not a claim of safety.** The lookup is
-   exclusion-based: it answers "what must this guest avoid". Untagged or
-   unreviewed dishes must never appear in a "safe" result. Allergens propagate
-   upward through sub-recipes — a dish is only as safe as its deepest component.
-   The LLM may translate an allergen *label*; it must never decide which tags
-   apply.
+2. **An absent allergen tag is not a claim of safety.** Only `approved` tags
+   reach staff; an untagged or unreviewed dish must never read as safe.
+   Allergens propagate upward through sub-recipes — a dish is only as safe as
+   its deepest component. The LLM may translate an allergen *label*; it must
+   never decide which tags apply.
 
 Standard security notes:
 
