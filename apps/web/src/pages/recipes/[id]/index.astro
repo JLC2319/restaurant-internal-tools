@@ -1,0 +1,15 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import { ScopeSwitcher } from '../../../components/ScopeSwitcher';
+import { RecipeDetail } from '../../../components/RecipeDetail';
+
+// On-demand only: recipe ids are runtime data, not a build-time route list.
+export const prerender = false;
+
+const { id } = Astro.params;
+---
+
+<BaseLayout title="Recipe">
+  <ScopeSwitcher client:load slot="header-actions" />
+  <RecipeDetail client:load recipeId={id!} />
+</BaseLayout>

@@ -3,6 +3,7 @@ import type { SubmitEvent } from 'react'
 import type { MembershipSummary } from '@rit/shared'
 import { login } from '../api/auth'
 import { setScope, setToken } from '../api/client'
+import { ErrorNote, inputClass, primaryButtonClass } from './ui'
 
 /**
  * Picks the scope to land in after login. The broadest membership wins — an
@@ -56,17 +57,10 @@ export function LoginForm({ next = '/' }: { next?: string }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {error && (
-        <p
-          role="alert"
-          className="rounded-md border border-chili-200 bg-chili-50 px-3 py-2 text-sm text-chili-700"
-        >
-          {error}
-        </p>
-      )}
+      {error && <ErrorNote>{error}</ErrorNote>}
 
       <div>
-        <label htmlFor="email" className="mb-1 block text-sm font-medium text-steel-700">
+        <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-steel-700">
           Email
         </label>
         <input
@@ -76,12 +70,12 @@ export function LoginForm({ next = '/' }: { next?: string }) {
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="min-h-touch w-full rounded-md border border-salt-300 bg-white px-3 py-2 text-steel-900 outline-none focus:border-ember-500 focus:ring-2 focus:ring-ember-200"
+          className={inputClass}
         />
       </div>
 
       <div>
-        <label htmlFor="password" className="mb-1 block text-sm font-medium text-steel-700">
+        <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-steel-700">
           Password
         </label>
         <input
@@ -91,15 +85,11 @@ export function LoginForm({ next = '/' }: { next?: string }) {
           required
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="min-h-touch w-full rounded-md border border-salt-300 bg-white px-3 py-2 text-steel-900 outline-none focus:border-ember-500 focus:ring-2 focus:ring-ember-200"
+          className={inputClass}
         />
       </div>
 
-      <button
-        type="submit"
-        disabled={submitting}
-        className="min-h-touch w-full rounded-md bg-ember-500 px-4 py-2 font-semibold text-white transition-colors hover:bg-ember-600 disabled:cursor-not-allowed disabled:opacity-60"
-      >
+      <button type="submit" disabled={submitting} className={`${primaryButtonClass} w-full`}>
         {submitting ? 'Signing in…' : 'Sign in'}
       </button>
     </form>

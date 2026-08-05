@@ -32,6 +32,8 @@ const userSchema = new Schema<IUser>(
     platformRole: { type: String, enum: platformRoleValues, default: 'user' },
     status: { type: String, enum: userStatusValues, default: 'active' },
     preferredLocale: { type: String, enum: localeValues, default: 'en' },
+    phone: { type: String, trim: true, maxlength: 40, default: null },
+    jobTitle: { type: String, trim: true, maxlength: 80, default: null },
     lastLoginAt: { type: Date },
   },
   { timestamps: { createdAt: 'createdAt', updatedAt: 'modifiedAt' } }

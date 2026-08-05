@@ -1,0 +1,35 @@
+---
+import AdminLayout from '../layouts/AdminLayout.astro';
+import { AdminLoginForm } from '../components/AdminLoginForm';
+import { siteName, siteTagline } from '../assets/site-content/site-info';
+
+// Only ever read on the client — the page itself is a static shell.
+const next = Astro.url.searchParams.get('next') ?? '/';
+const suspended = Astro.url.searchParams.get('suspended') === '1';
+---
+
+<AdminLayout title="Sign in" requireAuth={false}>
+  <div class="mx-auto w-full max-w-md py-8 tablet:py-16">
+    <h1 class="text-2xl font-semibold text-steel-900">{siteName}</h1>
+    <p class="mt-1 mb-6 text-sm text-salt-600">{siteTagline}</p>
+
+    {
+      suspended && (
+        <p
+          role="alert"
+          class="mb-4 rounded-md border border-chili-200 bg-chili-50 px-3 py-2 text-sm text-chili-700"
+        >
+          Your account has been suspended.
+        </p>
+      )
+    }
+
+    <div class="rounded-lg border border-salt-300 bg-white p-6 shadow-sm">
+      <AdminLoginForm client:load next={next} />
+    </div>
+
+    <p class="mt-4 text-center text-xs text-salt-500">
+      Staff accounts only. Customer sign-in lives in the main app.
+    </p>
+  </div>
+</AdminLayout>

@@ -2,6 +2,16 @@ import { z } from 'zod';
 import { objectIdSchema, slugSchema } from './common.js';
 import { localeValues, tenantRoleValues, tenantStatusValues } from '../types/domain.js';
 
+/** A postal address. Shared by locations and the org profile. */
+export const addressSchema = z.object({
+  line1: z.string().trim().max(160).optional(),
+  line2: z.string().trim().max(160).optional(),
+  city: z.string().trim().max(80).optional(),
+  region: z.string().trim().max(80).optional(),
+  postalCode: z.string().trim().max(20).optional(),
+  country: z.string().trim().max(2).optional(),
+});
+
 // ── Organization ──────────────────────────────────────────────────────────────
 
 export const createOrganizationSchema = z.object({
@@ -11,11 +21,25 @@ export const createOrganizationSchema = z.object({
   locales: z.array(z.enum(localeValues)).default(['en', 'es']),
 });
 
+/**
+ * Public-facing org contact details. All clearable with `null`; clients
+ * normalise empty inputs to `null` before sending, so `''` never validates.
+ */
+export const orgContactSchema = z.object({
+  phone: z.string().trim().min(1).max(40).nullable().optional(),
+  email: z.email('Enter a valid email address').toLowerCase().trim().nullable().optional(),
+  website: z.url('Enter a valid URL (including https://)').max(200).nullable().optional(),
+});
+
 export const updateOrganizationSchema = z
   .object({
     name: z.string().trim().min(2).max(120).optional(),
     locales: z.array(z.enum(localeValues)).optional(),
     status: z.enum(tenantStatusValues).optional(),
+    /** `null` clears the logo; the id must be an org-owned photo asset. */
+    logoMediaId: objectIdSchema.nullable().optional(),
+    address: addressSchema.nullable().optional(),
+    contact: orgContactSchema.optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: 'No changes supplied' });
 
@@ -34,15 +58,6 @@ export const updatePropertySchema = z
   .refine((v) => Object.keys(v).length > 0, { message: 'No changes supplied' });
 
 // ── Location ──────────────────────────────────────────────────────────────────
-
-export const addressSchema = z.object({
-  line1: z.string().trim().max(160).optional(),
-  line2: z.string().trim().max(160).optional(),
-  city: z.string().trim().max(80).optional(),
-  region: z.string().trim().max(80).optional(),
-  postalCode: z.string().trim().max(20).optional(),
-  country: z.string().trim().max(2).optional(),
-});
 
 export const createLocationSchema = z.object({
   propertyId: objectIdSchema,
@@ -93,5 +108,6 @@ export type UpdatePropertyInput = z.infer<typeof updatePropertySchema>;
 export type CreateLocationInput = z.infer<typeof createLocationSchema>;
 export type UpdateLocationInput = z.infer<typeof updateLocationSchema>;
 export type AddressInput = z.infer<typeof addressSchema>;
+export type OrgContactInput = z.infer<typeof orgContactSchema>;
 export type InviteMemberInput = z.infer<typeof inviteMemberSchema>;
 export type UpdateMembershipInput = z.infer<typeof updateMembershipSchema>;

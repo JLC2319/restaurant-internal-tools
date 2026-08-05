@@ -1,0 +1,23 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { ScopeSwitcher } from '../components/ScopeSwitcher';
+import { OrgSettings } from '../components/OrgSettings';
+import { OrgMembers } from '../components/OrgMembers';
+---
+
+<BaseLayout title="Organization">
+  <ScopeSwitcher client:load slot="header-actions" />
+
+  <header class="max-w-2xl">
+    <p class="text-xs font-semibold tracking-widest text-ember-600 uppercase">Organization</p>
+    <h1 class="mt-2 text-3xl font-bold tracking-tight text-steel-900">Organization settings</h1>
+    <p class="mt-2 text-sm text-salt-600">
+      Company details, branding and membership. What you can change depends on your role.
+    </p>
+  </header>
+
+  <div class="mt-6 max-w-3xl space-y-5 tablet:mt-8">
+    <OrgSettings client:load />
+    <OrgMembers client:load />
+  </div>
+</BaseLayout>

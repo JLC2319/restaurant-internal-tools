@@ -9,7 +9,7 @@ import mongoose from 'mongoose';
  */
 function loadEnv(): void {
   dotenv.config();
-  if (!process.env.MONGO_CONNECTION_STRING) {
+  if (!process.env.MONGODB_URI) {
     const apiEnv = resolve(import.meta.dirname, '../../../api/.env');
     if (existsSync(apiEnv)) dotenv.config({ path: apiEnv });
   }
@@ -17,9 +17,9 @@ function loadEnv(): void {
 
 export async function connect(): Promise<void> {
   loadEnv();
-  const uri = process.env.MONGO_CONNECTION_STRING;
+  const uri = process.env.MONGODB_URI;
   if (!uri) {
-    throw new Error('MONGO_CONNECTION_STRING is not set (checked .env and apps/api/.env)');
+    throw new Error('MONGODB_URI is not set (checked .env and apps/api/.env)');
   }
   await mongoose.connect(uri);
 }

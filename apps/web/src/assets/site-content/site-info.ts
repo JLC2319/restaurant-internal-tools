@@ -11,6 +11,5 @@ export const siteTagline = 'Recipes, training and prep for the whole group'
 export const navLinks = [
   { label: 'Recipes', href: '/recipes' },
   { label: 'Training', href: '/training' },
-  { label: 'Allergens', href: '/allergens' },
-  { label: 'R&D Bank', href: '/rd-bank' },
+  { label: 'Reader', href: '/reader' },
 ] as const

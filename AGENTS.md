@@ -16,6 +16,7 @@ reservation systems already in place.
 |---|---|
 | API | http://localhost:8888 |
 | Web | http://localhost:4321 |
+| Admin | http://localhost:4322 |
 
 **This repository is currently a scaffold.** Sections 2–8 describe code that
 exists. Section 9 describes the features that do not — do not assume any of it
@@ -27,6 +28,7 @@ is implemented.
 
 ```
 apps/
+  admin/        @rit/admin    — Astro + React platform console (superAdmin only, port 4322)
   api/          @rit/api      — Express REST API
   scripts/      @rit/scripts  — Database scripts (tsx, no build step)
   web/          @rit/web      — Astro + React frontend
@@ -52,7 +54,7 @@ packages/
 | Database | MongoDB via Mongoose 9 |
 | Validation | Zod 4 via `validate()` / `validateQuery()` middleware |
 | Auth | JWT (`jsonwebtoken`), bcrypt (`bcryptjs`, 12 rounds) |
-| File upload | Multer (memory storage → Cloudflare R2) |
+| File upload | Multer → Cloudflare R2 (photos buffer in memory; videos stream — see `media/videoStorage.ts`) |
 | Security | helmet, cors, express-rate-limit |
 | Logging | Morgan (`combined` in prod, `dev` in development) |
 
@@ -153,6 +155,22 @@ the caller's memberships and sets `req.tenant: TenantContext`. Rules it enforces
 
 `owner > admin > director > manager > chef > staff`, ranked by `roleRank` in
 `@rit/shared`. Compare with `roleAtLeast`, never by string equality.
+
+### Platform routes (`/api/platform`)
+
+The one router that deliberately sees every tenant. It serves the platform
+console (`apps/admin`) and sits behind `authenticate` + `requireSuperAdmin`
+instead of `resolveTenant` — no scope headers, no `scopeReadFilter`. Rules:
+
+- A non-superAdmin caller gets **404, not 403** — the console's routes are
+  invisible to customers, same existence-hiding rule as everywhere else.
+- `requireSuperAdmin` reads the role from the database on every request, so
+  revoking a superAdmin takes effect immediately, not at token expiry.
+- A superAdmin cannot suspend or demote **their own** account (409) — any
+  removal is done by another superAdmin, so one always remains.
+- Platform org creation names the owner by email; the account must already
+  exist (no email sending yet), and it reuses `tenancy.createOrganization` so
+  the org-always-has-an-owner invariant holds.
 
 Invariants already enforced in `tenancy.service.ts`, worth preserving:
 
@@ -308,7 +326,7 @@ wearing gloves and moving fast.
 
 | Variable | Required | Default | Notes |
 |---|---|---|---|
-| `MONGO_CONNECTION_STRING` | ✅ | — | MongoDB URI |
+| `MONGODB_URI` | ✅ | — | MongoDB URI |
 | `JWT_SECRET` | ✅ | — | High-entropy random string |
 | `JWT_EXPIRES_IN` | | `7d` | Token lifetime |
 | `PORT` | | `8888` | Listen port |
@@ -316,9 +334,10 @@ wearing gloves and moving fast.
 | `CORS_ORIGIN` | | (empty) | Comma-separated allowed origins in production |
 | `TRUST_PROXY` | | `1` | Reverse-proxy hops. Drives `req.ip`, which every rate limiter keys on. Never `true` — clients could then forge `X-Forwarded-For` and pick their own bucket. |
 | `WEB_URL` | | `http://localhost:4321` | Used for links in outbound mail |
-| `ANTHROPIC_API_KEY` | | (empty) | Enables machine translation. Feature is off when unset. |
-| `LLM_MODEL` | | `claude-sonnet-5` | Model for translation |
-| `TRANSLATION_ENABLED` | | `true` | Set `false` to disable without removing the key |
+| `ANTHROPIC_API_KEY` | | (empty) | Enables the LLM features (translation, recipe drafting). All off when unset. |
+| `LLM_MODEL` | | `claude-sonnet-5` | Model for every LLM call |
+| `TRANSLATION_ENABLED` | | `true` | Set `false` to disable machine translation without removing the key |
+| `AI_DRAFTING_ENABLED` | | `true` | Set `false` to disable AI recipe drafting without removing the key |
 | `CLOUDFLARE_ACCOUNT_ID`, `R2_*` | | (empty) | Media storage |
 
 ### Web (`apps/web/.env`)
@@ -326,6 +345,12 @@ wearing gloves and moving fast.
 | Variable | Default | Notes |
 |---|---|---|
 | `PUBLIC_API_BASE_URL` | `http://localhost:8888` | Must start with `PUBLIC_` |
+
+### Admin (`apps/admin/.env`)
+
+| Variable | Default | Notes |
+|---|---|---|
+| `PUBLIC_API_BASE_URL` | `http://localhost:8888` | Same API as the customer app |
 
 ---
 
@@ -339,13 +364,12 @@ relevant one before starting.
 
 | Feature | Folder | Note |
 |---|---|---|
-| Recipe data model | `features/recipes` | Build first; everything else reads from it |
-| LLM EN→ES translation + review gate | `features/translations` | Demo centrepiece |
-| Allergen lookup | `features/allergens` | Exclusion-based; highest liability |
-| R&D recipe bank | `features/rdBank` | |
-| Training modules | `features/training` | |
-| Media storage | `features/media` | Plating photos, training video |
-| Reader app | web only | iPad-first, approved content only |
+| Recipe data model | `features/recipes` | **Done** — everything else reads from it |
+| LLM EN→ES translation + review gate | `features/translations` | **Done** — machine output lands `pending_review`; chef edits/approves; activating a different version (or renaming) makes approved text stale and staff-invisible; reader's Español toggle renders approved+current only |
+| AI recipe drafting | `features/drafting` | **Done** — photos → structured proposals (review-first; nothing persists until a chef creates each as an ordinary unpublished draft). Tags transcribed only, never inferred |
+| Training modules | `features/training` | **Done** — blocks + publish gate + completions; translation gate pending |
+| Media storage | `features/media` | **Photos & streamed video done**; transcoding still open |
+| Reader app | web only | **Done** — `/reader` browses live recipes + published training; detail views render only the live/published snapshot, even for chefs |
 
 ### Phase 2 (post-commitment)
 
@@ -386,12 +410,11 @@ convenience everywhere:
    `PUBLISHABLE_STATUS` in `@rit/shared` encode this. `approved` is the only
    readable state. Record who approved and when. Editing a source document must
    knock its approved translations back to `pending_review`.
-2. **An absent allergen tag is not a claim of safety.** The lookup is
-   exclusion-based: it answers "what must this guest avoid". Untagged or
-   unreviewed dishes must never appear in a "safe" result. Allergens propagate
-   upward through sub-recipes — a dish is only as safe as its deepest component.
-   The LLM may translate an allergen *label*; it must never decide which tags
-   apply.
+2. **An absent allergen tag is not a claim of safety.** Only `approved` tags
+   reach staff; an untagged or unreviewed dish must never read as safe.
+   Allergens propagate upward through sub-recipes — a dish is only as safe as
+   its deepest component. The LLM may translate an allergen *label*; it must
+   never decide which tags apply.
 
 Standard security notes:
 
@@ -399,7 +422,10 @@ Standard security notes:
   when the account does not exist, so a missing account and a wrong password
   take the same time to answer.
 - Upload filenames derive from the server-validated MIME type, never the
-  client's filename.
+  client's filename. `sniffImage` (`lib/imageMeta.ts`) parses the file's own
+  header and is the only thing that decides an upload's type — an unparseable
+  file is a 415. Route new upload kinds through it rather than trusting
+  `file.mimetype`.
 - Rate limiters key on `req.ip`, so `TRUST_PROXY` must match the deployment.
 - `errorHandler` never returns a stack trace.
 

@@ -1,0 +1,21 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { ScopeSwitcher } from '../components/ScopeSwitcher';
+import { ProfileSettings } from '../components/ProfileSettings';
+---
+
+<BaseLayout title="Your profile">
+  <ScopeSwitcher client:load slot="header-actions" />
+
+  <header class="max-w-2xl">
+    <p class="text-xs font-semibold tracking-widest text-ember-600 uppercase">Account</p>
+    <h1 class="mt-2 text-3xl font-bold tracking-tight text-steel-900">Your profile</h1>
+    <p class="mt-2 text-sm text-salt-600">
+      Your details, language, password and everywhere you have access.
+    </p>
+  </header>
+
+  <div class="mt-6 max-w-3xl tablet:mt-8">
+    <ProfileSettings client:load />
+  </div>
+</BaseLayout>

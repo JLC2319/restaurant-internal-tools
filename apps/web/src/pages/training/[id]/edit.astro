@@ -1,0 +1,15 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import { ScopeSwitcher } from '../../../components/ScopeSwitcher';
+import { TrainingEditor } from '../../../components/TrainingEditor';
+
+// On-demand only: training ids are runtime data, not a build-time route list.
+export const prerender = false;
+
+const { id } = Astro.params;
+---
+
+<BaseLayout title="Edit training">
+  <ScopeSwitcher client:load slot="header-actions" />
+  <TrainingEditor client:load trainingId={id!} />
+</BaseLayout>

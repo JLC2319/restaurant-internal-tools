@@ -1,0 +1,21 @@
+---
+import { siteName } from '../assets/site-content/site-info';
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const { title, description } = Astro.props;
+const pageTitle = title ? `${title} — ${siteName}` : siteName;
+---
+
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>{pageTitle}</title>
+{description && <meta name="description" content={description} />}
+
+<!-- Staff console: nothing here should ever be indexed. -->
+<meta name="robots" content="noindex, nofollow" />
+
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />

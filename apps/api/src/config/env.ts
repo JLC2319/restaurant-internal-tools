@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-const requiredEnvVars = ['MONGO_CONNECTION_STRING', 'JWT_SECRET'] as const;
+const requiredEnvVars = ['MONGODB_URI', 'JWT_SECRET'] as const;
 
 for (const key of requiredEnvVars) {
   if (!process.env[key]) {
@@ -43,7 +43,7 @@ export function parseTrustProxy(raw: string | undefined): boolean | number | str
 
 export const env = {
   port: process.env.PORT ?? '8888',
-  mongoUri: process.env.MONGO_CONNECTION_STRING as string,
+  mongoUri: process.env.MONGODB_URI as string,
   jwtSecret: process.env.JWT_SECRET as string,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '7d',
   nodeEnv: process.env.NODE_ENV ?? 'development',
@@ -54,13 +54,16 @@ export const env = {
     .filter(Boolean),
   webUrl: (process.env.WEB_URL ?? 'http://localhost:4321').replace(/\/$/, ''),
 
-  // Anthropic — LLM translation of recipes and training content. The feature is
-  // on whenever a key is present; TRANSLATION_ENABLED=false force-disables it
-  // without having to pull the key out of the deployment.
+  // Anthropic — LLM features (recipe translation, recipe drafting from
+  // photos). Each feature is on whenever a key is present; its own
+  // *_ENABLED=false flag force-disables it without pulling the key out of the
+  // deployment, so one misbehaving feature can be switched off alone.
   anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? '',
   llmModel: process.env.LLM_MODEL ?? 'claude-sonnet-5',
   translationEnabled:
     Boolean(process.env.ANTHROPIC_API_KEY) && process.env.TRANSLATION_ENABLED !== 'false',
+  aiDraftingEnabled:
+    Boolean(process.env.ANTHROPIC_API_KEY) && process.env.AI_DRAFTING_ENABLED !== 'false',
 
   // Cloudflare R2 — plating photos and training media.
   r2AccountId: process.env.CLOUDFLARE_ACCOUNT_ID ?? '',

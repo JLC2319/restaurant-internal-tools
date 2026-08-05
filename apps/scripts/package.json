@@ -8,6 +8,8 @@
     "exec": "tsx --tsconfig tsconfig.json",
     "stats": "tsx --tsconfig tsconfig.json src/scripts/stats.ts",
     "seed-demo-tenant": "tsx --tsconfig tsconfig.json src/scripts/seed-demo-tenant.ts",
+    "create-user": "tsx --tsconfig tsconfig.json src/scripts/create-user.ts",
+    "verify-email": "tsx --tsconfig tsconfig.json src/scripts/verify-email.ts",
     "set-platform-role": "tsx --tsconfig tsconfig.json src/scripts/set-platform-role.ts"
   },
   "dependencies": {

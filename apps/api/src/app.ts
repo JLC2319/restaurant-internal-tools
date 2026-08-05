@@ -8,6 +8,12 @@ import { notFound } from './middleware/notFound';
 import { errorHandler } from './middleware/errorHandler';
 import { authRouter } from './features/auth/auth.router';
 import { tenancyRouter } from './features/tenancy/tenancy.router';
+import { platformRouter } from './features/platform/platform.router';
+import { recipeRouter } from './features/recipes/recipe.router';
+import { mediaRouter } from './features/media/media.router';
+import { trainingRouter } from './features/training/trainingModule.router';
+import { translationRouter } from './features/translations/translation.router';
+import { draftRouter } from './features/drafting/draft.router';
 
 const app = express();
 
@@ -42,15 +48,18 @@ app.get('/health', (_req, res) => {
 // ── Feature routes ────────────────────────────────────────────────────────────
 app.use('/api/auth', authRouter);
 app.use('/api/tenancy', tenancyRouter);
+// superAdmin-only console routes (apps/admin). No resolveTenant — cross-tenant.
+app.use('/api/platform', platformRouter);
 
-// Phase 1 feature routers mount here as they are built. Each one goes behind
-// `authenticate` + `resolveTenant` — see apps/api/src/features/*/README.md.
-//   app.use('/api/recipes', recipeRouter);
-//   app.use('/api/training', trainingRouter);
-//   app.use('/api/translations', translationRouter);
-//   app.use('/api/allergens', allergenRouter);
-//   app.use('/api/rd-bank', rdBankRouter);
-//   app.use('/api/media', mediaRouter);
+app.use('/api/recipes', recipeRouter);
+// Uploads are multipart, so this router parses its own bodies — the global
+// express.json() above never sees them.
+app.use('/api/media', mediaRouter);
+app.use('/api/training', trainingRouter);
+// LLM translation with the human review gate (see features/translations).
+app.use('/api/translations', translationRouter);
+// AI recipe drafting from photos — multipart, parses its own bodies.
+app.use('/api/drafts', draftRouter);
 
 // Error handling (must be last).
 app.use(notFound);

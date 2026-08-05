@@ -1,0 +1,28 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { ScopeSwitcher } from '../../components/ScopeSwitcher';
+import { RecipeDraft } from '../../components/RecipeDraft';
+---
+
+<BaseLayout title="Draft from photos">
+  <ScopeSwitcher client:load slot="header-actions" />
+
+  <header class="max-w-2xl">
+    <a
+      href="/recipes"
+      class="inline-flex items-center gap-1.5 text-sm font-semibold text-salt-600 transition-colors hover:text-steel-900"
+    >
+      ← Recipes
+    </a>
+    <p class="mt-3 text-xs font-semibold tracking-widest text-ember-600 uppercase">AI drafting</p>
+    <h1 class="mt-2 text-3xl font-bold tracking-tight text-steel-900">Draft recipes from photos</h1>
+    <p class="mt-2 text-sm text-salt-600">
+      Photograph recipe cards, binder pages or spec sheets and get structured drafts back. You
+      review every proposal before anything is created.
+    </p>
+  </header>
+
+  <div class="mt-6 tablet:mt-8">
+    <RecipeDraft client:load />
+  </div>
+</BaseLayout>

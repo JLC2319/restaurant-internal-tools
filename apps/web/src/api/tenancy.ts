@@ -3,15 +3,63 @@ import type {
   CreateLocationInput,
   CreateOrganizationInput,
   CreatePropertyInput,
+  InviteMemberInput,
   LocationSummary,
+  OrganizationProfile,
   OrganizationSummary,
+  OrgMemberRow,
+  PaginatedResponse,
   PropertySummary,
   TenantTree,
+  UpdateMembershipInput,
+  UpdateOrganizationInput,
 } from '@rit/shared'
-import { apiRequest } from './client'
+import { apiRequest, getScope } from './client'
 
-export function getOrganization(): Promise<ApiResult<OrganizationSummary>> {
-  return apiRequest<OrganizationSummary>('/api/tenancy/organization')
+/** Cache-key fragment for queries that change with the active scope. */
+export function tenancyScopeKey(): string[] {
+  const scope = getScope()
+  return [scope?.orgId ?? '', scope?.propertyId ?? '', scope?.locationId ?? '']
+}
+
+export function getOrganization(): Promise<ApiResult<OrganizationProfile>> {
+  return apiRequest<OrganizationProfile>('/api/tenancy/organization')
+}
+
+export function updateOrganization(
+  input: UpdateOrganizationInput
+): Promise<ApiResult<OrganizationProfile>> {
+  return apiRequest<OrganizationProfile>('/api/tenancy/organization', {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  })
+}
+
+export function listMembers(page = 1): Promise<ApiResult<PaginatedResponse<OrgMemberRow>>> {
+  return apiRequest<PaginatedResponse<OrgMemberRow>>(`/api/tenancy/members?page=${page}`)
+}
+
+export function inviteMember(
+  input: InviteMemberInput
+): Promise<ApiResult<{ membershipId: string; userExists: boolean }>> {
+  return apiRequest<{ membershipId: string; userExists: boolean }>('/api/tenancy/members', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+}
+
+export function updateMembership(
+  membershipId: string,
+  input: UpdateMembershipInput
+): Promise<ApiResult<null>> {
+  return apiRequest<null>(`/api/tenancy/members/${membershipId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  })
+}
+
+export function revokeMembership(membershipId: string): Promise<ApiResult<null>> {
+  return apiRequest<null>(`/api/tenancy/members/${membershipId}`, { method: 'DELETE' })
 }
 
 /** The org → property → location tree, narrowed to what the caller may see. */

@@ -96,6 +96,14 @@ export type Locale = (typeof localeValues)[number];
 /** The locale content is authored in. Never machine-translated. */
 export const SOURCE_LOCALE: Locale = 'en';
 
+/**
+ * Locales a document may be machine-translated *into* — every locale except
+ * the authoring one. Kept as its own const array so request schemas can say
+ * "a translation target" without re-deriving it.
+ */
+export const targetLocaleValues = ['es'] as const;
+export type TargetLocale = (typeof targetLocaleValues)[number];
+
 // ── Review / approval gate ────────────────────────────────────────────────────
 
 /**
@@ -120,10 +128,10 @@ export type ContentOrigin = (typeof contentOriginValues)[number];
  * Allergen tags. The first nine are the FDA major allergens; the rest are
  * common enough in back-of-house allergen sheets to be worth structuring.
  *
- * SAFETY: this list is exclusion-based. The allergen lookup answers "which
- * dishes must this guest avoid", so an *absent* tag is a claim of safety.
- * Never let a tag be set by anything but a human sign-off — see
- * `ApprovalStatus` and the liability notes in AGENTS.md.
+ * SAFETY: staff read these tags to answer "which dishes must this guest
+ * avoid", so an *absent* tag is a claim of safety. Never let a tag be set by
+ * anything but a human sign-off — see `ApprovalStatus` and the liability
+ * notes in AGENTS.md.
  */
 export const allergenValues = [
   'milk',
@@ -159,6 +167,127 @@ export const dietaryValues = [
   'low_sodium',
 ] as const;
 export type Dietary = (typeof dietaryValues)[number];
+
+// ── Recipes ───────────────────────────────────────────────────────────────────
+
+/**
+ * Lifecycle of a recipe lineage. Archiving is soft — versions and the working
+ * copy survive so history stays browsable — and is reversible. There is no
+ * `suspended`: that concept belongs to tenants, not recipes.
+ */
+export const recipeStatusValues = ['active', 'archived'] as const;
+export type RecipeStatus = (typeof recipeStatusValues)[number];
+
+/**
+ * An ingredient line is either a raw item (free-text name) or a reference to
+ * another recipe — sub-recipes are recipes. A `recipe` line points at the
+ * lineage id, not a specific version; consumers follow that lineage's active
+ * version.
+ */
+export const ingredientKindValues = ['item', 'recipe'] as const;
+export type IngredientKind = (typeof ingredientKindValues)[number];
+
+// ── Media ─────────────────────────────────────────────────────────────────────
+
+/**
+ * What an asset is. Photos are stored as uploaded and are readable the moment
+ * the upload returns; video needs a transcode step it must not block on, which
+ * is what `processing` below exists for.
+ */
+export const mediaKindValues = ['photo', 'video'] as const;
+export type MediaKind = (typeof mediaKindValues)[number];
+
+/**
+ * Delivery readiness. A photo is `ready` on insert. Video lands `processing`
+ * and the reader app renders that state rather than a broken player.
+ */
+export const mediaStatusValues = ['ready', 'processing', 'failed'] as const;
+export type MediaStatus = (typeof mediaStatusValues)[number];
+
+/**
+ * Image formats accepted for plating photos. This is matched against the
+ * *sniffed* bytes of the upload, never the client's `Content-Type` header or
+ * filename — see `sniffImage` in the API. HEIC is deliberately absent: iOS
+ * converts to JPEG on upload from Safari, and decoding it server-side would
+ * mean a native dependency.
+ */
+export const imageMimeValues = ['image/jpeg', 'image/png', 'image/webp'] as const;
+export type ImageMime = (typeof imageMimeValues)[number];
+
+/**
+ * Plating photos per recipe. A generous ceiling for "the dish, plus a couple of
+ * build steps" that still bounds the reader app's payload on kitchen wifi.
+ */
+export const MAX_RECIPE_PHOTOS = 8;
+
+/** Upload ceiling for a single photo, in bytes. Modern phone photos land ~3–6MB. */
+export const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
+
+// ── AI recipe drafting ────────────────────────────────────────────────────────
+
+/**
+ * Photos per AI drafting request — enough for a multi-page recipe document or
+ * a handful of cards in one go.
+ */
+export const MAX_DRAFT_PHOTOS = 8;
+
+/**
+ * Combined byte ceiling for one drafting request's photos. The vision API caps
+ * the whole request at 32MB *after* base64 inflation (~4/3), so raw bytes must
+ * stay comfortably under that.
+ */
+export const MAX_DRAFT_TOTAL_BYTES = 20 * 1024 * 1024;
+
+/**
+ * Video formats accepted for training videos, matched against the *sniffed*
+ * bytes like images — see `sniffVideo` in the API. Only containers every
+ * modern browser can range-stream directly: MP4 and WebM. QuickTime (.mov) is
+ * deliberately rejected even though iPhones record it, because without a
+ * transcode pipeline it plays on Apple devices and nowhere else — a training
+ * that works on the chef's phone and fails on the office desktop.
+ */
+export const videoMimeValues = ['video/mp4', 'video/webm'] as const;
+export type VideoMime = (typeof videoMimeValues)[number];
+
+/**
+ * Upload ceiling for a single training video, in bytes. Phone-shot 1080p runs
+ * ~60–130MB per minute of footage, so this fits a several-minute demo while
+ * still bounding what one request may stream through the API.
+ */
+export const MAX_VIDEO_BYTES = 512 * 1024 * 1024;
+
+// ── Training ──────────────────────────────────────────────────────────────────
+
+/**
+ * Lifecycle of a training module. Unlike recipes there is no version history —
+ * a module is edited in place, and `published` is the whole visibility gate:
+ * staff see published modules only. Unarchiving returns a module to `draft`,
+ * never straight to `published`, so re-publishing is a deliberate act.
+ */
+export const trainingStatusValues = ['draft', 'published', 'archived'] as const;
+export type TrainingStatus = (typeof trainingStatusValues)[number];
+
+/**
+ * The polymorphic content blocks a module is built from (see the training
+ * README: retrofitting video into a text-only schema is a cross-tenant
+ * migration, so the list is polymorphic from the start).
+ *
+ * `text` is rich text in the constrained markdown subset the web app renders;
+ * `image`/`video` reference uploaded Media assets; `embed` is an external
+ * YouTube/Vimeo video, for the training content restaurants already have.
+ */
+export const trainingBlockKindValues = ['text', 'image', 'video', 'embed'] as const;
+export type TrainingBlockKind = (typeof trainingBlockKindValues)[number];
+
+/** Providers an `embed` block may point at — an allow-list, never an open URL. */
+export const videoEmbedProviderValues = ['youtube', 'vimeo'] as const;
+export type VideoEmbedProvider = (typeof videoEmbedProviderValues)[number];
+
+/** Content blocks per module. A training this long should be several modules. */
+export const MAX_TRAINING_BLOCKS = 50;
+
+/** Ceiling for one rich-text block. Roughly a few printed pages. */
+export const MAX_TRAINING_TEXT_CHARS = 20_000;
 
 // ── Measurement ───────────────────────────────────────────────────────────────
 

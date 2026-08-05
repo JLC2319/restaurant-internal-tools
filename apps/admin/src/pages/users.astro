@@ -1,0 +1,11 @@
+---
+import AdminLayout from '../layouts/AdminLayout.astro';
+import { UsersTable } from '../components/UsersTable';
+---
+
+<AdminLayout title="Users">
+  <h1 class="text-2xl font-semibold text-steel-900">Users</h1>
+  <p class="mt-1 mb-6 text-sm text-salt-600">Every account on the platform, across all tenants.</p>
+
+  <UsersTable client:load />
+</AdminLayout>

@@ -29,6 +29,7 @@ export {
   createLocationSchema,
   updateLocationSchema,
   addressSchema,
+  orgContactSchema,
   inviteMemberSchema,
   updateMembershipSchema,
 } from './schemas/tenancy.js';
@@ -40,9 +41,91 @@ export type {
   CreateLocationInput,
   UpdateLocationInput,
   AddressInput,
+  OrgContactInput,
   InviteMemberInput,
   UpdateMembershipInput,
 } from './schemas/tenancy.js';
+
+export {
+  quantitySchema,
+  ingredientLineSchema,
+  recipeContentSchema,
+  createRecipeSchema,
+  updateRecipeSchema,
+  saveVersionSchema,
+  forkRecipeSchema,
+  approveAllergensSchema,
+  listRecipesQuerySchema,
+} from './schemas/recipes.js';
+export type {
+  QuantityInput,
+  IngredientLineInput,
+  RecipeContentInput,
+  CreateRecipeInput,
+  UpdateRecipeInput,
+  SaveVersionInput,
+  ForkRecipeInput,
+  ApproveAllergensInput,
+  ListRecipesQuery,
+} from './schemas/recipes.js';
+
+export {
+  translatedIngredientSchema,
+  translationPayloadSchema,
+  translationLocaleSchema,
+  updateTranslationSchema,
+} from './schemas/translations.js';
+export type {
+  TranslatedIngredientInput,
+  TranslationPayloadInput,
+  TranslationLocaleInput,
+  UpdateTranslationInput,
+} from './schemas/translations.js';
+
+export { draftRecipesSchema } from './schemas/drafting.js';
+export type { DraftRecipesInput } from './schemas/drafting.js';
+
+export {
+  richTextDocSchema,
+  emptyRichTextDoc,
+  docToPlainText,
+  plainTextToDoc,
+} from './schemas/richtext.js';
+export type {
+  RichTextDoc,
+  RichTextBlockNode,
+  RichTextInlineNode,
+  RichTextTextNode,
+  RichTextMark,
+} from './schemas/richtext.js';
+
+export {
+  parseVideoEmbed,
+  trainingBlockSchema,
+  createTrainingSchema,
+  updateTrainingSchema,
+  listTrainingsQuerySchema,
+} from './schemas/training.js';
+export type {
+  VideoEmbed,
+  TrainingBlockInput,
+  CreateTrainingInput,
+  UpdateTrainingInput,
+  ListTrainingsQuery,
+} from './schemas/training.js';
+
+export {
+  platformListQuerySchema,
+  platformCreateOrganizationSchema,
+  platformUpdateOrganizationSchema,
+  platformUpdateUserSchema,
+} from './schemas/platform.js';
+export type {
+  PlatformListQuery,
+  PlatformCreateOrganizationInput,
+  PlatformUpdateOrganizationInput,
+  PlatformUpdateUserInput,
+} from './schemas/platform.js';
 
 // ── Domain constants & types ──────────────────────────────────────────────────
 
@@ -57,11 +140,28 @@ export {
   userStatusValues,
   localeValues,
   SOURCE_LOCALE,
+  targetLocaleValues,
   approvalStatusValues,
   PUBLISHABLE_STATUS,
   contentOriginValues,
   allergenValues,
   dietaryValues,
+  recipeStatusValues,
+  ingredientKindValues,
+  mediaKindValues,
+  mediaStatusValues,
+  imageMimeValues,
+  videoMimeValues,
+  MAX_RECIPE_PHOTOS,
+  MAX_PHOTO_BYTES,
+  MAX_DRAFT_PHOTOS,
+  MAX_DRAFT_TOTAL_BYTES,
+  MAX_VIDEO_BYTES,
+  trainingStatusValues,
+  trainingBlockKindValues,
+  videoEmbedProviderValues,
+  MAX_TRAINING_BLOCKS,
+  MAX_TRAINING_TEXT_CHARS,
   unitFamilyValues,
   unitValues,
   unitFamily,
@@ -77,10 +177,20 @@ export type {
   UserStatus,
   UserName,
   Locale,
+  TargetLocale,
   ApprovalStatus,
   ContentOrigin,
   Allergen,
   Dietary,
+  RecipeStatus,
+  IngredientKind,
+  MediaKind,
+  MediaStatus,
+  ImageMime,
+  VideoMime,
+  TrainingStatus,
+  TrainingBlockKind,
+  VideoEmbedProvider,
   UnitFamily,
   Unit,
 } from './types/domain.js';
@@ -97,8 +207,37 @@ export type {
   LoginResponse,
   RegisterResponse,
   OrganizationSummary,
+  OrganizationProfile,
+  AddressView,
+  OrgMemberRow,
   PropertySummary,
   LocationSummary,
   MembershipSummary,
   TenantTree,
+  PlatformStats,
+  PlatformOrganizationRow,
+  PlatformOrgMember,
+  PlatformOrganizationDetail,
+  PlatformUserRow,
+  MediaAssetView,
+  QuantityValue,
+  IngredientLineView,
+  AllergenTagView,
+  RecipeContentView,
+  ForkedFromRef,
+  RecipeSummary,
+  RecipeDetail,
+  RecipeVersionSummary,
+  RecipeVersionDetail,
+  TranslationPayloadView,
+  RecipeTranslationView,
+  RecipeTranslationState,
+  RecipeDraftProposal,
+  DraftRecipesResponse,
+  DraftConfigView,
+  TrainingBlockView,
+  TrainingSummary,
+  TrainingDetail,
+  TrainingCompletionState,
+  TrainingCompletionRow,
 } from './types/api.js';
