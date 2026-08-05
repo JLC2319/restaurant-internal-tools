@@ -1,5 +1,6 @@
 import { Schema, model } from 'mongoose';
 import { tenantStatusValues } from '@rit/shared';
+import { settingsOverrideSchema } from './tenantSettings.model';
 import type { ILocation } from '../../types/index';
 
 /**
@@ -26,6 +27,8 @@ const locationSchema = new Schema<ILocation>(
       country: { type: String, trim: true, maxlength: 2 },
     },
     status: { type: String, enum: tenantStatusValues, default: 'active' },
+    /** Overrides of the property's (then org's) settings; `null` fields inherit. */
+    settings: { type: settingsOverrideSchema, default: () => ({}) },
   },
   { timestamps: { createdAt: 'createdAt', updatedAt: 'modifiedAt' } }
 );

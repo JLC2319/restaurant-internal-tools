@@ -1,5 +1,6 @@
 import { Schema, model } from 'mongoose';
 import { localeValues, tenantStatusValues } from '@rit/shared';
+import { orgSettingsSchema } from './tenantSettings.model';
 import type { IOrganization } from '../../types/index';
 
 /**
@@ -16,6 +17,7 @@ const organizationSchema = new Schema<IOrganization>(
       type: [{ type: String, enum: localeValues }],
       default: ['en', 'es'],
     },
+    settings: { type: orgSettingsSchema, default: () => ({}) },
     logoMediaId: { type: Schema.Types.ObjectId, ref: 'Media', default: null },
     address: {
       line1: { type: String, trim: true },

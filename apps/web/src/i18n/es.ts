@@ -81,6 +81,14 @@ export const readerEs = {
   noVerifiedAllergens: 'Sin alérgenos verificados.',
   openSubRecipe: 'Abrir',
   aiAssisted: 'Traducción aprobada · asistida por IA',
+  /**
+   * SAFETY: shown instead of `aiAssisted` when the org publishes machine
+   * translations without review. Staff must know no one checked this text
+   * before deciding to act on it.
+   */
+  aiUnreviewed: 'Traducción automática · sin revisar',
+  unreviewedWarning:
+    'Esta traducción la hizo una máquina y nadie la ha revisado. Si algo no cuadra con el original en inglés, confía en el inglés y pregunta a un chef.',
   allergenWarning:
     'La información de alérgenos de esta receta no está completamente verificada. No respondas preguntas de alérgenos con ella — pregunta a un chef.',
 } as const

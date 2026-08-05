@@ -104,6 +104,53 @@ export const SOURCE_LOCALE: Locale = 'en';
 export const targetLocaleValues = ['es'] as const;
 export type TargetLocale = (typeof targetLocaleValues)[number];
 
+/**
+ * What happens to a recipe's translations when a version is set live.
+ *
+ * - `manual` — nothing. A chef presses "Translate" when they want it. The
+ *   original behaviour, and the default for every new tenant.
+ * - `auto_review` — going live fires the machine translation in the
+ *   background; it lands `pending_review` like any other, and a human still
+ *   approves it before staff see a word of it.
+ * - `auto_publish` — the machine translation is published to staff with **no
+ *   human review**. This is the one deliberate exception to the rule that
+ *   nothing machine-generated reaches staff unapproved (see AGENTS.md §10);
+ *   it exists because some operators want Spanish on the line immediately and
+ *   accept that trade. Documents published this way carry `autoApproved` and
+ *   are badged as unreviewed everywhere they render.
+ */
+export const translationPublishModeValues = ['manual', 'auto_review', 'auto_publish'] as const;
+export type TranslationPublishMode = (typeof translationPublishModeValues)[number];
+
+/** What a tenant gets before anyone configures anything: today's behaviour. */
+export const DEFAULT_TRANSLATION_PUBLISH_MODE: TranslationPublishMode = 'manual';
+
+/** Settings held at the top of the tree. Always concrete — nothing to inherit from. */
+export interface TenantSettings {
+  translationPublishMode: TranslationPublishMode;
+}
+
+/** Settings at a property or location. `null` means "inherit from the parent". */
+export interface TenantSettingsOverride {
+  translationPublishMode: TranslationPublishMode | null;
+}
+
+/**
+ * Resolves the mode that governs a document, narrowest scope first: a
+ * location's own setting beats its property's, which beats the org's.
+ *
+ * Resolution keys off the *document's* scope, not the actor's: a property's
+ * shared recipe book must behave the same way whoever publishes into it, and
+ * a chef switching their active scope must not change what publishing does.
+ */
+export function resolveTranslationPublishMode(
+  org: TranslationPublishMode | null | undefined,
+  property?: TranslationPublishMode | null,
+  location?: TranslationPublishMode | null
+): TranslationPublishMode {
+  return location ?? property ?? org ?? DEFAULT_TRANSLATION_PUBLISH_MODE;
+}
+
 // ── Review / approval gate ────────────────────────────────────────────────────
 
 /**

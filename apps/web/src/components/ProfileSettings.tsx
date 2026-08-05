@@ -5,6 +5,8 @@ import type { AuthUser, Locale, MembershipSummary } from '@rit/shared'
 import { BadgeCheck, Building2, Check, KeyRound, MailWarning, UserRound } from 'lucide-react'
 import { changePassword, getMe, getMyMemberships, updateMe } from '../api/auth'
 import { QueryProvider } from './QueryProvider'
+import { SettingsShell } from './SettingsShell'
+import type { SettingsSection } from './SettingsShell'
 import {
   Badge,
   ErrorNote,
@@ -370,13 +372,37 @@ function Profile() {
     )
   }
 
+  /**
+   * The page, as data — same shell as organization settings. Ids are URL
+   * hashes, so `/profile#password` is a link worth keeping stable.
+   */
+  const sections: SettingsSection[] = [
+    {
+      id: 'details',
+      label: 'Your details',
+      icon: UserRound,
+      render: () => <DetailsForm key={data._id} user={data} />,
+    },
+    {
+      id: 'password',
+      label: 'Password',
+      icon: KeyRound,
+      render: () => <PasswordForm />,
+    },
+    {
+      id: 'access',
+      label: 'Your access',
+      icon: Building2,
+      render: () => <AccessList />,
+    },
+  ]
+
   return (
-    <div className="space-y-5">
-      <IdentityCard user={data} />
-      <DetailsForm key={data._id} user={data} />
-      <PasswordForm />
-      <AccessList />
-    </div>
+    <SettingsShell
+      ariaLabel="Profile settings"
+      sections={sections}
+      aside={<IdentityCard user={data} />}
+    />
   )
 }
 

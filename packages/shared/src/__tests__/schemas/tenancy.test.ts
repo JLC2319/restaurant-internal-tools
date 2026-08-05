@@ -1,7 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { inviteMemberSchema, createLocationSchema } from '../../schemas/tenancy.js';
+import {
+  inviteMemberSchema,
+  createLocationSchema,
+  updateLocationSchema,
+  updateOrganizationSchema,
+  updatePropertySchema,
+} from '../../schemas/tenancy.js';
 import { toSlug } from '../../schemas/common.js';
-import { roleAtLeast } from '../../types/domain.js';
+import {
+  DEFAULT_TRANSLATION_PUBLISH_MODE,
+  resolveTranslationPublishMode,
+  roleAtLeast,
+} from '../../types/domain.js';
 
 const OID = '507f1f77bcf86cd799439011';
 const OTHER_OID = '507f1f77bcf86cd799439012';
@@ -50,6 +60,71 @@ describe('createLocationSchema', () => {
   it('rejects a malformed property id', () => {
     const result = createLocationSchema.safeParse({ propertyId: 'nope', name: '60 Vines Plano' });
     expect(result.success).toBe(false);
+  });
+});
+
+describe('translation publish mode settings', () => {
+  it('accepts a mode on the org', () => {
+    const result = updateOrganizationSchema.safeParse({
+      settings: { translationPublishMode: 'auto_review' },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects an unknown mode', () => {
+    const result = updateOrganizationSchema.safeParse({
+      settings: { translationPublishMode: 'auto_everything' },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  // The org is the floor of inheritance: "inherit" is meaningless there and
+  // would leave resolution with nothing to land on.
+  it('refuses a null mode on the org but allows it on a property or location', () => {
+    expect(
+      updateOrganizationSchema.safeParse({ settings: { translationPublishMode: null } }).success
+    ).toBe(false);
+    expect(
+      updatePropertySchema.safeParse({ settings: { translationPublishMode: null } }).success
+    ).toBe(true);
+    expect(
+      updateLocationSchema.safeParse({ settings: { translationPublishMode: null } }).success
+    ).toBe(true);
+  });
+
+  it('counts a settings-only patch as a change', () => {
+    // The `No changes supplied` refine must see the settings key, or the one
+    // field a client can send alone would always 400.
+    expect(
+      updatePropertySchema.safeParse({ settings: { translationPublishMode: 'manual' } }).success
+    ).toBe(true);
+  });
+});
+
+describe('resolveTranslationPublishMode', () => {
+  it('takes the narrowest set value', () => {
+    expect(resolveTranslationPublishMode('manual', 'auto_review', 'auto_publish')).toBe(
+      'auto_publish'
+    );
+    expect(resolveTranslationPublishMode('manual', 'auto_review', null)).toBe('auto_review');
+    expect(resolveTranslationPublishMode('auto_publish', null, null)).toBe('auto_publish');
+  });
+
+  it('skips an unset tier rather than stopping at it', () => {
+    // A location with no override under a property with no override still
+    // reaches the org — this is the common shape for a brand-new location.
+    expect(resolveTranslationPublishMode('auto_review', null, null)).toBe('auto_review');
+  });
+
+  it('lets a narrower scope opt back down to manual', () => {
+    expect(resolveTranslationPublishMode('auto_publish', 'manual', null)).toBe('manual');
+    expect(resolveTranslationPublishMode('auto_publish', 'auto_publish', 'manual')).toBe('manual');
+  });
+
+  // Documents written before the setting existed have no value at any tier.
+  it('falls back to the safe default when nothing is set anywhere', () => {
+    expect(resolveTranslationPublishMode(undefined)).toBe(DEFAULT_TRANSLATION_PUBLISH_MODE);
+    expect(DEFAULT_TRANSLATION_PUBLISH_MODE).toBe('manual');
   });
 });
 

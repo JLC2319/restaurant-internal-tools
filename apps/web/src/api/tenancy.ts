@@ -11,8 +11,10 @@ import type {
   PaginatedResponse,
   PropertySummary,
   TenantTree,
+  UpdateLocationInput,
   UpdateMembershipInput,
   UpdateOrganizationInput,
+  UpdatePropertyInput,
 } from '@rit/shared'
 import { apiRequest, getScope } from './client'
 
@@ -89,6 +91,16 @@ export function createProperty(input: CreatePropertyInput): Promise<ApiResult<Pr
   })
 }
 
+export function updateProperty(
+  propertyId: string,
+  input: UpdatePropertyInput
+): Promise<ApiResult<PropertySummary>> {
+  return apiRequest<PropertySummary>(`/api/tenancy/properties/${propertyId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  })
+}
+
 export function listLocations(propertyId?: string): Promise<ApiResult<LocationSummary[]>> {
   const query = propertyId ? `?propertyId=${encodeURIComponent(propertyId)}` : ''
   return apiRequest<LocationSummary[]>(`/api/tenancy/locations${query}`)
@@ -97,6 +109,16 @@ export function listLocations(propertyId?: string): Promise<ApiResult<LocationSu
 export function createLocation(input: CreateLocationInput): Promise<ApiResult<LocationSummary>> {
   return apiRequest<LocationSummary>('/api/tenancy/locations', {
     method: 'POST',
+    body: JSON.stringify(input),
+  })
+}
+
+export function updateLocation(
+  locationId: string,
+  input: UpdateLocationInput
+): Promise<ApiResult<LocationSummary>> {
+  return apiRequest<LocationSummary>(`/api/tenancy/locations/${locationId}`, {
+    method: 'PATCH',
     body: JSON.stringify(input),
   })
 }

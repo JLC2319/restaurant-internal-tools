@@ -4,8 +4,9 @@ import type {
   RecipeDetail as RecipeDetailData,
   RecipeTranslationView,
   TranslationPayloadInput,
+  TranslationPublishMode,
 } from '@rit/shared'
-import { Bot, Check, Languages, RefreshCw, Save, ShieldAlert, X } from 'lucide-react'
+import { Bot, Check, Languages, RefreshCw, Save, ShieldAlert, Sparkles, X } from 'lucide-react'
 import {
   approveRecipeTranslation,
   getRecipeTranslation,
@@ -40,6 +41,18 @@ function payloadToDraft(payload: RecipeTranslationView['payload']): TranslationP
     ingredients: payload.ingredients.map((ing) => ({ name: ing.name, note: ing.note })),
     steps: [...payload.steps],
   }
+}
+
+/**
+ * What this recipe's scope does on publish, in one line. Resolved server-side
+ * from the org/property/location settings — see `publishMode` on the state.
+ */
+const PUBLISH_MODE_HINT: Record<TranslationPublishMode, string | null> = {
+  manual: null,
+  auto_review:
+    'This scope translates automatically when a version goes live. It still waits here for your review.',
+  auto_publish:
+    'This scope translates automatically when a version goes live and publishes it to staff without review.',
 }
 
 const fieldLabel = 'text-2xs font-semibold tracking-wide text-salt-500 uppercase'
@@ -167,6 +180,14 @@ export function TranslationPanel({ recipe }: { recipe: RecipeDetailData }) {
     translation.payload.ingredients.length === source.ingredients.length &&
     translation.payload.steps.length === source.steps.length
   const editable = translation != null && !translation.stale && aligned
+  const modeHint = state ? PUBLISH_MODE_HINT[state.publishMode] : null
+  // SAFETY: approved, current, and nobody read it — the one state the review
+  // gate does not cover, because the org opted out of it.
+  const liveUnreviewed =
+    translation != null &&
+    translation.autoApproved &&
+    translation.status === 'approved' &&
+    !translation.stale
 
   return (
     <SectionCard
@@ -178,6 +199,10 @@ export function TranslationPanel({ recipe }: { recipe: RecipeDetailData }) {
           <div className="flex flex-wrap items-center gap-2">
             {translation.stale ? (
               <Badge value="unverified" label="stale" />
+            ) : translation.autoApproved && translation.status === 'approved' ? (
+              // Not `approved` green: nobody signed this off, and the badge
+              // must not tell a chef at a glance that somebody did.
+              <Badge value="unverified" label="auto-published" />
             ) : (
               <Badge value={translation.status} />
             )}
@@ -198,6 +223,13 @@ export function TranslationPanel({ recipe }: { recipe: RecipeDetailData }) {
 
       <div className="space-y-4">
         {error && <ErrorNote>{error}</ErrorNote>}
+
+        {state && modeHint && (
+          <p className="flex items-start gap-2.5 rounded-xl bg-steel-50 px-4 py-3 text-sm text-steel-700 ring-1 ring-steel-200 ring-inset">
+            <Sparkles className="mt-0.5 size-4 shrink-0" aria-hidden />
+            <span>{modeHint}</span>
+          </p>
+        )}
 
         {!translation && (
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -235,6 +267,16 @@ export function TranslationPanel({ recipe }: { recipe: RecipeDetailData }) {
                   The live recipe has changed since this translation was made (it covered v
                   {translation.sourceVersion}). Staff no longer see it. Re-translate, review and
                   approve again.
+                </span>
+              </p>
+            )}
+            {liveUnreviewed && (
+              <p className="flex items-start gap-2.5 rounded-xl bg-citron-50 px-4 py-3 text-sm text-citron-700 ring-1 ring-citron-200 ring-inset">
+                <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+                <span>
+                  Staff are reading this now, and no one has reviewed it — this scope is set to
+                  publish translations automatically. Read every line; approving below records your
+                  sign-off, and edits go live the moment you approve them.
                 </span>
               </p>
             )}
@@ -382,7 +424,9 @@ export function TranslationPanel({ recipe }: { recipe: RecipeDetailData }) {
             )}
 
             <div className="flex flex-wrap items-center gap-2 border-t border-salt-100 pt-4">
-              {editable && translation.status !== 'approved' && !dirty && (
+              {/* An auto-published translation is already `approved`, but no
+                  one has signed it off — the button stays so a chef can. */}
+              {editable && (translation.status !== 'approved' || translation.autoApproved) && !dirty && (
                 <button
                   type="button"
                   onClick={() => {
@@ -393,7 +437,11 @@ export function TranslationPanel({ recipe }: { recipe: RecipeDetailData }) {
                   className={primaryButtonClass}
                 >
                   <Check className="size-4" aria-hidden />
-                  {approve.isPending ? 'Approving…' : 'Approve for staff'}
+                  {approve.isPending
+                    ? 'Approving…'
+                    : liveUnreviewed
+                      ? 'Confirm reviewed'
+                      : 'Approve for staff'}
                 </button>
               )}
               {dirty && (
@@ -438,7 +486,7 @@ export function TranslationPanel({ recipe }: { recipe: RecipeDetailData }) {
                   Reject
                 </button>
               )}
-              {translation.status === 'approved' && !translation.stale && (
+              {translation.status === 'approved' && !translation.stale && !translation.autoApproved && (
                 <p className="text-sm text-basil-700">
                   Live in the reader
                   {translation.approvedAt &&

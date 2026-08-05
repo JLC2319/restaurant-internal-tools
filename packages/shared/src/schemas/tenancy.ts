@@ -1,6 +1,11 @@
 import { z } from 'zod';
 import { objectIdSchema, slugSchema } from './common.js';
-import { localeValues, tenantRoleValues, tenantStatusValues } from '../types/domain.js';
+import {
+  localeValues,
+  tenantRoleValues,
+  tenantStatusValues,
+  translationPublishModeValues,
+} from '../types/domain.js';
 
 /** A postal address. Shared by locations and the org profile. */
 export const addressSchema = z.object({
@@ -10,6 +15,23 @@ export const addressSchema = z.object({
   region: z.string().trim().max(80).optional(),
   postalCode: z.string().trim().max(20).optional(),
   country: z.string().trim().max(2).optional(),
+});
+
+/**
+ * Org-level settings. The org sits at the root of the tree, so its values are
+ * concrete: there is nothing above it to inherit from.
+ */
+export const tenantSettingsSchema = z.object({
+  translationPublishMode: z.enum(translationPublishModeValues).optional(),
+});
+
+/**
+ * The same settings at a property or location, where `null` is a meaningful
+ * value meaning "stop overriding, inherit from the parent again". Omitting the
+ * key leaves the stored override alone; sending `null` clears it.
+ */
+export const tenantSettingsOverrideSchema = z.object({
+  translationPublishMode: z.enum(translationPublishModeValues).nullable().optional(),
 });
 
 // ── Organization ──────────────────────────────────────────────────────────────
@@ -40,6 +62,7 @@ export const updateOrganizationSchema = z
     logoMediaId: objectIdSchema.nullable().optional(),
     address: addressSchema.nullable().optional(),
     contact: orgContactSchema.optional(),
+    settings: tenantSettingsSchema.optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: 'No changes supplied' });
 
@@ -54,6 +77,7 @@ export const updatePropertySchema = z
   .object({
     name: z.string().trim().min(2).max(120).optional(),
     status: z.enum(tenantStatusValues).optional(),
+    settings: tenantSettingsOverrideSchema.optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: 'No changes supplied' });
 
@@ -74,6 +98,7 @@ export const updateLocationSchema = z
     timezone: z.string().trim().min(1).optional(),
     address: addressSchema.optional(),
     status: z.enum(tenantStatusValues).optional(),
+    settings: tenantSettingsOverrideSchema.optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: 'No changes supplied' });
 
@@ -108,6 +133,8 @@ export type UpdatePropertyInput = z.infer<typeof updatePropertySchema>;
 export type CreateLocationInput = z.infer<typeof createLocationSchema>;
 export type UpdateLocationInput = z.infer<typeof updateLocationSchema>;
 export type AddressInput = z.infer<typeof addressSchema>;
+export type TenantSettingsInput = z.infer<typeof tenantSettingsSchema>;
+export type TenantSettingsOverrideInput = z.infer<typeof tenantSettingsOverrideSchema>;
 export type OrgContactInput = z.infer<typeof orgContactSchema>;
 export type InviteMemberInput = z.infer<typeof inviteMemberSchema>;
 export type UpdateMembershipInput = z.infer<typeof updateMembershipSchema>;

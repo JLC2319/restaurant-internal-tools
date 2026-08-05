@@ -35,6 +35,7 @@ export async function getRecipe(req: Request, res: Response): Promise<void> {
 export async function updateRecipe(req: Request, res: Response): Promise<void> {
   const recipe = await recipeService.updateRecipe(
     req.tenant!,
+    req.userId!,
     pathParam(req, 'id'),
     req.body as UpdateRecipeInput
   );
@@ -78,6 +79,7 @@ export async function getVersion(req: Request, res: Response): Promise<void> {
 export async function activateVersion(req: Request, res: Response): Promise<void> {
   const recipe = await recipeService.activateVersion(
     req.tenant!,
+    req.userId!,
     pathParam(req, 'id'),
     pathParam(req, 'versionId')
   );

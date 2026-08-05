@@ -14,7 +14,6 @@ import {
   updateMembership,
 } from '../api/tenancy'
 import { useActiveRole } from './useActiveRole'
-import { QueryProvider } from './QueryProvider'
 import {
   Badge,
   ErrorNote,
@@ -357,10 +356,10 @@ function Members() {
   )
 }
 
-export function OrgMembers() {
-  return (
-    <QueryProvider>
-      <Members />
-    </QueryProvider>
-  )
-}
+/**
+ * The roster, without a `QueryProvider` of its own: it renders as a section of
+ * the organization settings shell, which is a single island supplying one
+ * query cache to every section. Mounting it directly on a page would need that
+ * wrapper back.
+ */
+export { Members as OrgMembersSection }

@@ -1,6 +1,12 @@
 import { createHash } from 'node:crypto';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
-import { PUBLISHABLE_STATUS, roleAtLeast } from '@rit/shared';
+import {
+  DEFAULT_TRANSLATION_PUBLISH_MODE,
+  PUBLISHABLE_STATUS,
+  resolveTranslationPublishMode,
+  roleAtLeast,
+  targetLocaleValues,
+} from '@rit/shared';
 import type {
   RecipeTranslationState,
   RecipeTranslationView,
@@ -8,6 +14,7 @@ import type {
   TenantContext,
   TenantScope,
   TranslationPayloadInput,
+  TranslationPublishMode,
 } from '@rit/shared';
 import { Types } from 'mongoose';
 import type { Document } from 'mongoose';
@@ -18,6 +25,9 @@ import { AppError } from '../../lib/AppError';
 import { assertCanWriteAt, assertRole, scopeReadFilter } from '../../lib/scope';
 import { Recipe } from '../recipes/recipe.model';
 import { RecipeVersion } from '../recipes/recipeVersion.model';
+import { Organization } from '../tenancy/organization.model';
+import { Property } from '../tenancy/property.model';
+import { Location } from '../tenancy/location.model';
 import { RecipeTranslation } from './translation.model';
 import type {
   IRecipe,
@@ -237,6 +247,7 @@ function shapeTranslation(doc: LeanTranslation, stale: boolean): RecipeTranslati
     requestedAt: doc.requestedAt.toISOString(),
     approvedBy: doc.approvedBy ? String(doc.approvedBy) : null,
     approvedAt: doc.approvedAt ? doc.approvedAt.toISOString() : null,
+    autoApproved: doc.autoApproved === true,
     modifiedAt: doc.modifiedAt.toISOString(),
   };
 }
@@ -259,6 +270,48 @@ async function loadHeadForManage(ctx: TenantContext, recipeId: string): Promise<
     throw new AppError('This recipe is archived. Unarchive it first.', 409);
   }
   return head;
+}
+
+// ── Publish mode (org → property → location settings) ─────────────────────────
+
+interface PublishConfig {
+  mode: TranslationPublishMode;
+  /** Locales the org publishes into, minus the authoring one. */
+  targets: TargetLocale[];
+}
+
+/**
+ * Reads the settings governing a document at `scope`, resolving the publish
+ * mode narrowest-tier-first (location → property → org).
+ *
+ * Deliberately keyed on the document's own scope rather than the caller's
+ * `TenantContext`: a property's shared recipe book must behave the same way
+ * whoever publishes into it, and a chef switching their active scope must not
+ * change what "Set live" does to a recipe they did not move.
+ */
+async function loadPublishConfig(scope: IScope): Promise<PublishConfig> {
+  const [org, property, location] = await Promise.all([
+    Organization.findById(scope.orgId).select('settings locales').lean(),
+    scope.propertyId ? Property.findById(scope.propertyId).select('settings').lean() : null,
+    scope.locationId ? Location.findById(scope.locationId).select('settings').lean() : null,
+  ]);
+
+  const locales = org?.locales ?? [];
+  return {
+    mode: resolveTranslationPublishMode(
+      org?.settings?.translationPublishMode ?? DEFAULT_TRANSLATION_PUBLISH_MODE,
+      property?.settings?.translationPublishMode ?? null,
+      location?.settings?.translationPublishMode ?? null
+    ),
+    targets: targetLocaleValues.filter((locale) => locales.includes(locale)),
+  };
+}
+
+/** The mode governing one recipe's scope. */
+export async function resolvePublishModeForScope(
+  scope: IScope
+): Promise<TranslationPublishMode> {
+  return (await loadPublishConfig(scope)).mode;
 }
 
 // ── Reads ─────────────────────────────────────────────────────────────────────
@@ -285,6 +338,7 @@ export async function getTranslationState(
   const state: RecipeTranslationState = {
     enabled: env.translationEnabled,
     canManage: manage,
+    publishMode: await resolvePublishModeForScope(head.scope),
     translation: null,
   };
 
@@ -351,6 +405,7 @@ export async function requestTranslation(
         requestedAt: new Date(),
         approvedBy: null,
         approvedAt: null,
+        autoApproved: false,
       },
     },
     { returnDocument: 'after', upsert: true }
@@ -410,6 +465,9 @@ export async function updateTranslation(
   doc.status = 'pending_review';
   doc.approvedBy = null;
   doc.approvedAt = null;
+  // A person has now touched this text, so whatever auto-publish did to it
+  // earlier no longer describes how it got here.
+  doc.autoApproved = false;
   await doc.save();
 
   return shapeTranslation(doc.toObject(), await isStale(head, doc.toObject()));
@@ -446,6 +504,9 @@ export async function approveTranslation(
   doc.status = PUBLISHABLE_STATUS;
   doc.approvedBy = new Types.ObjectId(userId);
   doc.approvedAt = new Date();
+  // A real signature replaces the auto-publish stamp — this is now reviewed
+  // text, and the reader must stop badging it as unread.
+  doc.autoApproved = false;
   await doc.save();
 
   return shapeTranslation(doc.toObject(), false);
@@ -469,9 +530,132 @@ export async function rejectTranslation(
   doc.status = 'rejected';
   doc.approvedBy = null;
   doc.approvedAt = null;
+  doc.autoApproved = false;
   await doc.save();
 
   return shapeTranslation(doc.toObject(), await isStale(head, doc.toObject()));
+}
+
+// ── Automatic translation (called by recipe.service) ──────────────────────────
+
+/**
+ * Machine-translates one locale of a recipe that has just gone live, writing
+ * the result at the status its scope's mode dictates.
+ *
+ * Returns what it did, for the caller's log. Throws only on an LLM failure —
+ * `autoTranslateOnPublish` is the thing that swallows.
+ */
+async function runAutoTranslation(
+  head: LeanRecipe,
+  activeVersionId: Types.ObjectId,
+  locale: TargetLocale,
+  mode: TranslationPublishMode,
+  actorUserId: string
+): Promise<'written' | 'skipped'> {
+  const version = await RecipeVersion.findById(activeVersionId).select('content version').lean();
+  if (!version) return 'skipped';
+
+  const projection = translatableProjection(head.name, version.content);
+  const sourceHash = sourceHashOf(projection);
+
+  // Never overwrite a translation that already covers exactly this text. It
+  // is what makes re-activating the same version a no-op, and it protects a
+  // chef's reviewed edits from being replaced by fresh machine output —
+  // checked before the LLM call, so a no-op costs nothing.
+  const existing = await RecipeTranslation.findOne({ recipeId: head._id, locale })
+    .select('sourceVersionId sourceHash')
+    .lean();
+  if (
+    existing &&
+    String(existing.sourceVersionId) === String(activeVersionId) &&
+    existing.sourceHash === sourceHash
+  ) {
+    return 'skipped';
+  }
+
+  const payload = await machineTranslate(projection);
+
+  // The recipe may have moved on while the model was thinking: another
+  // version set live, or a rename. Writing now would stamp text for a source
+  // staff no longer read — and under auto_publish would stamp it *approved*.
+  // The later activation's own run produces the correct document.
+  const current = await Recipe.findById(head._id).select('name activeVersionId').lean();
+  if (
+    !current ||
+    String(current.activeVersionId) !== String(activeVersionId) ||
+    current.name !== head.name
+  ) {
+    return 'skipped';
+  }
+
+  // SAFETY: this is the one path that can reach `approved` without a person
+  // reading the text, and only because the org explicitly chose auto_publish.
+  // `approvedBy` stays null — there is no signature to record — and
+  // `autoApproved` marks it so every surface can say the text is unreviewed.
+  const autoPublish = mode === 'auto_publish';
+
+  await RecipeTranslation.findOneAndUpdate(
+    { recipeId: head._id, locale },
+    {
+      $set: {
+        scope: head.scope,
+        status: autoPublish ? PUBLISHABLE_STATUS : 'pending_review',
+        origin: 'machine',
+        sourceVersionId: activeVersionId,
+        sourceVersion: head.activeVersion ?? version.version,
+        sourceHash,
+        payload,
+        llmModel: env.llmModel,
+        requestedBy: new Types.ObjectId(actorUserId),
+        requestedAt: new Date(),
+        approvedBy: null,
+        approvedAt: autoPublish ? new Date() : null,
+        autoApproved: autoPublish,
+      },
+    },
+    { upsert: true }
+  );
+
+  return 'written';
+}
+
+/**
+ * The automatic half of the feature: a version going live translates the
+ * recipe by itself, when the recipe's scope is configured for it.
+ *
+ * Called detached from the request that triggered it. An LLM call takes
+ * seconds and can fail, and neither is a reason for "Set live" to hang or to
+ * roll back — staff visibility of the English must not wait on the Spanish.
+ * Nothing here throws: a failure leaves the recipe exactly as `manual` mode
+ * would, with the chef's "Translate" button still there to press.
+ */
+export async function autoTranslateOnPublish(
+  recipeId: Types.ObjectId | string,
+  actorUserId: string
+): Promise<void> {
+  try {
+    if (!env.translationEnabled) return;
+
+    const head = await Recipe.findById(recipeId).lean();
+    if (!head || head.status !== 'active' || !head.activeVersionId) return;
+
+    const { mode, targets } = await loadPublishConfig(head.scope);
+    if (mode === 'manual') return;
+
+    const activeVersionId = head.activeVersionId;
+    for (const locale of targets) {
+      // Sequential: one recipe's locales share a rate-limit budget, and there
+      // is no user waiting on this.
+      await runAutoTranslation(head, activeVersionId, locale, mode, actorUserId);
+    }
+  } catch (err) {
+    // Swallowed by design — see the doc comment. Logged loudly because the
+    // chef gets no error toast for something they did not press a button for.
+    console.error('Automatic translation failed', {
+      recipeId: String(recipeId),
+      error: err instanceof Error ? err.message : err,
+    });
+  }
 }
 
 // ── Invalidation (called by recipe.service) ───────────────────────────────────

@@ -8,16 +8,22 @@ import {
   Check,
   Contact,
   ImageIcon,
+  Languages,
   MapPin,
   Network,
   Trash2,
   Upload,
+  Users,
 } from 'lucide-react'
 import { getOrganization, getTenantTree, tenancyScopeKey, updateOrganization } from '../api/tenancy'
 import { uploadPhoto } from '../api/media'
 import { getScope } from '../api/client'
 import { useActiveRole } from './useActiveRole'
 import { QueryProvider } from './QueryProvider'
+import { TranslationPublishingCard } from './TranslationPublishing'
+import { OrgMembersSection } from './OrgMembers'
+import { SettingsShell } from './SettingsShell'
+import type { SettingsSection } from './SettingsShell'
 import {
   Badge,
   ErrorNote,
@@ -460,20 +466,75 @@ function Settings() {
     )
   }
 
+  const isAdmin = role != null && roleAtLeast(role, 'admin')
+
+  /**
+   * The page, as data. Every tenant-level setting the product grows lands as
+   * one more entry here — the sidebar, the deep link and the panel chrome come
+   * from the shell, so sections never accumulate into one long scroll.
+   *
+   * Ids are URL hashes: rename a label freely, but changing an id breaks
+   * anyone's bookmark.
+   */
+  const sections: SettingsSection[] = [
+    {
+      id: 'details',
+      label: 'Details',
+      icon: Building2,
+      render: () => <DetailsForm key={`d-${data._id}`} org={data} canEdit={canEdit} />,
+    },
+    {
+      id: 'translation',
+      label: 'Translation',
+      icon: Languages,
+      // Overrides stay editable for a property-scoped admin — the API confines
+      // them to their own subtree — even though the org default does not.
+      render: () => (
+        <TranslationPublishingCard org={data} canEditOrg={canEdit} canEditOverrides={isAdmin} />
+      ),
+    },
+    {
+      id: 'branding',
+      label: 'Branding',
+      icon: ImageIcon,
+      render: () => <LogoSection org={data} canEdit={canEdit} />,
+    },
+    {
+      id: 'contact',
+      label: 'Address & contact',
+      icon: Contact,
+      render: () => <AddressContactForm key={`a-${data._id}`} org={data} canEdit={canEdit} />,
+    },
+    {
+      id: 'structure',
+      label: 'Properties & locations',
+      icon: Network,
+      render: () => <TreeSection />,
+    },
+    {
+      id: 'members',
+      label: 'Members',
+      icon: Users,
+      render: () => <OrgMembersSection />,
+    },
+  ]
+
   return (
-    <div className="space-y-5">
-      <OrgHeader org={data} />
-      {role != null && roleAtLeast(role, 'admin') && !orgWideScope && (
-        <p className="rounded-xl bg-citron-50 px-4 py-3 text-sm text-citron-700 ring-1 ring-citron-200 ring-inset">
-          You're viewing a property or location scope. Switch to the organization-wide scope to
-          edit these settings.
-        </p>
-      )}
-      <DetailsForm key={`d-${data._id}`} org={data} canEdit={canEdit} />
-      <LogoSection org={data} canEdit={canEdit} />
-      <AddressContactForm key={`a-${data._id}`} org={data} canEdit={canEdit} />
-      <TreeSection />
-    </div>
+    <SettingsShell
+      ariaLabel="Organization settings"
+      sections={sections}
+      aside={
+        <div className="space-y-5">
+          <OrgHeader org={data} />
+          {isAdmin && !orgWideScope && (
+            <p className="rounded-xl bg-citron-50 px-4 py-3 text-sm text-citron-700 ring-1 ring-citron-200 ring-inset">
+              You're viewing a property or location scope. Switch to the organization-wide scope to
+              edit these settings.
+            </p>
+          )}
+        </div>
+      }
+    />
   )
 }
 

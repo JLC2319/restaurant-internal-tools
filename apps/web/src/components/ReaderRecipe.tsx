@@ -117,6 +117,11 @@ interface DisplayModel {
   dietaryLabels: string[]
   t: ReaderStrings
   aiAssisted: boolean
+  /**
+   * SAFETY: the Spanish on screen was machine-written and auto-published —
+   * nobody read it. Staff are told, in Spanish, before they act on it.
+   */
+  aiUnreviewed: boolean
 }
 
 function buildDisplay(
@@ -150,6 +155,7 @@ function buildDisplay(
     dietaryLabels: content.dietary.map((tag) => (es ? dietaryEs[tag] : tag.replace('_', ' '))),
     t: es ? ES_STRINGS : EN_STRINGS,
     aiAssisted: es,
+    aiUnreviewed: es && translation.autoApproved,
   }
 }
 
@@ -512,9 +518,15 @@ function Reader({ recipeId }: { recipeId: string }) {
             v{recipe.activeVersion} {display.t.live}
           </span>
           {display.aiAssisted && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-steel-50 px-2.5 py-1 text-2xs font-semibold text-steel-600 ring-1 ring-steel-200 ring-inset">
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-2xs font-semibold ring-1 ring-inset ${
+                display.aiUnreviewed
+                  ? 'bg-citron-50 text-citron-700 ring-citron-200'
+                  : 'bg-steel-50 text-steel-600 ring-steel-200'
+              }`}
+            >
               <Bot className="size-3" aria-hidden />
-              {readerEs.aiAssisted}
+              {display.aiUnreviewed ? readerEs.aiUnreviewed : readerEs.aiAssisted}
             </span>
           )}
         </div>
@@ -522,6 +534,13 @@ function Reader({ recipeId }: { recipeId: string }) {
           <p className="max-w-2xl leading-relaxed text-salt-600">{display.description}</p>
         )}
       </header>
+
+      {display.aiUnreviewed && (
+        <p className="flex items-start gap-2.5 rounded-xl bg-citron-50 px-4 py-3 text-sm text-citron-700 ring-1 ring-citron-200 ring-inset">
+          <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <span>{readerEs.unreviewedWarning}</span>
+        </p>
+      )}
 
       {!recipe.allergensVerified && (
         <p className="flex items-start gap-2.5 rounded-xl bg-citron-50 px-4 py-3 text-sm text-citron-700 ring-1 ring-citron-200 ring-inset">

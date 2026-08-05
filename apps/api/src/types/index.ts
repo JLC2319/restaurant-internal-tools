@@ -17,6 +17,7 @@ import type {
   TenantStatus,
   TrainingBlockKind,
   TrainingStatus,
+  TranslationPublishMode,
   Unit,
   UserName,
   UserStatus,
@@ -42,6 +43,7 @@ export type {
   TenantStatus,
   TrainingBlockKind,
   TrainingStatus,
+  TranslationPublishMode,
   Unit,
   UserName,
   UserStatus,
@@ -83,12 +85,30 @@ export interface IOrgContact {
   website?: string | null;
 }
 
+/**
+ * Org-wide settings. Concrete values — the org is the root of the tree, so
+ * there is nothing above it to inherit from.
+ */
+export interface ITenantSettings {
+  translationPublishMode: TranslationPublishMode;
+}
+
+/**
+ * The same settings at a property or location, where `null` means "inherit
+ * from the parent". Stored explicitly rather than omitted so a cleared
+ * override is distinguishable from a document written before the field existed.
+ */
+export interface ITenantSettingsOverride {
+  translationPublishMode: TranslationPublishMode | null;
+}
+
 export interface IOrganization extends Document {
   name: string;
   slug: string;
   status: TenantStatus;
   /** Locales this org publishes in. `en` is the authoring locale and always present. */
   locales: Locale[];
+  settings: ITenantSettings;
   /** An org-owned photo Media asset; the binary lives in R2 like any other. */
   logoMediaId: Types.ObjectId | null;
   address?: IAddress | null;
@@ -102,6 +122,7 @@ export interface IProperty extends Document {
   name: string;
   slug: string;
   status: TenantStatus;
+  settings: ITenantSettingsOverride;
   createdAt: Date;
   modifiedAt: Date;
 }
@@ -124,6 +145,7 @@ export interface ILocation extends Document {
   timezone: string;
   address?: IAddress;
   status: TenantStatus;
+  settings: ITenantSettingsOverride;
   createdAt: Date;
   modifiedAt: Date;
 }
@@ -285,6 +307,12 @@ export interface IRecipeTranslation extends Document {
   requestedAt: Date;
   approvedBy: Types.ObjectId | null;
   approvedAt: Date | null;
+  /**
+   * SAFETY: `approved` was reached by the scope's `auto_publish` setting, not
+   * by a person. `approvedBy` stays null — there is no signature to record —
+   * and the reader badges the text as unreviewed. Cleared by any human action.
+   */
+  autoApproved: boolean;
   createdAt: Date;
   modifiedAt: Date;
 }

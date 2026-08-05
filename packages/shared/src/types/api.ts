@@ -12,9 +12,12 @@ import type {
   RecipeStatus,
   TenantRole,
   TenantScope,
+  TenantSettings,
+  TenantSettingsOverride,
   TenantStatus,
   TenantTier,
   TrainingStatus,
+  TranslationPublishMode,
   Unit,
   UserName,
   UserStatus,
@@ -104,6 +107,8 @@ export interface PropertySummary {
   name: string;
   slug: string;
   status: TenantStatus;
+  /** Overrides of the org's settings. `null` fields inherit from the org. */
+  settings: TenantSettingsOverride;
 }
 
 export interface LocationSummary {
@@ -114,6 +119,8 @@ export interface LocationSummary {
   slug: string;
   timezone: string;
   status: TenantStatus;
+  /** Overrides of the property's (then org's) settings. `null` fields inherit. */
+  settings: TenantSettingsOverride;
 }
 
 /** A postal address as rendered to clients. Absent parts come back `null`. */
@@ -132,6 +139,8 @@ export interface AddressView {
  */
 export interface OrganizationProfile extends OrganizationSummary {
   locales: Locale[];
+  /** Org-wide defaults. Properties and locations may override each of these. */
+  settings: TenantSettings;
   logo: MediaAssetView | null;
   address: AddressView | null;
   contact: { phone: string | null; email: string | null; website: string | null };
@@ -346,6 +355,13 @@ export interface RecipeTranslationView {
   requestedAt: string;
   approvedBy: string | null;
   approvedAt: string | null;
+  /**
+   * SAFETY: true when this translation reached `approved` by the scope's
+   * `auto_publish` setting rather than a person reading it. `approvedBy` is
+   * null in that case — nobody signed off — and every surface that renders the
+   * translation must say so. Any human action (edit, approve, reject) clears it.
+   */
+  autoApproved: boolean;
   modifiedAt: string;
 }
 
@@ -359,6 +375,11 @@ export interface RecipeTranslationState {
   enabled: boolean;
   /** Whether the caller may trigger, edit and approve translations here. */
   canManage: boolean;
+  /**
+   * The mode resolved for *this recipe's* scope (location → property → org),
+   * so the UI can tell a chef what setting a version live will do here.
+   */
+  publishMode: TranslationPublishMode;
   translation: RecipeTranslationView | null;
 }
 

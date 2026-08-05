@@ -117,7 +117,9 @@ async function createLiveRecipe(token: string, orgId: string, name: string): Pro
 async function seedTranslation(
   recipeId: string,
   requestedBy: string,
-  status: 'pending_review' | 'approved' = 'pending_review'
+  status: 'pending_review' | 'approved' = 'pending_review',
+  /** Seeds the auto_publish outcome: approved with nobody behind it. */
+  autoApproved = false
 ): Promise<void> {
   const head = await Recipe.findById(recipeId).lean();
   const version = await RecipeVersion.findById(head!.activeVersionId).lean();
@@ -141,8 +143,9 @@ async function seedTranslation(
     llmModel: 'test-model',
     requestedBy,
     requestedAt: new Date(),
-    approvedBy: status === 'approved' ? requestedBy : null,
+    approvedBy: status === 'approved' && !autoApproved ? requestedBy : null,
     approvedAt: status === 'approved' ? new Date() : null,
+    autoApproved,
   });
 }
 
@@ -190,6 +193,54 @@ describe('LLM gating (no key configured in tests)', () => {
         .status
     ).toBe(403);
     expect((await as(staff.token, orgId).post('/api/drafts/recipes').send({})).status).toBe(403);
+  });
+});
+
+describe('automatic publishing', () => {
+  it('reports the mode resolved for the recipe, so the UI can say what publishing will do', async () => {
+    const owner = await registerAndLogin('tr-mode-owner@example.com');
+    const orgId = await createOrg(owner.token, 'Mode Org');
+    const recipeId = await createLiveRecipe(owner.token, orgId, 'Mode Vinaigrette');
+
+    const before = await as(owner.token, orgId).get(`/api/translations/recipes/${recipeId}`);
+    expect(before.body.publishMode).toBe('manual');
+
+    await as(owner.token, orgId)
+      .patch('/api/tenancy/organization')
+      .send({ settings: { translationPublishMode: 'auto_review' } });
+
+    const after = await as(owner.token, orgId).get(`/api/translations/recipes/${recipeId}`);
+    expect(after.body.publishMode).toBe('auto_review');
+  });
+
+  // SAFETY: auto-published text does reach staff — that is what the org chose —
+  // but it must arrive flagged, with no approver forged onto it.
+  it('serves auto-published text to staff carrying its unreviewed flag', async () => {
+    const owner = await registerAndLogin('tr-auto-owner@example.com');
+    const orgId = await createOrg(owner.token, 'Auto Publish Org');
+    const staff = await addMember(owner.token, orgId, 'tr-auto-staff@example.com', 'staff');
+    const recipeId = await createLiveRecipe(owner.token, orgId, 'Auto Vinaigrette');
+    await seedTranslation(recipeId, owner.userId, 'approved', true);
+
+    const asStaff = await as(staff.token, orgId).get(`/api/translations/recipes/${recipeId}`);
+    expect(asStaff.status).toBe(200);
+    expect(asStaff.body.translation).not.toBeNull();
+    expect(asStaff.body.translation.autoApproved).toBe(true);
+    expect(asStaff.body.translation.approvedBy).toBeNull();
+  });
+
+  it('records a real signature when a chef confirms auto-published text', async () => {
+    const owner = await registerAndLogin('tr-confirm-owner@example.com');
+    const orgId = await createOrg(owner.token, 'Auto Confirm Org');
+    const recipeId = await createLiveRecipe(owner.token, orgId, 'Confirm Vinaigrette');
+    await seedTranslation(recipeId, owner.userId, 'approved', true);
+
+    const approved = await as(owner.token, orgId)
+      .post(`/api/translations/recipes/${recipeId}/approve`)
+      .send({});
+    expect(approved.status).toBe(200);
+    expect(approved.body.autoApproved).toBe(false);
+    expect(approved.body.approvedBy).toBe(owner.userId);
   });
 });
 

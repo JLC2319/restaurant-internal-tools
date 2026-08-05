@@ -237,6 +237,151 @@ describe('organization profile', () => {
   });
 });
 
+describe('translation publish mode settings', () => {
+  /** Creates a location under `propertyId` and returns its id. */
+  async function createLocation(
+    token: string,
+    orgId: string,
+    propertyId: string,
+    name: string
+  ): Promise<string> {
+    const response = await as(token, orgId).post('/api/tenancy/locations').send({ propertyId, name });
+    expect(response.status).toBe(201);
+    return response.body._id;
+  }
+
+  it('defaults every tier to manual, so nothing starts translating by itself', async () => {
+    const owner = await registerAndLogin('tpm-default@example.com');
+    const orgId = await createOrg(owner.token, 'Publish Mode Defaults');
+    const propertyId = await createProperty(owner.token, orgId, 'Flagship');
+    const locationId = await createLocation(owner.token, orgId, propertyId, 'Plano');
+
+    const org = await as(owner.token, orgId).get('/api/tenancy/organization');
+    expect(org.body.settings.translationPublishMode).toBe('manual');
+
+    const tree = await as(owner.token, orgId).get('/api/tenancy/tree');
+    const property = tree.body.properties.find((p: { _id: string }) => p._id === propertyId);
+    const location = property.locations.find((l: { _id: string }) => l._id === locationId);
+    // Children start at "inherit", not at a copy of the org's value — copying
+    // would pin them and make the org setting unchangeable in effect.
+    expect(property.settings.translationPublishMode).toBeNull();
+    expect(location.settings.translationPublishMode).toBeNull();
+  });
+
+  it('round-trips overrides at every tier and clears them back to inherit', async () => {
+    const owner = await registerAndLogin('tpm-roundtrip@example.com');
+    const orgId = await createOrg(owner.token, 'Publish Mode Roundtrip');
+    const propertyId = await createProperty(owner.token, orgId, 'Fast Casual');
+    const locationId = await createLocation(owner.token, orgId, propertyId, 'Uptown');
+
+    const org = await as(owner.token, orgId)
+      .patch('/api/tenancy/organization')
+      .send({ settings: { translationPublishMode: 'auto_review' } });
+    expect(org.status).toBe(200);
+    expect(org.body.settings.translationPublishMode).toBe('auto_review');
+
+    const property = await as(owner.token, orgId)
+      .patch(`/api/tenancy/properties/${propertyId}`)
+      .send({ settings: { translationPublishMode: 'auto_publish' } });
+    expect(property.status).toBe(200);
+    expect(property.body.settings.translationPublishMode).toBe('auto_publish');
+
+    const location = await as(owner.token, orgId)
+      .patch(`/api/tenancy/locations/${locationId}`)
+      .send({ settings: { translationPublishMode: 'manual' } });
+    expect(location.status).toBe(200);
+    expect(location.body.settings.translationPublishMode).toBe('manual');
+
+    // null is a real value here: stop overriding, follow the parent again.
+    const cleared = await as(owner.token, orgId)
+      .patch(`/api/tenancy/locations/${locationId}`)
+      .send({ settings: { translationPublishMode: null } });
+    expect(cleared.status).toBe(200);
+    expect(cleared.body.settings.translationPublishMode).toBeNull();
+  });
+
+  it('leaves the rest of a document alone when only settings are patched', async () => {
+    const owner = await registerAndLogin('tpm-partial@example.com');
+    const orgId = await createOrg(owner.token, 'Publish Mode Partial');
+
+    await as(owner.token, orgId)
+      .patch('/api/tenancy/organization')
+      .send({ name: 'Renamed Group', locales: ['en'] });
+
+    const patched = await as(owner.token, orgId)
+      .patch('/api/tenancy/organization')
+      .send({ settings: { translationPublishMode: 'auto_publish' } });
+    expect(patched.status).toBe(200);
+    expect(patched.body.name).toBe('Renamed Group');
+    expect(patched.body.locales).toEqual(['en']);
+    expect(patched.body.settings.translationPublishMode).toBe('auto_publish');
+  });
+
+  it('rejects an unknown mode', async () => {
+    const owner = await registerAndLogin('tpm-bad@example.com');
+    const orgId = await createOrg(owner.token, 'Publish Mode Bad Input');
+
+    const response = await as(owner.token, orgId)
+      .patch('/api/tenancy/organization')
+      .send({ settings: { translationPublishMode: 'whenever' } });
+    expect(response.status).toBe(400);
+  });
+
+  // A manager may rename their restaurant; deciding that machine-translated
+  // Spanish reaches the line unread is not theirs to make.
+  it('lets a manager edit a location but not its publish mode', async () => {
+    const owner = await registerAndLogin('tpm-owner@example.com');
+    const orgId = await createOrg(owner.token, 'Publish Mode Roles');
+    const propertyId = await createProperty(owner.token, orgId, 'Property');
+    const locationId = await createLocation(owner.token, orgId, propertyId, 'Riverside');
+
+    const manager = await addMember(owner.token, orgId, 'tpm-manager@example.com', 'manager', {
+      propertyId,
+      locationId,
+    });
+
+    const rename = await as(manager.token, orgId)
+      .patch(`/api/tenancy/locations/${locationId}`)
+      .send({ name: 'Riverside Grill' });
+    expect(rename.status).toBe(200);
+
+    const escalate = await as(manager.token, orgId)
+      .patch(`/api/tenancy/locations/${locationId}`)
+      .send({ settings: { translationPublishMode: 'auto_publish' } });
+    expect(escalate.status).toBe(403);
+
+    // And the refusal is real, not just a status code.
+    const tree = await as(owner.token, orgId).get('/api/tenancy/tree');
+    const location = tree.body.properties[0].locations[0];
+    expect(location.settings.translationPublishMode).toBeNull();
+  });
+
+  it("never lets one org's admin touch another org's settings", async () => {
+    const ownerA = await registerAndLogin('tpm-iso-a@example.com');
+    const ownerB = await registerAndLogin('tpm-iso-b@example.com');
+    const orgA = await createOrg(ownerA.token, 'Isolation Org A');
+    const orgB = await createOrg(ownerB.token, 'Isolation Org B');
+    const propertyB = await createProperty(ownerB.token, orgB, 'B Property');
+
+    await as(ownerB.token, orgB)
+      .patch('/api/tenancy/organization')
+      .send({ settings: { translationPublishMode: 'auto_publish' } });
+
+    // Existence hiding: B's property must read as nonexistent from A, not
+    // forbidden — and A's own org must be untouched by B's setting.
+    const cross = await as(ownerA.token, orgA)
+      .patch(`/api/tenancy/properties/${propertyB}`)
+      .send({ settings: { translationPublishMode: 'manual' } });
+    expect(cross.status).toBe(404);
+
+    const orgAProfile = await as(ownerA.token, orgA).get('/api/tenancy/organization');
+    expect(orgAProfile.body.settings.translationPublishMode).toBe('manual');
+
+    const orgBProfile = await as(ownerB.token, orgB).get('/api/tenancy/organization');
+    expect(orgBProfile.body.settings.translationPublishMode).toBe('auto_publish');
+  });
+});
+
 describe('member roster', () => {
   it("returns shaped rows and never leaks another org's members", async () => {
     const ownerA = await registerAndLogin('roster-owner-a@example.com');

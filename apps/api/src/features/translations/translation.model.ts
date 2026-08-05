@@ -58,6 +58,11 @@ const recipeTranslationSchema = new Schema<IRecipeTranslation>(
     requestedAt: { type: Date, required: true },
     approvedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
     approvedAt: { type: Date, default: null },
+    // SAFETY: `approved` without a human behind it — reached by the scope's
+    // `auto_publish` setting. Kept as its own field rather than inferred from
+    // `approvedBy: null` so the distinction survives any future backfill, and
+    // so every render path can badge the text as unreviewed.
+    autoApproved: { type: Boolean, default: false },
   },
   { timestamps: { createdAt: 'createdAt', updatedAt: 'modifiedAt' } }
 );

@@ -24,7 +24,10 @@ import { AppError } from '../../lib/AppError';
 import { escapeRegex } from '../../lib/regex';
 import { assertCanWriteAt, assertRole, scopeForWrite, scopeReadFilter } from '../../lib/scope';
 import { assertPhotosAttachable, resolveAssets } from '../media/media.service';
-import { invalidateForActiveVersion } from '../translations/translation.service';
+import {
+  autoTranslateOnPublish,
+  invalidateForActiveVersion,
+} from '../translations/translation.service';
 import { Property } from '../tenancy/property.model';
 import { Location } from '../tenancy/location.model';
 import { Recipe } from './recipe.model';
@@ -48,6 +51,23 @@ type LeanRecipe = Omit<IRecipe, keyof Document> & { _id: unknown };
 type LeanVersion = Omit<IRecipeVersion, keyof Document> & { _id: unknown };
 
 // ── Small helpers ─────────────────────────────────────────────────────────────
+
+/**
+ * Kicks off automatic translation for a recipe whose live text just changed,
+ * without waiting for it.
+ *
+ * Detached on purpose: whether the Spanish gets written is a setting on the
+ * tenant, but whether the *English* goes live is what the chef pressed the
+ * button for. An LLM call takes seconds and may fail, and neither may delay or
+ * roll back the activation. `autoTranslateOnPublish` never rejects — the catch
+ * is a belt-and-braces guard against an unhandled rejection taking the process
+ * down, since nothing awaits this promise.
+ */
+function scheduleAutoTranslation(recipeId: string, userId: string): void {
+  void autoTranslateOnPublish(recipeId, userId).catch((err) => {
+    console.error('Automatic translation could not be scheduled', err);
+  });
+}
 
 /** Readers (below chef) see only active versions and approved allergen tags. */
 function isReader(ctx: TenantContext): boolean {
@@ -550,11 +570,19 @@ async function loadForWrite(ctx: TenantContext, id: string, allowArchived = fals
 
 export async function updateRecipe(
   ctx: TenantContext,
+  userId: string,
   id: string,
   input: UpdateRecipeInput
 ): Promise<RecipeDetail> {
   assertRole(ctx, 'chef');
   const head = await loadForWrite(ctx, id);
+
+  // A rename reaches staff immediately, without a new version, which is why
+  // it counts as a source change for translations (see `sourceHashOf`). In an
+  // automatic scope it therefore re-fires translation the same way going live
+  // does — otherwise renaming a live dish would quietly strip its Spanish.
+  const renamedWhileLive =
+    input.name !== undefined && input.name !== head.name && head.activeVersionId != null;
 
   if (input.name !== undefined) head.name = input.name;
 
@@ -579,7 +607,9 @@ export async function updateRecipe(
   }
 
   await head.save();
-  return getRecipe(ctx, id);
+  const detail = await getRecipe(ctx, id);
+  if (renamedWhileLive) scheduleAutoTranslation(id, userId);
+  return detail;
 }
 
 export async function approveAllergens(
@@ -690,6 +720,7 @@ export async function getVersion(
 
 export async function activateVersion(
   ctx: TenantContext,
+  userId: string,
   id: string,
   versionId: string
 ): Promise<RecipeDetail> {
@@ -711,7 +742,9 @@ export async function activateVersion(
   // Re-activating the same version leaves its approval standing.
   await invalidateForActiveVersion(id, version._id as Types.ObjectId);
 
-  return getRecipe(ctx, id);
+  const detail = await getRecipe(ctx, id);
+  scheduleAutoTranslation(id, userId);
+  return detail;
 }
 
 /** The recall lever: staff visibility drops the moment this commits. */

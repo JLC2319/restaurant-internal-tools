@@ -1,4 +1,4 @@
-import { roleAtLeast, toSlug } from '@rit/shared';
+import { DEFAULT_TRANSLATION_PUBLISH_MODE, roleAtLeast, toSlug } from '@rit/shared';
 import type {
   CreateLocationInput,
   CreateOrganizationInput,
@@ -16,6 +16,8 @@ import type {
   TenantTree,
   UpdateLocationInput,
   UpdateMembershipInput,
+  TenantSettings,
+  TenantSettingsOverride,
   UpdateOrganizationInput,
   UpdatePropertyInput,
 } from '@rit/shared';
@@ -43,8 +45,34 @@ export function shapeOrg(org: Lean<{ name: string; slug: string; status: string 
   };
 }
 
+/**
+ * Settings as a client sees them. Documents written before a setting existed
+ * have no value for it, so every field is defaulted here rather than trusted —
+ * the org is the floor of inheritance and must never hand back `undefined`.
+ */
+function shapeSettings(settings: Partial<TenantSettings> | null | undefined): TenantSettings {
+  return {
+    translationPublishMode: settings?.translationPublishMode ?? DEFAULT_TRANSLATION_PUBLISH_MODE,
+  };
+}
+
+/** The same, for a tier that inherits: an unset field stays `null`. */
+function shapeSettingsOverride(
+  settings: Partial<TenantSettingsOverride> | null | undefined
+): TenantSettingsOverride {
+  return {
+    translationPublishMode: settings?.translationPublishMode ?? null,
+  };
+}
+
 export function shapeProperty(
-  p: Lean<{ orgId: unknown; name: string; slug: string; status: string }>
+  p: Lean<{
+    orgId: unknown;
+    name: string;
+    slug: string;
+    status: string;
+    settings?: Partial<TenantSettingsOverride> | null;
+  }>
 ): PropertySummary {
   return {
     _id: String(p._id),
@@ -52,6 +80,7 @@ export function shapeProperty(
     name: p.name,
     slug: p.slug,
     status: p.status as PropertySummary['status'],
+    settings: shapeSettingsOverride(p.settings),
   };
 }
 
@@ -63,6 +92,7 @@ export function shapeLocation(
     slug: string;
     timezone: string;
     status: string;
+    settings?: Partial<TenantSettingsOverride> | null;
   }>
 ): LocationSummary {
   return {
@@ -73,7 +103,37 @@ export function shapeLocation(
     slug: l.slug,
     timezone: l.timezone,
     status: l.status as LocationSummary['status'],
+    settings: shapeSettingsOverride(l.settings),
   };
+}
+
+/**
+ * Moves a `settings` patch onto dot-notation keys of `update`.
+ *
+ * Handing Mongoose `{ settings: { … } }` whole REPLACES the sub-document, so a
+ * client that sends one setting would silently clear every other one. Only
+ * keys the client actually sent are written; `null` is a real value here
+ * (an override cleared back to "inherit"), so only `undefined` is skipped.
+ */
+function applySettingsPatch(
+  update: Record<string, unknown>,
+  settings: Record<string, unknown> | undefined
+): void {
+  delete update.settings;
+  if (!settings) return;
+  for (const [key, value] of Object.entries(settings)) {
+    if (value !== undefined) update[`settings.${key}`] = value;
+  }
+}
+
+/**
+ * Settings are an admin act at every tier, even where the surrounding update
+ * is not. A location manager may rename their restaurant or fix its timezone;
+ * deciding whether machine-translated Spanish reaches the line without anyone
+ * reading it is not theirs to make.
+ */
+function assertMayChangeSettings(ctx: TenantContext, settings: unknown): void {
+  if (settings !== undefined) assertRole(ctx, 'admin');
 }
 
 /**
@@ -143,6 +203,7 @@ async function shapeOrgProfile(org: LeanOrg): Promise<OrganizationProfile> {
   return {
     ...shapeOrg(org),
     locales: org.locales,
+    settings: shapeSettings(org.settings),
     logo: logoAsset ? shapeAsset(logoAsset) : null,
     address: org.address
       ? {
@@ -179,6 +240,7 @@ export async function updateOrganization(
   if (ctx.propertyId) throw new AppError('Forbidden', 403);
 
   const update: Record<string, unknown> = { ...input };
+  applySettingsPatch(update, input.settings);
 
   // `en` is the authoring locale and can never be switched off — the same
   // guarantee createOrganization makes.
@@ -270,7 +332,10 @@ export async function updateProperty(
   assertRole(ctx, 'admin');
   if (ctx.propertyId && ctx.propertyId !== propertyId) throw new AppError('Not found', 404);
 
-  const property = await Property.findOneAndUpdate({ _id: propertyId, orgId: ctx.orgId }, input, {
+  const update: Record<string, unknown> = { ...input };
+  applySettingsPatch(update, input.settings);
+
+  const property = await Property.findOneAndUpdate({ _id: propertyId, orgId: ctx.orgId }, update, {
     new: true,
     runValidators: true,
   }).lean();
@@ -329,12 +394,16 @@ export async function updateLocation(
   input: UpdateLocationInput
 ): Promise<LocationSummary> {
   assertRole(ctx, 'manager');
+  assertMayChangeSettings(ctx, input.settings);
   if (ctx.locationId && ctx.locationId !== locationId) throw new AppError('Not found', 404);
 
   const filter: Record<string, unknown> = { _id: locationId, orgId: ctx.orgId };
   if (ctx.propertyId) filter.propertyId = ctx.propertyId;
 
-  const location = await Location.findOneAndUpdate(filter, input, {
+  const update: Record<string, unknown> = { ...input };
+  applySettingsPatch(update, input.settings);
+
+  const location = await Location.findOneAndUpdate(filter, update, {
     new: true,
     runValidators: true,
   }).lean();

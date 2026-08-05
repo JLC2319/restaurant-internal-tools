@@ -151,6 +151,32 @@ the caller's memberships and sets `req.tenant: TenantContext`. Rules it enforces
 - `superAdmin` (platform staff, `User.platformRole`) bypasses membership but
   still gets a resolved scope.
 
+### Tenant settings inherit down the same tree
+
+Every tier carries a `settings` sub-document (`tenantSettings.model.ts`). The
+org's values are concrete; a property's and a location's are **overrides**,
+where `null` means "inherit from the parent". Resolution is narrowest-first —
+location → property → org — via `resolveTranslationPublishMode` in
+`@rit/shared`, which both apps import so the UI's preview and the server's
+decision can never disagree.
+
+- Resolve against the **document's** scope, not the caller's `TenantContext`. A
+  property's shared recipe book must behave the same way whoever publishes into
+  it, and switching your active scope must not change what publishing does.
+- A child's override defaults to `null`, never to a copy of the parent's value.
+  Copying pins the child and makes the parent setting unchangeable in effect.
+- Patch settings with **dot-notation** keys (`applySettingsPatch` in
+  `tenancy.service.ts`). Handing Mongoose `{ settings: {…} }` whole replaces the
+  sub-document and silently clears every setting the client did not send.
+- Changing settings is admin-only at every tier, even where the surrounding
+  update is not (`updateLocation` is otherwise open to a manager).
+
+Today the only setting is `translationPublishMode`
+(`manual | auto_review | auto_publish` — see §10). Adding another means one
+field on each schema in `tenantSettings.model.ts`, one on `ITenantSettings` /
+`ITenantSettingsOverride`, one on the Zod schemas, and one entry in the web
+settings shell's section array.
+
 ### Roles
 
 `owner > admin > director > manager > chef > staff`, ranked by `roleRank` in
@@ -221,6 +247,20 @@ Every feature lives in `apps/api/src/features/{feature}/`:
 
 React islands hydrate with `client:load` unless deferred hydration is clearly
 better.
+
+**Settings pages use `SettingsShell`** (`components/SettingsShell.tsx`): a
+sidebar on laptop and up, a tab strip below, one section rendered at a time,
+and the active section in the URL hash. Both `/organization` and `/profile` are
+built from it. Sections are a data array, so a new setting is one more entry
+rather than another card on a growing scroll.
+
+- Each section renders its own `SectionCard` header — the shell adds none.
+- Ids are the URL hash: renaming one breaks anybody's bookmark.
+- Keep the whole page inside **one** island so every section shares a
+  `QueryProvider` cache instead of refetching the same profile per card.
+- Only the open section is mounted. That is load-bearing in two places: a
+  section's query does not fire until it is opened, and leaving the password
+  section clears the half-typed credentials in it.
 
 ---
 
@@ -365,7 +405,7 @@ relevant one before starting.
 | Feature | Folder | Note |
 |---|---|---|
 | Recipe data model | `features/recipes` | **Done** — everything else reads from it |
-| LLM EN→ES translation + review gate | `features/translations` | **Done** — machine output lands `pending_review`; chef edits/approves; activating a different version (or renaming) makes approved text stale and staff-invisible; reader's Español toggle renders approved+current only |
+| LLM EN→ES translation + review gate | `features/translations` | **Done** — machine output lands `pending_review`; chef edits/approves; activating a different version (or renaming) makes approved text stale and staff-invisible; reader's Español toggle renders approved+current only. Per-scope `translationPublishMode` (§4) can fire the translation automatically on publish, and `auto_publish` can skip review entirely — the single exception in §10 |
 | AI recipe drafting | `features/drafting` | **Done** — photos → structured proposals (review-first; nothing persists until a chef creates each as an ordinary unpublished draft). Tags transcribed only, never inferred |
 | Training modules | `features/training` | **Done** — blocks + publish gate + completions; translation gate pending |
 | Media storage | `features/media` | **Photos & streamed video done**; transcoding still open |
@@ -410,6 +450,19 @@ convenience everywhere:
    `PUBLISHABLE_STATUS` in `@rit/shared` encode this. `approved` is the only
    readable state. Record who approved and when. Editing a source document must
    knock its approved translations back to `pending_review`.
+
+   **The one exception, and its terms.** A tenant may set
+   `settings.translationPublishMode` to `auto_publish` (see §4), which lets a
+   machine translation reach staff unread. It is opt-in per scope, off by
+   default, and admin-only to change. Everything that carries it must:
+   - store `autoApproved: true` with **`approvedBy: null`** — never forge a
+     signature for a review that did not happen;
+   - clear `autoApproved` the moment a human edits, approves or rejects it;
+   - render as unreviewed everywhere it appears, including in Spanish on the
+     reader (`readerEs.aiUnreviewed` / `unreviewedWarning`).
+
+   Do not extend this exception to allergen tags, and do not add a second
+   feature that reuses it. Rule 2 below has no equivalent escape hatch.
 2. **An absent allergen tag is not a claim of safety.** Only `approved` tags
    reach staff; an untagged or unreviewed dish must never read as safe.
    Allergens propagate upward through sub-recipes — a dish is only as safe as
