@@ -45,6 +45,7 @@ export function ErrorNote({ children }: { children: ReactNode }) {
 const badgeTones: Record<string, { chip: string; dot: string }> = {
   active: { chip: 'bg-basil-50 text-basil-700 ring-basil-200', dot: 'bg-basil-500' },
   approved: { chip: 'bg-basil-50 text-basil-700 ring-basil-200', dot: 'bg-basil-500' },
+  published: { chip: 'bg-basil-50 text-basil-700 ring-basil-200', dot: 'bg-basil-500' },
   verified: { chip: 'bg-basil-50 text-basil-700 ring-basil-200', dot: 'bg-basil-500' },
   pending_review: { chip: 'bg-citron-50 text-citron-700 ring-citron-200', dot: 'bg-citron-400' },
   unpublished: { chip: 'bg-citron-50 text-citron-700 ring-citron-200', dot: 'bg-citron-400' },

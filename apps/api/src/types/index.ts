@@ -10,12 +10,16 @@ import type {
   MembershipStatus,
   PlatformRole,
   RecipeStatus,
+  RichTextDoc,
   TenantContext,
   TenantRole,
   TenantStatus,
+  TrainingBlockKind,
+  TrainingStatus,
   Unit,
   UserName,
   UserStatus,
+  VideoMime,
 } from '@rit/shared';
 
 // Re-export the shared domain types so feature modules can import everything
@@ -34,9 +38,12 @@ export type {
   TenantContext,
   TenantRole,
   TenantStatus,
+  TrainingBlockKind,
+  TrainingStatus,
   Unit,
   UserName,
   UserStatus,
+  VideoMime,
 };
 
 /**
@@ -227,6 +234,63 @@ export interface IRecipeVersion extends Document {
   modifiedAt: Date;
 }
 
+/**
+ * One training content block, in its Mongoose form. Like ingredient lines the
+ * union is enforced by Zod at the boundary; Mongoose stores one loose shape
+ * where only the fields for the block's `kind` are set.
+ */
+export interface ITrainingBlock {
+  kind: TrainingBlockKind;
+  /** `text` blocks: the rich-text document, validated by `richTextDocSchema`. */
+  doc?: RichTextDoc | null;
+  /**
+   * Pre-rich-text `text` blocks stored plain text here. Never written any
+   * more; read once by the shaper's legacy fallback and preserved as plain
+   * paragraphs.
+   */
+  body?: string;
+  /** `image` / `video` blocks: a Media asset reference, never inline bytes. */
+  mediaId?: Types.ObjectId | null;
+  /** `embed` blocks: the pasted YouTube/Vimeo URL (allow-list validated). */
+  url?: string;
+  caption?: string;
+}
+
+/**
+ * A training module: ordered content blocks behind a publish gate. Edited in
+ * place — no version history — so `published` is the entire staff-visibility
+ * rule, and archiving always passes back through `draft` on the way out.
+ */
+export interface ITrainingModule extends Document {
+  scope: IScope;
+  title: string;
+  description: string;
+  status: TrainingStatus;
+  blocks: ITrainingBlock[];
+  publishedAt: Date | null;
+  createdBy: Types.ObjectId;
+  createdAt: Date;
+  modifiedAt: Date;
+}
+
+/**
+ * One person finished one module in one location context — the seed of the
+ * Phase 2 productivity tracking. Scope ids are flat (not a `scope` subdoc)
+ * because a completion is not scoped *content*: it records where the person
+ * was working when they completed, `null` when they hold an org- or
+ * property-wide membership.
+ */
+export interface ITrainingCompletion extends Document {
+  trainingId: Types.ObjectId;
+  orgId: Types.ObjectId;
+  propertyId: Types.ObjectId | null;
+  locationId: Types.ObjectId | null;
+  userId: Types.ObjectId;
+  completedAt: Date;
+  createdAt: Date;
+  modifiedAt: Date;
+}
+
 // Extend the Express request with what our middleware attaches.
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -238,6 +302,19 @@ declare global {
       tenant?: TenantContext;
       /** Set by `validateQuery` — Express 5 makes `req.query` read-only. */
       validatedQuery?: unknown;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-namespace
+    namespace Multer {
+      /** Set by the R2 streaming storage engine (`media/videoStorage.ts`). */
+      interface File {
+        /** Object key the video was streamed to. */
+        r2Key?: string;
+        /** Container decided from the sniffed bytes, never the client header. */
+        r2Mime?: VideoMime;
+        /** Total bytes streamed. */
+        r2Size?: number;
+      }
     }
   }
 }

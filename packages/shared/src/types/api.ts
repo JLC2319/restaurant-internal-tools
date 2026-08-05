@@ -13,10 +13,13 @@ import type {
   TenantScope,
   TenantStatus,
   TenantTier,
+  TrainingStatus,
   Unit,
   UserName,
   UserStatus,
+  VideoEmbedProvider,
 } from './domain.js';
+import type { RichTextDoc } from '../schemas/richtext.js';
 
 // ── Server response envelope ──────────────────────────────────────────────────
 
@@ -257,6 +260,73 @@ export interface RecipeVersionSummary {
 
 export interface RecipeVersionDetail extends RecipeVersionSummary {
   content: RecipeContentView;
+}
+
+// ── Training ──────────────────────────────────────────────────────────────────
+
+/**
+ * One content block as rendered to clients. Text blocks carry the validated
+ * rich-text document (see `richTextDocSchema`). Media blocks carry the
+ * resolved asset (`media._id` is the id to send back when editing); an asset
+ * deleted out from under a module resolves to `null`, and viewers skip the
+ * block rather than rendering a broken player. `embed` blocks carry the
+ * stored URL plus the server-derived provider and iframe src — clients never
+ * build an embed src from the raw URL themselves.
+ */
+export type TrainingBlockView =
+  | { kind: 'text'; doc: RichTextDoc }
+  | { kind: 'image'; media: MediaAssetView | null; caption: string | null }
+  | { kind: 'video'; media: MediaAssetView | null; caption: string | null }
+  | {
+      kind: 'embed';
+      url: string;
+      provider: VideoEmbedProvider;
+      embedSrc: string;
+      caption: string | null;
+    };
+
+/** One row of the training list. */
+export interface TrainingSummary {
+  _id: string;
+  title: string;
+  description: string;
+  status: TrainingStatus;
+  scope: TenantScope;
+  /** First image block that still resolves — the card art. Null when none. */
+  heroImage: MediaAssetView | null;
+  blockCount: number;
+  /** Uploaded videos plus external embeds — drives the "video" chip. */
+  videoCount: number;
+  /** When the caller completed this module (any location), ISO — null if never. */
+  myCompletion: string | null;
+  publishedAt: string | null;
+  createdAt: string;
+  modifiedAt: string;
+}
+
+export interface TrainingDetail extends TrainingSummary {
+  blocks: TrainingBlockView[];
+  createdBy: string;
+  /** Whether the caller may edit/publish/archive this module (role + write tier). */
+  canManage: boolean;
+  /** Completions across the caller's scope. Null for callers below chef. */
+  completedCount: number | null;
+}
+
+/** The caller's completion state, returned by the complete/uncomplete calls. */
+export interface TrainingCompletionState {
+  completed: boolean;
+  completedAt: string | null;
+}
+
+/** One row of a module's completion roster (chef+ only). */
+export interface TrainingCompletionRow {
+  userId: string;
+  /** Null when the account has since been deleted. */
+  name: UserName | null;
+  email: string | null;
+  locationId: string | null;
+  completedAt: string;
 }
 
 // ── Platform console (superAdmin only) ────────────────────────────────────────

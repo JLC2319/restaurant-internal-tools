@@ -1,6 +1,10 @@
 import type { ApiError, ApiResult } from '@rit/shared'
 
-const BASE_URL = (import.meta.env.PUBLIC_API_BASE_URL ?? 'http://localhost:8888').replace(/\/$/, '')
+/** Exported for the one caller (video upload) that needs XHR instead of fetch. */
+export const BASE_URL = (import.meta.env.PUBLIC_API_BASE_URL ?? 'http://localhost:8888').replace(
+  /\/$/,
+  ''
+)
 
 /** localStorage keys. Prefixed so nothing collides on a shared kitchen iPad. */
 export const TOKEN_KEY = 'rit_token'

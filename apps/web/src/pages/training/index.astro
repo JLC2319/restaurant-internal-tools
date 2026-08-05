@@ -1,0 +1,22 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { ScopeSwitcher } from '../../components/ScopeSwitcher';
+import { TrainingsBrowser } from '../../components/TrainingsBrowser';
+---
+
+<BaseLayout title="Training">
+  <ScopeSwitcher client:load slot="header-actions" />
+
+  <header class="max-w-2xl">
+    <p class="text-xs font-semibold tracking-widest text-ember-600 uppercase">Team training</p>
+    <h1 class="mt-2 text-3xl font-bold tracking-tight text-steel-900">Training</h1>
+    <p class="mt-2 text-sm text-salt-600">
+      Modules built from rich text, photos and video. Staff see published modules and mark them
+      complete; chefs draft, publish and track completion.
+    </p>
+  </header>
+
+  <div class="mt-6 tablet:mt-8">
+    <TrainingsBrowser client:load />
+  </div>
+</BaseLayout>

@@ -11,6 +11,7 @@ import { tenancyRouter } from './features/tenancy/tenancy.router';
 import { platformRouter } from './features/platform/platform.router';
 import { recipeRouter } from './features/recipes/recipe.router';
 import { mediaRouter } from './features/media/media.router';
+import { trainingRouter } from './features/training/trainingModule.router';
 
 const app = express();
 
@@ -52,10 +53,10 @@ app.use('/api/recipes', recipeRouter);
 // Uploads are multipart, so this router parses its own bodies — the global
 // express.json() above never sees them.
 app.use('/api/media', mediaRouter);
+app.use('/api/training', trainingRouter);
 
 // Phase 1 feature routers mount here as they are built. Each one goes behind
 // `authenticate` + `resolveTenant` — see apps/api/src/features/*/README.md.
-//   app.use('/api/training', trainingRouter);
 //   app.use('/api/translations', translationRouter);
 //   app.use('/api/allergens', allergenRouter);
 //   app.use('/api/rd-bank', rdBankRouter);

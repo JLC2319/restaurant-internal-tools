@@ -85,6 +85,105 @@ html[data-authed] [data-requires-anon] {
   }
 }
 
+/* ── Rich text editing surface ────────────────────────────────────────────
+   The WYSIWYG surface in RichTextEditor.tsx. contenteditable creates bare
+   semantic tags (h2, ul, blockquote…) as people format, so the styling has to
+   live on descendant rules rather than utility classes — mirroring how the
+   same structures render in RichText.tsx, minus reader-only flourishes. */
+.rte-surface {
+  position: relative;
+  min-height: 8.5rem;
+  padding: 0.875rem 1rem;
+  font-size: 1rem;
+  line-height: 1.75;
+  color: var(--color-steel-800);
+  caret-color: var(--color-ember-600);
+  outline: none;
+  overflow-wrap: break-word;
+}
+
+.rte-surface[data-empty='true']::before {
+  content: attr(data-placeholder);
+  position: absolute;
+  top: 0.875rem;
+  left: 1rem;
+  right: 1rem;
+  color: var(--color-salt-500);
+  pointer-events: none;
+}
+
+.rte-surface > * + * {
+  margin-top: 0.75rem;
+}
+
+.rte-surface h2,
+.rte-surface h3,
+.rte-surface h4 {
+  font-weight: 700;
+  color: var(--color-steel-900);
+  letter-spacing: -0.015em;
+}
+.rte-surface h2 {
+  font-size: 1.25rem;
+}
+.rte-surface h3 {
+  font-size: 1.125rem;
+}
+.rte-surface h4 {
+  font-size: 1rem;
+}
+.rte-surface > * + h2,
+.rte-surface > * + h3,
+.rte-surface > * + h4 {
+  margin-top: 1.25rem;
+}
+
+.rte-surface ul,
+.rte-surface ol {
+  padding-left: 1.5rem;
+}
+.rte-surface ul {
+  list-style: disc;
+}
+.rte-surface ol {
+  list-style: decimal;
+}
+.rte-surface ul li::marker {
+  color: var(--color-ember-500);
+}
+.rte-surface ol li::marker {
+  color: var(--color-steel-500);
+  font-weight: 600;
+}
+.rte-surface li + li {
+  margin-top: 0.375rem;
+}
+
+.rte-surface blockquote {
+  border-left: 4px solid var(--color-ember-300);
+  background-color: var(--color-ember-50);
+  border-radius: 0 0.75rem 0.75rem 0;
+  padding: 0.625rem 1rem;
+  font-style: italic;
+  color: var(--color-steel-700);
+}
+
+.rte-surface a {
+  color: var(--color-ember-700);
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: var(--color-ember-300);
+  text-underline-offset: 2px;
+}
+
+.rte-surface code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background-color: var(--color-salt-100);
+  border-radius: 0.25rem;
+  padding: 0.125rem 0.375rem;
+}
+
 /* ── Small global refinements ─────────────────────────────────────────────── */
 ::selection {
   background-color: var(--color-ember-200);

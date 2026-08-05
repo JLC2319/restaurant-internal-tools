@@ -215,6 +215,57 @@ export const MAX_RECIPE_PHOTOS = 8;
 /** Upload ceiling for a single photo, in bytes. Modern phone photos land ~3–6MB. */
 export const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
 
+/**
+ * Video formats accepted for training videos, matched against the *sniffed*
+ * bytes like images — see `sniffVideo` in the API. Only containers every
+ * modern browser can range-stream directly: MP4 and WebM. QuickTime (.mov) is
+ * deliberately rejected even though iPhones record it, because without a
+ * transcode pipeline it plays on Apple devices and nowhere else — a training
+ * that works on the chef's phone and fails on the office desktop.
+ */
+export const videoMimeValues = ['video/mp4', 'video/webm'] as const;
+export type VideoMime = (typeof videoMimeValues)[number];
+
+/**
+ * Upload ceiling for a single training video, in bytes. Phone-shot 1080p runs
+ * ~60–130MB per minute of footage, so this fits a several-minute demo while
+ * still bounding what one request may stream through the API.
+ */
+export const MAX_VIDEO_BYTES = 512 * 1024 * 1024;
+
+// ── Training ──────────────────────────────────────────────────────────────────
+
+/**
+ * Lifecycle of a training module. Unlike recipes there is no version history —
+ * a module is edited in place, and `published` is the whole visibility gate:
+ * staff see published modules only. Unarchiving returns a module to `draft`,
+ * never straight to `published`, so re-publishing is a deliberate act.
+ */
+export const trainingStatusValues = ['draft', 'published', 'archived'] as const;
+export type TrainingStatus = (typeof trainingStatusValues)[number];
+
+/**
+ * The polymorphic content blocks a module is built from (see the training
+ * README: retrofitting video into a text-only schema is a cross-tenant
+ * migration, so the list is polymorphic from the start).
+ *
+ * `text` is rich text in the constrained markdown subset the web app renders;
+ * `image`/`video` reference uploaded Media assets; `embed` is an external
+ * YouTube/Vimeo video, for the training content restaurants already have.
+ */
+export const trainingBlockKindValues = ['text', 'image', 'video', 'embed'] as const;
+export type TrainingBlockKind = (typeof trainingBlockKindValues)[number];
+
+/** Providers an `embed` block may point at — an allow-list, never an open URL. */
+export const videoEmbedProviderValues = ['youtube', 'vimeo'] as const;
+export type VideoEmbedProvider = (typeof videoEmbedProviderValues)[number];
+
+/** Content blocks per module. A training this long should be several modules. */
+export const MAX_TRAINING_BLOCKS = 50;
+
+/** Ceiling for one rich-text block. Roughly a few printed pages. */
+export const MAX_TRAINING_TEXT_CHARS = 20_000;
+
 // ── Measurement ───────────────────────────────────────────────────────────────
 
 /** Unit families. Conversions are only ever sound *within* a family. */

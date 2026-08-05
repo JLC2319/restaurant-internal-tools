@@ -68,6 +68,35 @@ export type {
 } from './schemas/recipes.js';
 
 export {
+  richTextDocSchema,
+  emptyRichTextDoc,
+  docToPlainText,
+  plainTextToDoc,
+} from './schemas/richtext.js';
+export type {
+  RichTextDoc,
+  RichTextBlockNode,
+  RichTextInlineNode,
+  RichTextTextNode,
+  RichTextMark,
+} from './schemas/richtext.js';
+
+export {
+  parseVideoEmbed,
+  trainingBlockSchema,
+  createTrainingSchema,
+  updateTrainingSchema,
+  listTrainingsQuerySchema,
+} from './schemas/training.js';
+export type {
+  VideoEmbed,
+  TrainingBlockInput,
+  CreateTrainingInput,
+  UpdateTrainingInput,
+  ListTrainingsQuery,
+} from './schemas/training.js';
+
+export {
   platformListQuerySchema,
   platformCreateOrganizationSchema,
   platformUpdateOrganizationSchema,
@@ -103,8 +132,15 @@ export {
   mediaKindValues,
   mediaStatusValues,
   imageMimeValues,
+  videoMimeValues,
   MAX_RECIPE_PHOTOS,
   MAX_PHOTO_BYTES,
+  MAX_VIDEO_BYTES,
+  trainingStatusValues,
+  trainingBlockKindValues,
+  videoEmbedProviderValues,
+  MAX_TRAINING_BLOCKS,
+  MAX_TRAINING_TEXT_CHARS,
   unitFamilyValues,
   unitValues,
   unitFamily,
@@ -129,6 +165,10 @@ export type {
   MediaKind,
   MediaStatus,
   ImageMime,
+  VideoMime,
+  TrainingStatus,
+  TrainingBlockKind,
+  VideoEmbedProvider,
   UnitFamily,
   Unit,
 } from './types/domain.js';
@@ -164,4 +204,9 @@ export type {
   RecipeDetail,
   RecipeVersionSummary,
   RecipeVersionDetail,
+  TrainingBlockView,
+  TrainingSummary,
+  TrainingDetail,
+  TrainingCompletionState,
+  TrainingCompletionRow,
 } from './types/api.js';

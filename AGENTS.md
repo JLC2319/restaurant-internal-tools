@@ -54,7 +54,7 @@ packages/
 | Database | MongoDB via Mongoose 9 |
 | Validation | Zod 4 via `validate()` / `validateQuery()` middleware |
 | Auth | JWT (`jsonwebtoken`), bcrypt (`bcryptjs`, 12 rounds) |
-| File upload | Multer (memory storage → Cloudflare R2) |
+| File upload | Multer → Cloudflare R2 (photos buffer in memory; videos stream — see `media/videoStorage.ts`) |
 | Security | helmet, cors, express-rate-limit |
 | Logging | Morgan (`combined` in prod, `dev` in development) |
 
@@ -367,8 +367,8 @@ relevant one before starting.
 | LLM EN→ES translation + review gate | `features/translations` | Demo centrepiece |
 | Allergen lookup | `features/allergens` | Exclusion-based; highest liability |
 | R&D recipe bank | `features/rdBank` | |
-| Training modules | `features/training` | |
-| Media storage | `features/media` | **Photos done**; video/transcoding still open |
+| Training modules | `features/training` | **Done** — blocks + publish gate + completions; translation gate pending |
+| Media storage | `features/media` | **Photos & streamed video done**; transcoding still open |
 | Reader app | web only | iPad-first, approved content only |
 
 ### Phase 2 (post-commitment)
