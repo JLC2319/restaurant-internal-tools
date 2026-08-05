@@ -32,6 +32,8 @@ function toAuthUser(user: {
   platformRole: IUser['platformRole'];
   status: IUser['status'];
   preferredLocale: IUser['preferredLocale'];
+  phone?: string | null;
+  jobTitle?: string | null;
 }): AuthUser {
   return {
     _id: String(user._id),
@@ -41,6 +43,8 @@ function toAuthUser(user: {
     platformRole: user.platformRole,
     status: user.status,
     preferredLocale: user.preferredLocale,
+    phone: user.phone ?? null,
+    jobTitle: user.jobTitle ?? null,
   };
 }
 

@@ -16,6 +16,20 @@ const organizationSchema = new Schema<IOrganization>(
       type: [{ type: String, enum: localeValues }],
       default: ['en', 'es'],
     },
+    logoMediaId: { type: Schema.Types.ObjectId, ref: 'Media', default: null },
+    address: {
+      line1: { type: String, trim: true },
+      line2: { type: String, trim: true },
+      city: { type: String, trim: true },
+      region: { type: String, trim: true },
+      postalCode: { type: String, trim: true },
+      country: { type: String, trim: true, maxlength: 2 },
+    },
+    contact: {
+      phone: { type: String, trim: true, maxlength: 40, default: null },
+      email: { type: String, trim: true, lowercase: true, default: null },
+      website: { type: String, trim: true, maxlength: 200, default: null },
+    },
   },
   { timestamps: { createdAt: 'createdAt', updatedAt: 'modifiedAt' } }
 );

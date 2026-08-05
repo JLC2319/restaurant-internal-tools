@@ -67,9 +67,18 @@ export interface IUser extends Document {
   platformRole: PlatformRole;
   status: UserStatus;
   preferredLocale: Locale;
+  phone?: string | null;
+  jobTitle?: string | null;
   lastLoginAt?: Date;
   createdAt: Date;
   modifiedAt: Date;
+}
+
+/** Public-facing org contact details. All optional; `null` means "cleared". */
+export interface IOrgContact {
+  phone?: string | null;
+  email?: string | null;
+  website?: string | null;
 }
 
 export interface IOrganization extends Document {
@@ -78,6 +87,10 @@ export interface IOrganization extends Document {
   status: TenantStatus;
   /** Locales this org publishes in. `en` is the authoring locale and always present. */
   locales: Locale[];
+  /** An org-owned photo Media asset; the binary lives in R2 like any other. */
+  logoMediaId: Types.ObjectId | null;
+  address?: IAddress | null;
+  contact?: IOrgContact | null;
   createdAt: Date;
   modifiedAt: Date;
 }

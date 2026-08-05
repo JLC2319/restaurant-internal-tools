@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import type { MembershipSummary } from '@rit/shared'
+import { UserRound } from 'lucide-react'
 import { getMyMemberships } from '../api/auth'
 import { getScope, setScope, clearAuth } from '../api/client'
 import { QueryProvider } from './QueryProvider'
@@ -71,6 +72,15 @@ function Switcher() {
           </span>
         )
       )}
+
+      <a
+        href="/profile"
+        aria-label="Your profile"
+        title="Your profile"
+        className="flex size-9 shrink-0 items-center justify-center rounded-full text-salt-600 transition-all duration-150 hover:bg-salt-100 hover:text-steel-900"
+      >
+        <UserRound className="size-4.5" aria-hidden />
+      </a>
 
       <button
         type="button"

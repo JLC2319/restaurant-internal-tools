@@ -32,6 +32,9 @@ export const updateMeSchema = z
   .object({
     name: nameSchema.optional(),
     preferredLocale: z.enum(localeValues).optional(),
+    /** Clients send `null` to clear; an empty string never reaches the API. */
+    phone: z.string().trim().min(1).max(40).nullable().optional(),
+    jobTitle: z.string().trim().min(1).max(80).nullable().optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: 'No changes supplied' });
 

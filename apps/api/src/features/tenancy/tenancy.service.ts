@@ -7,7 +7,10 @@ import type {
   Locale,
   LocationSummary,
   MembershipSummary,
+  OrganizationProfile,
   OrganizationSummary,
+  OrgMemberRow,
+  PaginatedResponse,
   PropertySummary,
   TenantContext,
   TenantTree,
@@ -23,6 +26,9 @@ import { Property } from './property.model';
 import { Location } from './location.model';
 import { Membership } from './membership.model';
 import { User } from '../auth/auth.model';
+import { Media } from '../media/media.model';
+import { shapeAsset } from '../media/media.service';
+import type { IOrganization, IUser } from '../../types/index';
 
 // ── Shaping ───────────────────────────────────────────────────────────────────
 
@@ -123,27 +129,82 @@ export async function createOrganization(
   return shapeOrg(org);
 }
 
-export async function getOrganization(ctx: TenantContext): Promise<OrganizationSummary> {
+type LeanOrg = Omit<IOrganization, keyof import('mongoose').Document> & {
+  _id: unknown;
+  createdAt: Date;
+};
+
+/** The full org profile: summary plus locales, logo, address and contact. */
+async function shapeOrgProfile(org: LeanOrg): Promise<OrganizationProfile> {
+  // Resolved per read rather than stored, like recipe photos — a logo asset
+  // deleted out from under the org simply renders as "no logo".
+  const logoAsset = org.logoMediaId ? await Media.findById(org.logoMediaId).lean() : null;
+
+  return {
+    ...shapeOrg(org),
+    locales: org.locales,
+    logo: logoAsset ? shapeAsset(logoAsset) : null,
+    address: org.address
+      ? {
+          line1: org.address.line1 ?? null,
+          line2: org.address.line2 ?? null,
+          city: org.address.city ?? null,
+          region: org.address.region ?? null,
+          postalCode: org.address.postalCode ?? null,
+          country: org.address.country ?? null,
+        }
+      : null,
+    contact: {
+      phone: org.contact?.phone ?? null,
+      email: org.contact?.email ?? null,
+      website: org.contact?.website ?? null,
+    },
+    createdAt: org.createdAt.toISOString(),
+  };
+}
+
+export async function getOrganization(ctx: TenantContext): Promise<OrganizationProfile> {
   const org = await Organization.findById(ctx.orgId).lean();
   if (!org) throw new AppError('Not found', 404);
-  return shapeOrg(org);
+  return shapeOrgProfile(org);
 }
 
 export async function updateOrganization(
   ctx: TenantContext,
   input: UpdateOrganizationInput
-): Promise<OrganizationSummary> {
+): Promise<OrganizationProfile> {
   assertRole(ctx, 'admin');
   // Org settings are org-wide by definition — a property-scoped admin has no
   // business renaming the parent company.
   if (ctx.propertyId) throw new AppError('Forbidden', 403);
 
-  const org = await Organization.findByIdAndUpdate(ctx.orgId, input, {
+  const update: Record<string, unknown> = { ...input };
+
+  // `en` is the authoring locale and can never be switched off — the same
+  // guarantee createOrganization makes.
+  if (input.locales && !input.locales.includes('en')) {
+    update.locales = ['en', ...input.locales];
+  }
+
+  // The logo must be a photo this org owns. 404 (not 403) for a foreign
+  // asset — existence hiding, as everywhere else.
+  if (input.logoMediaId) {
+    const asset = await Media.findOne({
+      _id: input.logoMediaId,
+      'scope.orgId': ctx.orgId,
+      kind: 'photo',
+    })
+      .select('_id')
+      .lean();
+    if (!asset) throw new AppError('Logo photo not found', 404);
+  }
+
+  const org = await Organization.findByIdAndUpdate(ctx.orgId, update, {
     new: true,
     runValidators: true,
   }).lean();
   if (!org) throw new AppError('Not found', 404);
-  return shapeOrg(org);
+  return shapeOrgProfile(org);
 }
 
 /**
@@ -313,7 +374,11 @@ export async function listMembershipsForUser(userId: string): Promise<Membership
 }
 
 /** The member roster for the active scope. Identity only — never auth fields. */
-export async function listMembers(ctx: TenantContext, page = 1, limit = 25) {
+export async function listMembers(
+  ctx: TenantContext,
+  page = 1,
+  limit = 25
+): Promise<PaginatedResponse<OrgMemberRow>> {
   assertRole(ctx, 'manager');
 
   const filter: Record<string, unknown> = { orgId: ctx.orgId };
@@ -323,7 +388,7 @@ export async function listMembers(ctx: TenantContext, page = 1, limit = 25) {
   const skip = (page - 1) * limit;
   const [rows, total] = await Promise.all([
     Membership.find(filter)
-      .populate('userId', 'name email preferredLocale status')
+      .populate('userId', 'name email jobTitle status')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -331,7 +396,34 @@ export async function listMembers(ctx: TenantContext, page = 1, limit = 25) {
     Membership.countDocuments(filter),
   ]);
 
-  return { items: rows, total, page, limit, totalPages: Math.ceil(total / limit) };
+  const items = rows.map((m): OrgMemberRow => {
+    const user = m.userId as unknown as Pick<
+      IUser,
+      '_id' | 'name' | 'email' | 'jobTitle' | 'status'
+    > | null;
+    const propertyId = m.propertyId ? String(m.propertyId) : null;
+    const locationId = m.locationId ? String(m.locationId) : null;
+    return {
+      _id: String(m._id),
+      role: m.role,
+      status: m.status,
+      tier: tierOf({ propertyId, locationId }),
+      propertyId,
+      locationId,
+      joinedAt: m.joinedAt ? m.joinedAt.toISOString() : null,
+      user: user
+        ? {
+            _id: String(user._id),
+            name: user.name,
+            email: user.email,
+            jobTitle: user.jobTitle ?? null,
+            status: user.status,
+          }
+        : null,
+    };
+  });
+
+  return { items, total, page, limit, totalPages: Math.ceil(total / limit) };
 }
 
 /**

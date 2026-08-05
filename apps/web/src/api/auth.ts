@@ -1,11 +1,13 @@
 import type {
   ApiResult,
   AuthUser,
+  ChangePasswordInput,
   LoginInput,
   LoginResponse,
   MembershipSummary,
   RegisterInput,
   RegisterResponse,
+  UpdateMeInput,
 } from '@rit/shared'
 import { apiRequest } from './client'
 
@@ -31,4 +33,20 @@ export function getMe(): Promise<ApiResult<AuthUser>> {
 
 export function getMyMemberships(): Promise<ApiResult<MembershipSummary[]>> {
   return apiRequest<MembershipSummary[]>('/api/auth/me/memberships', { scoped: false })
+}
+
+export function updateMe(input: UpdateMeInput): Promise<ApiResult<AuthUser>> {
+  return apiRequest<AuthUser>('/api/auth/me', {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+    scoped: false,
+  })
+}
+
+export function changePassword(input: ChangePasswordInput): Promise<ApiResult<null>> {
+  return apiRequest<null>('/api/auth/change-password', {
+    method: 'POST',
+    body: JSON.stringify(input),
+    scoped: false,
+  })
 }

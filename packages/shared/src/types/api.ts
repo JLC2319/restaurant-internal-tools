@@ -70,6 +70,8 @@ export interface AuthUser {
   platformRole: PlatformRole;
   status: UserStatus;
   preferredLocale: Locale;
+  phone: string | null;
+  jobTitle: string | null;
 }
 
 /** Response body from POST /api/auth/login. */
@@ -111,6 +113,48 @@ export interface LocationSummary {
   slug: string;
   timezone: string;
   status: TenantStatus;
+}
+
+/** A postal address as rendered to clients. Absent parts come back `null`. */
+export interface AddressView {
+  line1: string | null;
+  line2: string | null;
+  city: string | null;
+  region: string | null;
+  postalCode: string | null;
+  country: string | null;
+}
+
+/**
+ * The full org profile, returned by GET/PATCH /api/tenancy/organization.
+ * A superset of `OrganizationSummary` so existing callers keep working.
+ */
+export interface OrganizationProfile extends OrganizationSummary {
+  locales: Locale[];
+  logo: MediaAssetView | null;
+  address: AddressView | null;
+  contact: { phone: string | null; email: string | null; website: string | null };
+  createdAt: string;
+}
+
+/** One row of the org member roster (GET /api/tenancy/members). */
+export interface OrgMemberRow {
+  /** Membership id — the id to PATCH/DELETE. */
+  _id: string;
+  role: TenantRole;
+  status: MembershipStatus;
+  tier: TenantTier;
+  propertyId: string | null;
+  locationId: string | null;
+  joinedAt: string | null;
+  /** Null when the account has since been deleted. */
+  user: {
+    _id: string;
+    name: UserName;
+    email: string;
+    jobTitle: string | null;
+    status: UserStatus;
+  } | null;
 }
 
 /**

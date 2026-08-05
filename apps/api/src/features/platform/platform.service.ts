@@ -42,6 +42,8 @@ type LeanUser = {
   platformRole: IUser['platformRole'];
   status: IUser['status'];
   preferredLocale: IUser['preferredLocale'];
+  phone?: string | null;
+  jobTitle?: string | null;
   lastLoginAt?: Date;
   createdAt: Date;
 };
@@ -55,6 +57,8 @@ function toUserRow(user: LeanUser, membershipCount: number): PlatformUserRow {
     platformRole: user.platformRole,
     status: user.status,
     preferredLocale: user.preferredLocale,
+    phone: user.phone ?? null,
+    jobTitle: user.jobTitle ?? null,
     membershipCount,
     lastLoginAt: user.lastLoginAt ? new Date(user.lastLoginAt).toISOString() : null,
     createdAt: new Date(user.createdAt).toISOString(),

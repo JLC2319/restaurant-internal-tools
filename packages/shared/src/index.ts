@@ -29,6 +29,7 @@ export {
   createLocationSchema,
   updateLocationSchema,
   addressSchema,
+  orgContactSchema,
   inviteMemberSchema,
   updateMembershipSchema,
 } from './schemas/tenancy.js';
@@ -40,6 +41,7 @@ export type {
   CreateLocationInput,
   UpdateLocationInput,
   AddressInput,
+  OrgContactInput,
   InviteMemberInput,
   UpdateMembershipInput,
 } from './schemas/tenancy.js';
@@ -185,6 +187,9 @@ export type {
   LoginResponse,
   RegisterResponse,
   OrganizationSummary,
+  OrganizationProfile,
+  AddressView,
+  OrgMemberRow,
   PropertySummary,
   LocationSummary,
   MembershipSummary,
