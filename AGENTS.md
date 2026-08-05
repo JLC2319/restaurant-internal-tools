@@ -368,7 +368,7 @@ relevant one before starting.
 | Allergen lookup | `features/allergens` | Exclusion-based; highest liability |
 | R&D recipe bank | `features/rdBank` | |
 | Training modules | `features/training` | |
-| Media storage | `features/media` | Plating photos, training video |
+| Media storage | `features/media` | **Photos done**; video/transcoding still open |
 | Reader app | web only | iPad-first, approved content only |
 
 ### Phase 2 (post-commitment)
@@ -423,7 +423,10 @@ Standard security notes:
   when the account does not exist, so a missing account and a wrong password
   take the same time to answer.
 - Upload filenames derive from the server-validated MIME type, never the
-  client's filename.
+  client's filename. `sniffImage` (`lib/imageMeta.ts`) parses the file's own
+  header and is the only thing that decides an upload's type — an unparseable
+  file is a 415. Route new upload kinds through it rather than trusting
+  `file.mimetype`.
 - Rate limiters key on `req.ip`, so `TRUST_PROXY` must match the deployment.
 - `errorHandler` never returns a stack trace.
 

@@ -2,9 +2,7 @@ import { useState } from 'react'
 import type { SubmitEvent } from 'react'
 import type { Locale } from '@rit/shared'
 import { register } from '../api/auth'
-
-const inputClass =
-  'min-h-touch w-full rounded-md border border-salt-300 bg-white px-3 py-2 text-steel-900 outline-none focus:border-ember-500 focus:ring-2 focus:ring-ember-200'
+import { ErrorNote, inputClass, primaryButtonClass } from './ui'
 
 export function SignUpForm() {
   const [first, setFirst] = useState('')
@@ -62,14 +60,11 @@ export function SignUpForm() {
   if (createdEmail) {
     return (
       <div role="status" className="space-y-4">
-        <p className="rounded-md border border-basil-200 bg-basil-50 px-3 py-2 text-sm text-basil-700">
+        <p className="rounded-xl bg-basil-50 px-4 py-3 text-sm text-basil-700 ring-1 ring-basil-200 ring-inset">
           Account created for <span className="font-medium">{createdEmail}</span>. Ask your
           organization admin to add you — then sign in.
         </p>
-        <a
-          href="/login"
-          className="block min-h-touch w-full rounded-md bg-ember-500 px-4 py-2 text-center font-semibold text-white transition-colors hover:bg-ember-600"
-        >
+        <a href="/login" className={`${primaryButtonClass} w-full`}>
           Go to sign in
         </a>
       </div>
@@ -78,14 +73,7 @@ export function SignUpForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {error && (
-        <p
-          role="alert"
-          className="rounded-md border border-chili-200 bg-chili-50 px-3 py-2 text-sm text-chili-700"
-        >
-          {error}
-        </p>
-      )}
+      {error && <ErrorNote>{error}</ErrorNote>}
 
       <div className="grid gap-4 tablet:grid-cols-2">
         <div>
@@ -189,11 +177,7 @@ export function SignUpForm() {
         </select>
       </div>
 
-      <button
-        type="submit"
-        disabled={submitting}
-        className="min-h-touch w-full rounded-md bg-ember-500 px-4 py-2 font-semibold text-white transition-colors hover:bg-ember-600 disabled:cursor-not-allowed disabled:opacity-60"
-      >
+      <button type="submit" disabled={submitting} className={`${primaryButtonClass} w-full`}>
         {submitting ? 'Creating account…' : 'Create account'}
       </button>
     </form>

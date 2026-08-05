@@ -1,40 +1,57 @@
-# `recipes` — not yet implemented
+# `recipes`
 
-The spine of the product. Everything else in Phase 1 reads from this model, so
-build it first.
+The spine of the product — allergens, translations, rdBank and training all
+read from this model. Mounted in `app.ts` as `/api/recipes`.
 
-## Files to create
+## Shape
 
-```
-recipe.model.ts       Mongoose model — must embed `scope` (see lib/scope.ts)
-recipe.schema.ts      Zod schemas local to this feature, or promote to @rit/shared
-recipe.service.ts     All business logic; throws AppError
-recipe.controller.ts  Thin handlers
-recipe.router.ts      authenticate → resolveTenant → requireRole → validate → controller
-```
+Two collections:
 
-Mount in `app.ts` as `/api/recipes`.
+- **`Recipe`** (`recipe.model.ts`) — the lineage head: identity (`name`,
+  embedded `scope`, `status`), the one **mutable working copy** chefs edit,
+  `currentVersion` (the `$inc` counter), and the `activeVersionId` pointer to
+  what staff cook from. `forkedFrom` remembers a fork's origin.
+- **`RecipeVersion`** (`recipeVersion.model.ts`) — immutable snapshots minted
+  by "save as version". No update path exists on purpose. The unique
+  `{recipeId, version}` index is the concurrency backstop (11000 → 409 via
+  `errorHandler`). Scope is denormalised from the head — safe because a
+  lineage's scope never mutates; forking creates a new head instead.
 
-## What the planning doc asks for
+Zod schemas live in `@rit/shared` (`schemas/recipes.ts`), not a local
+`recipe.schema.ts` — the web editor shares them.
 
-Structured data for recipes, **sub-recipes**, ingredients, yields, plating
-photos, and allergen tags — plus **forking and version history**.
+## The rules that matter
 
-## Design notes to settle before writing code
+- **Versioning ≠ forking.** A version is a new numbered snapshot on the same
+  lineage. A fork is a new lineage at a (possibly different) scope that
+  remembers its origin and starts back at version 0.
+- **Staff (below chef) see only active, approved reality**: recipes with an
+  active version, that version's content, and only `approved` allergen tags.
+  Working copies, version history, and unpublished recipes answer 404.
+- **Allergen sign-off is server-owned.** Clients submit bare tags; approval
+  stamps are written only by the approve endpoint. Changing the ingredient
+  list resets every tag to `pending_review` (`mergeAllergenTags`), and forking
+  resets them unconditionally — a sign-off never crosses lineages.
+- **Sub-recipes are recipes.** A `recipe`-kind ingredient line references a
+  lineage id; consumers resolve its active version. `assertNoCycle` (BFS over
+  working copies *and* active snapshots) guards every update and restore, and
+  a sub-recipe's scope must sit at-or-above its consumer's so it is readable
+  by the consumer's whole audience.
+- **Plating photos are content, not decoration on the head.** `content.photoIds`
+  is an ordered list of `Media` ids (see `features/media`), so a version
+  snapshots the plating it was saved with and index 0 is the hero shot the list
+  and reader header use. Responses carry resolved `photos` rather than raw ids;
+  an asset deleted out from under a recipe drops out of the list instead of
+  rendering broken. Attachment is validated by `assertPhotosAttachable` — same
+  at-or-above scope rule as sub-recipes. Changing photos does **not** reset
+  allergen sign-off: `canonicalIngredients` is keyed to composition, and a
+  photo is not composition.
+- **Scope every query.** `scopeReadFilter` composes into every find,
+  `scopeForWrite` stamps every insert, `assertCanWriteAt` gates every
+  mutation — a location chef can read a property recipe but not edit it.
 
-- **Sub-recipes are recipes.** A batch of demi-glace is a recipe that another
-  recipe consumes as an ingredient. Model an ingredient line as either a raw
-  item or a `recipeId` reference, and guard against reference cycles when
-  resolving a recipe's full ingredient tree.
-- **Versioning vs forking are different operations.** A version is a new
-  revision of the same recipe on the same lineage; a fork is a new lineage that
-  remembers where it came from (a location adapting a property's standard).
-  Both need `parentId` + `version`, but only forking changes the scope.
-- **Yields are a unit quantity, not a number.** Use `Unit`/`unitFamily` from
-  `@rit/shared` — a yield of "12" is meaningless without "quarts".
-- **Allergen tags need a human sign-off** before they are shown to anyone.
-  Carry `ApprovalStatus` + who approved + when. See the liability note in
-  AGENTS.md: an absent allergen tag reads as a claim of safety.
-- **Scope every query.** Compose `scopeReadFilter(req.tenant!)` into every find,
-  and stamp `scopeForWrite(req.tenant!)` on every insert. A recipe that skips
-  this is visible to all 57 locations.
+## Role gates
+
+chef+ for create/edit/save-version/activate/restore/fork/allergen-approve;
+manager+ for archive/unarchive (archival takes a recipe away from every
+consumer, and is refused with 409 while anything still references it).

@@ -1,11 +1,19 @@
 import type { Document, Types } from 'mongoose';
 import type {
+  Allergen,
+  ApprovalStatus,
+  Dietary,
+  IngredientKind,
   Locale,
+  MediaKind,
+  MediaStatus,
   MembershipStatus,
   PlatformRole,
+  RecipeStatus,
   TenantContext,
   TenantRole,
   TenantStatus,
+  Unit,
   UserName,
   UserStatus,
 } from '@rit/shared';
@@ -13,12 +21,20 @@ import type {
 // Re-export the shared domain types so feature modules can import everything
 // they need from '../../types/index' without reaching past the shared barrel.
 export type {
+  Allergen,
+  ApprovalStatus,
+  Dietary,
+  IngredientKind,
   Locale,
+  MediaKind,
+  MediaStatus,
   MembershipStatus,
   PlatformRole,
+  RecipeStatus,
   TenantContext,
   TenantRole,
   TenantStatus,
+  Unit,
   UserName,
   UserStatus,
 };
@@ -101,6 +117,112 @@ export interface IMembership extends Document {
   status: MembershipStatus;
   invitedBy?: Types.ObjectId;
   joinedAt?: Date;
+  createdAt: Date;
+  modifiedAt: Date;
+}
+
+/**
+ * A stored asset — a plating photo today, training video later. The binary
+ * lives in object storage; this record is the tenant-scoped index of it.
+ *
+ * `key` is the storage path, never exposed to clients: they get the assembled
+ * CDN `url` instead, so the bucket layout stays ours to change.
+ */
+export interface IMedia extends Document {
+  scope: IScope;
+  kind: MediaKind;
+  status: MediaStatus;
+  /** Tenant-prefixed object key. Its extension comes from the sniffed bytes. */
+  key: string;
+  mime: string;
+  size: number;
+  width: number | null;
+  height: number | null;
+  uploadedBy: Types.ObjectId;
+  createdAt: Date;
+  modifiedAt: Date;
+}
+
+export interface IQuantity {
+  amount: number;
+  unit: Unit;
+}
+
+/**
+ * One ingredient line. `kind: 'item'` carries `name`; `kind: 'recipe'` carries
+ * `recipeId` (a Recipe lineage id — consumers follow its active version). Zod
+ * enforces the discrimination at the boundary; Mongoose stores one loose shape.
+ */
+export interface IIngredientLine {
+  kind: IngredientKind;
+  name?: string;
+  recipeId?: Types.ObjectId | null;
+  quantity: IQuantity;
+  note?: string;
+}
+
+/**
+ * An allergen tag and its sign-off. SAFETY: tags only reach staff at
+ * `approved`, and stamps are server-written — see mergeAllergenTags in
+ * recipe.service.ts.
+ */
+export interface IAllergenTag {
+  allergen: Allergen;
+  status: ApprovalStatus;
+  approvedBy: Types.ObjectId | null;
+  approvedAt: Date | null;
+}
+
+/** The editable recipe body — the working copy, and what versions snapshot. */
+export interface IRecipeContent {
+  description: string;
+  yield: IQuantity;
+  ingredients: IIngredientLine[];
+  steps: string[];
+  allergens: IAllergenTag[];
+  dietary: Dietary[];
+  /** References into the future media feature; recipes never store binaries. */
+  photoIds: Types.ObjectId[];
+  times?: { prepMinutes?: number; cookMinutes?: number };
+}
+
+export interface IForkedFrom {
+  recipeId: Types.ObjectId;
+  versionId: Types.ObjectId;
+  version: number;
+}
+
+/**
+ * A recipe lineage head: identity + the mutable working copy + the pointer to
+ * the active (staff-visible) version. Immutable history lives in RecipeVersion.
+ */
+export interface IRecipe extends Document {
+  scope: IScope;
+  name: string;
+  status: RecipeStatus;
+  workingCopy: IRecipeContent;
+  /** Highest version number ever minted for this lineage; $inc target. */
+  currentVersion: number;
+  activeVersionId: Types.ObjectId | null;
+  /** Denormalised from the active version doc for list display. */
+  activeVersion: number | null;
+  forkedFrom: IForkedFrom | null;
+  createdBy: Types.ObjectId;
+  createdAt: Date;
+  modifiedAt: Date;
+}
+
+/** An immutable snapshot of a recipe's working copy at save time. */
+export interface IRecipeVersion extends Document {
+  recipeId: Types.ObjectId;
+  version: number;
+  /** Head name stamped at snapshot time, so old versions keep their historical title. */
+  name: string;
+  content: IRecipeContent;
+  note?: string;
+  /** Denormalised from the head — safe because a lineage's scope never mutates. */
+  scope: IScope;
+  createdBy: Types.ObjectId;
   createdAt: Date;
   modifiedAt: Date;
 }

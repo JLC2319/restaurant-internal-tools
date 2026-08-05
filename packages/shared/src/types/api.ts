@@ -1,10 +1,19 @@
 import type {
+  Allergen,
+  ApprovalStatus,
+  Dietary,
+  IngredientKind,
   Locale,
+  MediaKind,
+  MediaStatus,
   MembershipStatus,
   PlatformRole,
+  RecipeStatus,
   TenantRole,
+  TenantScope,
   TenantStatus,
   TenantTier,
+  Unit,
   UserName,
   UserStatus,
 } from './domain.js';
@@ -120,6 +129,134 @@ export interface MembershipSummary {
 export interface TenantTree {
   org: OrganizationSummary;
   properties: (PropertySummary & { locations: LocationSummary[] })[];
+}
+
+// ── Media ─────────────────────────────────────────────────────────────────────
+
+/**
+ * One stored asset as returned to clients. `url` is a ready-to-render absolute
+ * URL on the media CDN — clients never construct one from the storage key.
+ *
+ * `width`/`height` come from the file's own header at upload time, so the UI
+ * can reserve the right box before the image loads. They are null only for an
+ * asset whose dimensions could not be read (video awaiting transcode).
+ */
+export interface MediaAssetView {
+  _id: string;
+  kind: MediaKind;
+  status: MediaStatus;
+  url: string;
+  mime: string;
+  /** Bytes. */
+  size: number;
+  width: number | null;
+  height: number | null;
+  createdAt: string;
+}
+
+// ── Recipes ───────────────────────────────────────────────────────────────────
+
+/** A measured amount as it appears in responses. */
+export interface QuantityValue {
+  amount: number;
+  unit: Unit;
+}
+
+/**
+ * One ingredient line as rendered to clients. `recipe`-kind lines carry the
+ * referenced lineage id plus a resolved display `name` so the reader never has
+ * to fetch sub-recipes just to print the list.
+ */
+export interface IngredientLineView {
+  kind: IngredientKind;
+  name: string;
+  recipeId: string | null;
+  quantity: QuantityValue;
+  note: string | null;
+}
+
+/**
+ * An allergen tag with its sign-off state. SAFETY: absence of a tag is not a
+ * claim of safety — check `allergensVerified` before presenting a recipe as
+ * reviewed.
+ */
+export interface AllergenTagView {
+  allergen: Allergen;
+  status: ApprovalStatus;
+  approvedBy: string | null;
+  approvedAt: string | null;
+}
+
+/** A recipe body — working copy or version snapshot — as returned to clients. */
+export interface RecipeContentView {
+  description: string;
+  yield: QuantityValue;
+  ingredients: IngredientLineView[];
+  steps: string[];
+  allergens: AllergenTagView[];
+  dietary: Dietary[];
+  /**
+   * Plating photos, in the chef's chosen order — index 0 is the hero shot.
+   * Resolved from the stored ids, so an asset deleted out from under the
+   * recipe simply drops out of the list rather than rendering broken.
+   */
+  photos: MediaAssetView[];
+  times: { prepMinutes: number | null; cookMinutes: number | null } | null;
+}
+
+/** Where a forked lineage came from. */
+export interface ForkedFromRef {
+  recipeId: string;
+  versionId: string;
+  version: number;
+}
+
+/** One row of the recipe list. */
+export interface RecipeSummary {
+  _id: string;
+  name: string;
+  status: RecipeStatus;
+  scope: TenantScope;
+  /** Version number staff currently cook from; null = unpublished. */
+  activeVersion: number | null;
+  /** True only when tags exist and every one is approved. */
+  allergensVerified: boolean;
+  isFork: boolean;
+  /**
+   * First plating photo of whichever content the caller may see — the live
+   * version for staff, the working copy for chefs. Null when there is none.
+   */
+  heroPhoto: MediaAssetView | null;
+  createdAt: string;
+  modifiedAt: string;
+}
+
+/** Full recipe detail. Staff receive `workingCopy: null` — the active version is their whole truth. */
+export interface RecipeDetail extends RecipeSummary {
+  forkedFrom: ForkedFromRef | null;
+  createdBy: string;
+  currentVersion: number;
+  activeVersionId: string | null;
+  activeContent: RecipeContentView | null;
+  workingCopy: RecipeContentView | null;
+  /** Whether the caller may edit/version/fork this recipe (role + write tier). */
+  canManage: boolean;
+}
+
+/** One row of a recipe's version history. */
+export interface RecipeVersionSummary {
+  _id: string;
+  recipeId: string;
+  version: number;
+  name: string;
+  note: string | null;
+  isActive: boolean;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface RecipeVersionDetail extends RecipeVersionSummary {
+  content: RecipeContentView;
 }
 
 // ── Platform console (superAdmin only) ────────────────────────────────────────

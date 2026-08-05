@@ -1,0 +1,129 @@
+import type {
+  ApiResult,
+  ApproveAllergensInput,
+  CreateRecipeInput,
+  ForkRecipeInput,
+  PaginatedResponse,
+  RecipeDetail,
+  RecipeStatus,
+  RecipeSummary,
+  RecipeVersionDetail,
+  RecipeVersionSummary,
+  SaveVersionInput,
+  UpdateRecipeInput,
+} from '@rit/shared'
+import { apiRequest, getScope } from './client'
+
+/**
+ * Query-key prefix segment for the active scope. Every recipe query key
+ * includes it so a scope switch can never serve one tenant's recipes under
+ * another's header (the switcher also hard-reloads — belt and braces).
+ */
+export function recipesScopeKey(): (string | null)[] {
+  const scope = getScope()
+  return [scope?.orgId ?? null, scope?.propertyId ?? null, scope?.locationId ?? null]
+}
+
+export interface ListRecipesParams {
+  q?: string
+  page?: number
+  limit?: number
+  status?: RecipeStatus
+}
+
+export function listRecipes(
+  params: ListRecipesParams = {}
+): Promise<ApiResult<PaginatedResponse<RecipeSummary>>> {
+  const query = new URLSearchParams()
+  if (params.q) query.set('q', params.q)
+  if (params.page) query.set('page', String(params.page))
+  if (params.limit) query.set('limit', String(params.limit))
+  if (params.status) query.set('status', params.status)
+  const qs = query.toString()
+  return apiRequest<PaginatedResponse<RecipeSummary>>(`/api/recipes${qs ? `?${qs}` : ''}`)
+}
+
+export function getRecipe(id: string): Promise<ApiResult<RecipeDetail>> {
+  return apiRequest<RecipeDetail>(`/api/recipes/${id}`)
+}
+
+export function createRecipe(input: CreateRecipeInput): Promise<ApiResult<RecipeDetail>> {
+  return apiRequest<RecipeDetail>('/api/recipes', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+}
+
+export function updateRecipe(id: string, input: UpdateRecipeInput): Promise<ApiResult<RecipeDetail>> {
+  return apiRequest<RecipeDetail>(`/api/recipes/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  })
+}
+
+export function archiveRecipe(id: string): Promise<ApiResult<null>> {
+  return apiRequest<null>(`/api/recipes/${id}`, { method: 'DELETE' })
+}
+
+export function unarchiveRecipe(id: string): Promise<ApiResult<RecipeDetail>> {
+  return apiRequest<RecipeDetail>(`/api/recipes/${id}/unarchive`, { method: 'POST' })
+}
+
+export function listVersions(id: string): Promise<ApiResult<RecipeVersionSummary[]>> {
+  return apiRequest<RecipeVersionSummary[]>(`/api/recipes/${id}/versions`)
+}
+
+export function getVersion(
+  id: string,
+  versionId: string
+): Promise<ApiResult<RecipeVersionDetail>> {
+  return apiRequest<RecipeVersionDetail>(`/api/recipes/${id}/versions/${versionId}`)
+}
+
+export function saveVersion(
+  id: string,
+  input: SaveVersionInput
+): Promise<ApiResult<RecipeVersionSummary>> {
+  return apiRequest<RecipeVersionSummary>(`/api/recipes/${id}/versions`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+}
+
+export function activateVersion(id: string, versionId: string): Promise<ApiResult<RecipeDetail>> {
+  return apiRequest<RecipeDetail>(`/api/recipes/${id}/versions/${versionId}/activate`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  })
+}
+
+export function deactivateRecipe(id: string): Promise<ApiResult<RecipeDetail>> {
+  return apiRequest<RecipeDetail>(`/api/recipes/${id}/deactivate`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  })
+}
+
+export function restoreVersion(id: string, versionId: string): Promise<ApiResult<RecipeDetail>> {
+  return apiRequest<RecipeDetail>(`/api/recipes/${id}/versions/${versionId}/restore`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  })
+}
+
+export function forkRecipe(id: string, input: ForkRecipeInput): Promise<ApiResult<RecipeDetail>> {
+  return apiRequest<RecipeDetail>(`/api/recipes/${id}/fork`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+}
+
+export function approveAllergens(
+  id: string,
+  input: ApproveAllergensInput
+): Promise<ApiResult<RecipeDetail>> {
+  return apiRequest<RecipeDetail>(`/api/recipes/${id}/allergens/approve`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+}

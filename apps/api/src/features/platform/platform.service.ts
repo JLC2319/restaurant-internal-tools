@@ -12,6 +12,7 @@ import type {
   UserName,
 } from '@rit/shared';
 import { AppError } from '../../lib/AppError';
+import { escapeRegex } from '../../lib/regex';
 import { tierOf } from '../../lib/scope';
 import { User, SAFE_USER_FIELDS } from '../auth/auth.model';
 import { Organization } from '../tenancy/organization.model';
@@ -30,10 +31,6 @@ import type { IOrganization, IUser } from '../../types/index';
  * TenantContext — these functions deliberately see every org, which is exactly
  * why the router keeps them behind `requireSuperAdmin`.
  */
-
-function escapeRegex(input: string): string {
-  return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
 
 type LeanOrg = IOrganization & { _id: unknown; createdAt: Date };
 

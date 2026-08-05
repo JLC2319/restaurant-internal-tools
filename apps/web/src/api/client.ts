@@ -67,8 +67,17 @@ export function handleSuspended(): void {
  * through here rather than calling fetch directly — a request that forgets the
  * scope headers gets a 400 from `resolveTenant`, not silently wrong data.
  */
-function buildHeaders(extra: HeadersInit | undefined, withScope: boolean): HeadersInit {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+function buildHeaders(
+  extra: HeadersInit | undefined,
+  withScope: boolean,
+  isMultipart: boolean
+): HeadersInit {
+  // A FormData body must set its own Content-Type: the browser appends the
+  // multipart boundary, and hard-coding the header strips it — multer then sees
+  // a body it cannot parse and every field arrives undefined.
+  const headers: Record<string, string> = isMultipart
+    ? {}
+    : { 'Content-Type': 'application/json' }
 
   const token = getToken()
   if (token) headers.Authorization = `Bearer ${token}`
@@ -98,7 +107,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   try {
     const response = await fetch(`${BASE_URL}${path}`, {
       ...rest,
-      headers: buildHeaders(headers, scoped),
+      headers: buildHeaders(headers, scoped, rest.body instanceof FormData),
     })
 
     if (!response.ok) {

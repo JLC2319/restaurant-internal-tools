@@ -6,16 +6,27 @@ import { siteName, siteTagline } from '../assets/site-content/site-info';
 
 <BaseLayout title="Create account" requireAuth={false}>
   <div class="mx-auto w-full max-w-md py-8 tablet:py-16">
-    <h1 class="text-2xl font-semibold text-steel-900">{siteName}</h1>
-    <p class="mt-1 mb-6 text-sm text-salt-600">{siteTagline}</p>
+    <div class="mb-8 flex flex-col items-center text-center">
+      <span
+        class="flex size-14 items-center justify-center rounded-2xl bg-linear-to-br from-ember-400 to-ember-600 text-white shadow-lg shadow-ember-600/30"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="size-7" aria-hidden="true">
+          <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"></path>
+        </svg>
+      </span>
+      <h1 class="mt-4 text-2xl font-bold tracking-tight text-steel-900">{siteName}</h1>
+      <p class="mt-1 text-sm text-salt-600">{siteTagline}</p>
+    </div>
 
-    <div class="rounded-lg border border-salt-300 bg-white p-6 shadow-sm">
+    <div class="rounded-2xl bg-white p-6 shadow-lg shadow-steel-900/5 ring-1 ring-salt-200 tablet:p-8">
       <SignUpForm client:load />
     </div>
 
-    <p class="mt-4 text-center text-sm text-salt-600">
+    <p class="mt-5 text-center text-sm text-salt-600">
       Already have an account?
-      <a href="/login" class="font-medium text-ember-600 hover:text-ember-700">Sign in</a>
+      <a href="/login" class="font-semibold text-ember-600 transition-colors hover:text-ember-700"
+        >Sign in</a
+      >
     </p>
   </div>
 </BaseLayout>

@@ -22,3 +22,75 @@ html[data-authed] [data-requires-anon] {
     font-size: 1rem !important;
   }
 }
+
+/* ── Motion vocabulary ────────────────────────────────────────────────────
+   Two animations, used everywhere so the app moves as one thing: content
+   enters with a small rise-and-fade, and skeletons shimmer while loading.
+   Both are disabled for users who ask for reduced motion. */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@utility animate-fade-up {
+  animation: fade-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Stagger helpers for lists of cards. */
+@utility fade-delay-1 {
+  animation-delay: 60ms;
+}
+@utility fade-delay-2 {
+  animation-delay: 120ms;
+}
+@utility fade-delay-3 {
+  animation-delay: 180ms;
+}
+
+@utility skeleton {
+  background: linear-gradient(
+    100deg,
+    var(--color-salt-200) 40%,
+    var(--color-salt-100) 50%,
+    var(--color-salt-200) 60%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+  border-radius: 0.5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up,
+  .skeleton {
+    animation: none;
+  }
+  .animate-fade-up {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ── Small global refinements ─────────────────────────────────────────────── */
+::selection {
+  background-color: var(--color-ember-200);
+  color: var(--color-ember-900);
+}
+
+html {
+  scroll-behavior: smooth;
+}

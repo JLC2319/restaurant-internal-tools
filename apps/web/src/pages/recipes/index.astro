@@ -1,0 +1,21 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { ScopeSwitcher } from '../../components/ScopeSwitcher';
+import { RecipesTable } from '../../components/RecipesTable';
+---
+
+<BaseLayout title="Recipes">
+  <ScopeSwitcher client:load slot="header-actions" />
+
+  <header class="max-w-2xl">
+    <p class="text-xs font-semibold tracking-widest text-ember-600 uppercase">Recipe book</p>
+    <h1 class="mt-2 text-3xl font-bold tracking-tight text-steel-900">Recipes</h1>
+    <p class="mt-2 text-sm text-salt-600">
+      Staff see the live version of each dish. Chefs draft, version, publish and fork.
+    </p>
+  </header>
+
+  <div class="mt-6 tablet:mt-8">
+    <RecipesTable client:load />
+  </div>
+</BaseLayout>

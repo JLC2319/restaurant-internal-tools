@@ -31,7 +31,7 @@ function Switcher() {
   })
 
   if (isLoading) {
-    return <span className="text-sm text-salt-400">Loading…</span>
+    return <span className="text-sm text-salt-500">Loading…</span>
   }
 
   const memberships = data ?? []
@@ -56,7 +56,7 @@ function Switcher() {
             // show one tenant's data under another's header.
             window.location.reload()
           }}
-          className="min-h-touch max-w-[18rem] rounded-md border border-steel-600 bg-steel-700 px-2 py-1 text-sm text-salt-50"
+          className="min-h-touch max-w-[18rem] cursor-pointer rounded-xl bg-white px-3 py-1.5 text-sm font-medium text-steel-800 shadow-xs ring-1 ring-salt-300 transition-all duration-150 hover:ring-salt-400 focus:ring-2 focus:ring-ember-400 focus:outline-none"
         >
           {memberships.map((m) => (
             <option key={m._id} value={m._id}>
@@ -65,7 +65,11 @@ function Switcher() {
           ))}
         </select>
       ) : (
-        active && <span className="text-sm text-salt-300">{label(active)}</span>
+        active && (
+          <span className="hidden rounded-full bg-salt-100 px-3 py-1.5 text-sm font-medium text-steel-700 ring-1 ring-salt-200 ring-inset phablet:inline-block">
+            {label(active)}
+          </span>
+        )
       )}
 
       <button
@@ -74,7 +78,7 @@ function Switcher() {
           clearAuth()
           window.location.href = '/login'
         }}
-        className="min-h-touch rounded-md px-3 py-1 text-sm font-medium text-salt-300 hover:bg-steel-700 hover:text-salt-50"
+        className="min-h-touch cursor-pointer rounded-full px-3.5 py-1.5 text-sm font-medium text-salt-600 transition-all duration-150 hover:bg-salt-100 hover:text-steel-900"
       >
         Sign out
       </button>

@@ -160,6 +160,61 @@ export const dietaryValues = [
 ] as const;
 export type Dietary = (typeof dietaryValues)[number];
 
+// ── Recipes ───────────────────────────────────────────────────────────────────
+
+/**
+ * Lifecycle of a recipe lineage. Archiving is soft — versions and the working
+ * copy survive so history stays browsable — and is reversible. There is no
+ * `suspended`: that concept belongs to tenants, not recipes.
+ */
+export const recipeStatusValues = ['active', 'archived'] as const;
+export type RecipeStatus = (typeof recipeStatusValues)[number];
+
+/**
+ * An ingredient line is either a raw item (free-text name) or a reference to
+ * another recipe — sub-recipes are recipes. A `recipe` line points at the
+ * lineage id, not a specific version; consumers follow that lineage's active
+ * version.
+ */
+export const ingredientKindValues = ['item', 'recipe'] as const;
+export type IngredientKind = (typeof ingredientKindValues)[number];
+
+// ── Media ─────────────────────────────────────────────────────────────────────
+
+/**
+ * What an asset is. Photos are stored as uploaded and are readable the moment
+ * the upload returns; video needs a transcode step it must not block on, which
+ * is what `processing` below exists for.
+ */
+export const mediaKindValues = ['photo', 'video'] as const;
+export type MediaKind = (typeof mediaKindValues)[number];
+
+/**
+ * Delivery readiness. A photo is `ready` on insert. Video lands `processing`
+ * and the reader app renders that state rather than a broken player.
+ */
+export const mediaStatusValues = ['ready', 'processing', 'failed'] as const;
+export type MediaStatus = (typeof mediaStatusValues)[number];
+
+/**
+ * Image formats accepted for plating photos. This is matched against the
+ * *sniffed* bytes of the upload, never the client's `Content-Type` header or
+ * filename — see `sniffImage` in the API. HEIC is deliberately absent: iOS
+ * converts to JPEG on upload from Safari, and decoding it server-side would
+ * mean a native dependency.
+ */
+export const imageMimeValues = ['image/jpeg', 'image/png', 'image/webp'] as const;
+export type ImageMime = (typeof imageMimeValues)[number];
+
+/**
+ * Plating photos per recipe. A generous ceiling for "the dish, plus a couple of
+ * build steps" that still bounds the reader app's payload on kitchen wifi.
+ */
+export const MAX_RECIPE_PHOTOS = 8;
+
+/** Upload ceiling for a single photo, in bytes. Modern phone photos land ~3–6MB. */
+export const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
+
 // ── Measurement ───────────────────────────────────────────────────────────────
 
 /** Unit families. Conversions are only ever sound *within* a family. */
