@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-const requiredEnvVars = ['MONGO_CONNECTION_STRING', 'JWT_SECRET'] as const;
+const requiredEnvVars = ['MONGODB_URI', 'JWT_SECRET'] as const;
 
 for (const key of requiredEnvVars) {
   if (!process.env[key]) {
@@ -43,7 +43,7 @@ export function parseTrustProxy(raw: string | undefined): boolean | number | str
 
 export const env = {
   port: process.env.PORT ?? '8888',
-  mongoUri: process.env.MONGO_CONNECTION_STRING as string,
+  mongoUri: process.env.MONGODB_URI as string,
   jwtSecret: process.env.JWT_SECRET as string,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '7d',
   nodeEnv: process.env.NODE_ENV ?? 'development',
