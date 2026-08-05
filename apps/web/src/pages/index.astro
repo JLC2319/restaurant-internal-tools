@@ -1,0 +1,73 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { ScopeSwitcher } from '../components/ScopeSwitcher';
+
+// The Phase 1 wedge, as the planning doc defines it. Each card links to a route
+// that does not exist yet — build the API feature first (see
+// apps/api/src/features/<name>/README.md), then the page.
+const phaseOne = [
+  {
+    title: 'Recipes',
+    href: '/recipes',
+    blurb: 'Structured recipes, sub-recipes, yields, plating photos and allergen tags.',
+    note: 'Build first — everything else reads from this model.',
+  },
+  {
+    title: 'Translation review',
+    href: '/translations',
+    blurb: 'Machine EN→ES drafts queued for human approval before anything publishes.',
+    note: 'Demo centrepiece.',
+  },
+  {
+    title: 'Allergen lookup',
+    href: '/allergens',
+    blurb: 'Exclusion-based search: what a guest with these allergens must avoid.',
+    note: 'Requires signed-off allergen tags.',
+  },
+  {
+    title: 'R&D bank',
+    href: '/rd-bank',
+    blurb: 'Chefs submit ideas; directors review, rank and track versions.',
+    note: null,
+  },
+  {
+    title: 'Training',
+    href: '/training',
+    blurb: 'Modules and materials, translated through the same review gate.',
+    note: null,
+  },
+  {
+    title: 'Reader',
+    href: '/reader',
+    blurb: 'iPad-first read-only view for the line.',
+    note: 'Approved content only.',
+  },
+];
+---
+
+<BaseLayout title="Dashboard">
+  <ScopeSwitcher client:load slot="header-actions" />
+
+  <h1 class="text-2xl font-semibold text-steel-900">Dashboard</h1>
+  <p class="mt-1 text-sm text-salt-600">
+    Scaffold only — the features below are stubs. Each card names what to build.
+  </p>
+
+  <ul class="mt-6 grid gap-4 tablet:grid-cols-2 desktop:grid-cols-3">
+    {
+      phaseOne.map(({ title, href, blurb, note }) => (
+        <li class="rounded-lg border border-salt-300 bg-white p-4 shadow-sm">
+          <div class="flex items-start justify-between gap-2">
+            <h2 class="font-semibold text-steel-900">{title}</h2>
+            <span class="shrink-0 rounded-full bg-citron-100 px-2 py-0.5 text-2xs font-medium tracking-wide text-citron-700 uppercase">
+              Not built
+            </span>
+          </div>
+          <p class="mt-2 text-sm text-salt-600">{blurb}</p>
+          {note && <p class="mt-2 text-xs text-salt-500 italic">{note}</p>}
+          <span class="mt-3 inline-block text-sm font-medium text-salt-400">{href}</span>
+        </li>
+      ))
+    }
+  </ul>
+</BaseLayout>

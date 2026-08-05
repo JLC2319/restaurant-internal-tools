@@ -1,0 +1,25 @@
+{
+  "name": "@rit/scripts",
+  "version": "0.0.1",
+  "description": "Database scripts for bulk operations and demo seeding",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "exec": "tsx --tsconfig tsconfig.json",
+    "stats": "tsx --tsconfig tsconfig.json src/scripts/stats.ts",
+    "seed-demo-tenant": "tsx --tsconfig tsconfig.json src/scripts/seed-demo-tenant.ts",
+    "set-platform-role": "tsx --tsconfig tsconfig.json src/scripts/set-platform-role.ts"
+  },
+  "dependencies": {
+    "@rit/shared": "workspace:*",
+    "dotenv": "^17.4.2",
+    "mongoose": "^9.7.3",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.0",
+    "bcryptjs": "^3.0.3",
+    "tsx": "^4.23.0",
+    "typescript": "^6.0.3"
+  }
+}
