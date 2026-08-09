@@ -18,6 +18,7 @@ import { useState } from 'react'
 import {
   ActivityIndicator,
   FlatList,
+  Platform,
   Pressable,
   Text,
   TextInput,
@@ -248,7 +249,11 @@ export default function ShelfScreen() {
               returnKeyType="search"
               placeholder={shelf === 'recipes' ? 'Search recipes…' : 'Search trainings…'}
               placeholderTextColor={colors.salt[500]}
-              className="min-h-touch flex-1 font-sans text-base text-steel-900"
+              className="min-h-touch flex-1 rounded-full font-sans text-base text-steel-900"
+              // On web the underlying <input> paints a rectangular focus
+              // outline that fights the pill shape; the container border is
+              // the field's visual boundary, so drop it.
+              style={Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : undefined}
             />
             {search.length > 0 && (
               <Pressable
