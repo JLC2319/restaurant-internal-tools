@@ -30,6 +30,7 @@ is implemented.
 apps/
   admin/        @rit/admin    — Astro + React platform console (superAdmin only, port 4322)
   api/          @rit/api      — Express REST API
+  mobile/       @rit/mobile   — Expo (React Native) reader app (see apps/mobile/README.md)
   scripts/      @rit/scripts  — Database scripts (tsx, no build step)
   web/          @rit/web      — Astro + React frontend
 packages/
@@ -73,6 +74,21 @@ async route handlers throw `AppError` directly — no `try/catch` wrapper needed
 
 Every page is behind authentication, so there is no SEO surface: pages are
 `noindex`, there is no sitemap, and no page prerenders API data.
+
+### Mobile (`apps/mobile`)
+
+| Concern | Library |
+|---|---|
+| Framework | Expo SDK 57 (React Native), expo-router |
+| Styling | NativeWind 4 (Tailwind 3 syntax; same tokens as web via `src/theme/colors.js`) |
+| Data fetching | TanStack Query 5 |
+| Session | In-memory store backed by AsyncStorage (`src/api/client.ts`) |
+
+The mobile app is the reader only — approved content, nothing else — and it
+consumes the same API with the same scope headers. `EXPO_PUBLIC_API_BASE_URL`
+must be a LAN address for physical devices. Run with `pnpm dev:mobile`;
+typecheck is part of root `pnpm typecheck`. Details and deliberate deviations
+from the web reader: `apps/mobile/README.md`.
 
 ### Shared (`packages/shared`)
 
@@ -430,8 +446,9 @@ contingent on confirming API access and partner-program requirements.
 - Email verification and password reset (the `User` fields exist).
 - Offline capture (see the `lineChecks` README — it changes the id-generation
   and idempotency story).
-- Native iOS/Android apps. The web reader is iPad-first responsive, and all
-  domain logic lives in `@rit/shared` so an Expo app can consume it later.
+- Native app store distribution. The Expo reader app (`apps/mobile`) exists
+  and covers the web reader's feature set, but it runs via Expo Go / dev
+  builds only — no EAS build pipeline, no store listings, no offline support.
 
 ### Explicitly out of scope
 
