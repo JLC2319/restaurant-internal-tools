@@ -12,6 +12,7 @@ import {
   Search,
   ShieldAlert,
   ShieldCheck,
+  X,
 } from 'lucide-react-native'
 import { useState } from 'react'
 import {
@@ -249,6 +250,20 @@ export default function ShelfScreen() {
               placeholderTextColor={colors.salt[500]}
               className="min-h-touch flex-1 font-sans text-base text-steel-900"
             />
+            {search.length > 0 && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Clear search"
+                onPress={() => {
+                  setSearch('')
+                  setQ('')
+                }}
+                hitSlop={12}
+                className="size-5 items-center justify-center rounded-full bg-salt-300 active:bg-salt-400"
+              >
+                <X size={12} color={colors.steel[700]} strokeWidth={3} />
+              </Pressable>
+            )}
           </View>
         </View>
       </View>
