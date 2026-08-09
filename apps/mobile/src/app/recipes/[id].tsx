@@ -143,28 +143,35 @@ function buildDisplay(
   }
 }
 
-function StatTile({
+/**
+ * One row of the stats card: icon and label on the left, value on the right.
+ * Stacked rows instead of columns — three tiles across a phone left the
+ * labels wrapping letter-by-letter and the values truncated.
+ */
+function StatRow({
   icon: Icon,
   label,
   value,
+  divider,
 }: {
   icon: typeof Scale
   label: string
   value: string
+  divider: boolean
 }) {
   return (
-    <View className="flex-1 flex-row items-center gap-3 rounded-xl border border-salt-200 bg-salt-50 px-3.5 py-3">
-      <View className="size-10 items-center justify-center rounded-lg border border-salt-200 bg-white">
-        <Icon size={18} color={colors.ember[600]} />
+    <View
+      className={`min-h-touch flex-row items-center gap-3 px-4 py-2.5 ${
+        divider ? 'border-t border-salt-200' : ''
+      }`}
+    >
+      <View className="size-9 items-center justify-center rounded-lg border border-salt-200 bg-white">
+        <Icon size={16} color={colors.ember[600]} />
       </View>
-      <View className="min-w-0 flex-1">
-        <Text className="font-sans-semibold text-2xs uppercase tracking-wide text-salt-600">
-          {label}
-        </Text>
-        <Text numberOfLines={1} className="font-mono-semibold text-base text-steel-900">
-          {value}
-        </Text>
-      </View>
+      <Text className="flex-1 font-sans-semibold text-2xs uppercase tracking-widest text-salt-600">
+        {label}
+      </Text>
+      <Text className="font-mono-semibold text-base text-steel-900">{value}</Text>
     </View>
   )
 }
@@ -602,19 +609,30 @@ export default function RecipeScreen() {
               )}
 
               <View className={`${cardClass} gap-7 p-4 tablet:p-6`}>
-                <View className="flex-row flex-wrap gap-3">
-                  <StatTile
+                <View className="overflow-hidden rounded-xl border border-salt-200 bg-salt-50">
+                  <StatRow
                     icon={Scale}
                     label={display.t.yield}
                     value={`${content.yield.amount} ${
                       display.aiAssisted ? unitEs[content.yield.unit] : content.yield.unit
                     }`}
+                    divider={false}
                   />
                   {content.times?.prepMinutes != null && (
-                    <StatTile icon={Timer} label={display.t.prep} value={`${content.times.prepMinutes} min`} />
+                    <StatRow
+                      icon={Timer}
+                      label={display.t.prep}
+                      value={`${content.times.prepMinutes} min`}
+                      divider
+                    />
                   )}
                   {content.times?.cookMinutes != null && (
-                    <StatTile icon={Flame} label={display.t.cook} value={`${content.times.cookMinutes} min`} />
+                    <StatRow
+                      icon={Flame}
+                      label={display.t.cook}
+                      value={`${content.times.cookMinutes} min`}
+                      divider
+                    />
                   )}
                 </View>
 
