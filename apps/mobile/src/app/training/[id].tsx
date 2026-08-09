@@ -13,7 +13,7 @@ import {
   RotateCcw,
 } from 'lucide-react-native'
 import { useState } from 'react'
-import { Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native'
+import { Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { WebView } from 'react-native-webview'
 import { completeTraining, getTraining, trainingsScopeKey, uncompleteTraining } from '../../api/trainings'
@@ -66,14 +66,28 @@ function EmbedBlock({ src, caption }: { src: string; caption: string | null }) {
   return (
     <View className="gap-3">
       <View className="aspect-video w-full overflow-hidden rounded-2xl bg-steel-900">
-        <WebView
-          source={{ uri: src }}
-          style={{ flex: 1, backgroundColor: colors.steel[900] }}
-          allowsFullscreenVideo
-          javaScriptEnabled
-          domStorageEnabled
-          mediaPlaybackRequiresUserAction
-        />
+        {Platform.OS === 'web' ? (
+          // react-native-web renders through react-dom, so a real iframe is
+          // available here — react-native-webview has no web implementation.
+          // Same attribute posture as the web app's TrainingDetail embed.
+          <iframe
+            src={src}
+            title={caption ?? 'Embedded video'}
+            style={{ width: '100%', height: '100%', border: 0 }}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+            referrerPolicy="strict-origin-when-cross-origin"
+          />
+        ) : (
+          <WebView
+            source={{ uri: src }}
+            style={{ flex: 1, backgroundColor: colors.steel[900] }}
+            allowsFullscreenVideo
+            javaScriptEnabled
+            domStorageEnabled
+            mediaPlaybackRequiresUserAction
+          />
+        )}
       </View>
       <Caption text={caption} />
     </View>
