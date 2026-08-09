@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { setScope, setToken, takeNotice } from '../api/client'
 import { login } from '../api/auth'
+import { ScreenTransition } from '../components/motion'
 import { ErrorNote, PrimaryButton, cardClass } from '../components/ui'
 import { useSession } from '../lib/useSession'
 import colors from '../theme/colors.js'
@@ -61,6 +62,7 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-salt-100">
+      <ScreenTransition>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         className="flex-1"
@@ -126,6 +128,7 @@ export default function LoginScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+      </ScreenTransition>
     </SafeAreaView>
   )
 }

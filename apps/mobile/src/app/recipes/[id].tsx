@@ -21,6 +21,7 @@ import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { getRecipe, recipesScopeKey } from '../../api/recipes'
 import { getRecipeTranslation, machineTranslateRecipe } from '../../api/translations'
+import { ScreenTransition } from '../../components/motion'
 import { EmptyState, ErrorNote, Skeleton, WarningBanner, cardClass } from '../../components/ui'
 import { allergenEs, dietaryEs, readerEs, unitEs } from '../../i18n/es'
 import { useSession } from '../../lib/useSession'
@@ -521,6 +522,7 @@ export default function RecipeScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-salt-100" edges={['top', 'left', 'right']}>
+      <ScreenTransition>
       <ScrollView contentContainerClassName="px-4 pb-10 pt-2">
         <View className="mx-auto w-full max-w-[720px] gap-5">
           {error ? (
@@ -674,6 +676,7 @@ export default function RecipeScreen() {
           )}
         </View>
       </ScrollView>
+      </ScreenTransition>
     </SafeAreaView>
   )
 }

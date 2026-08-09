@@ -6,6 +6,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { clearAuth, getScope, setScope } from '../api/client'
 import { getMyMemberships } from '../api/auth'
+import { ScreenTransition } from '../components/motion'
 import { EmptyState, ErrorNote, Skeleton, SubtleButton, cardClass } from '../components/ui'
 import { queryClient } from '../lib/queryClient'
 import { useSession } from '../lib/useSession'
@@ -64,6 +65,7 @@ export default function ScopeScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-salt-100">
+      <ScreenTransition>
       <ScrollView contentContainerClassName="flex-grow px-5 py-8">
         <View className="mx-auto w-full max-w-[520px] gap-6">
           <View className="gap-1">
@@ -134,6 +136,7 @@ export default function ScopeScreen() {
           </View>
         </View>
       </ScrollView>
+      </ScreenTransition>
     </SafeAreaView>
   )
 }

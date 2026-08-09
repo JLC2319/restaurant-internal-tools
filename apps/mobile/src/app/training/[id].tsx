@@ -17,6 +17,7 @@ import { Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { WebView } from 'react-native-webview'
 import { completeTraining, getTraining, trainingsScopeKey, uncompleteTraining } from '../../api/trainings'
+import { ScreenTransition } from '../../components/motion'
 import { RichText } from '../../components/RichText'
 import { EmptyState, ErrorNote, PrimaryButton, Skeleton, cardClass } from '../../components/ui'
 import { queryClient } from '../../lib/queryClient'
@@ -240,6 +241,7 @@ export default function TrainingScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-salt-100" edges={['top', 'left', 'right']}>
+      <ScreenTransition>
       <ScrollView contentContainerClassName="px-4 pb-10 pt-2">
         <View className="mx-auto w-full max-w-[720px] gap-5">
           <Pressable
@@ -332,6 +334,7 @@ export default function TrainingScreen() {
           )}
         </View>
       </ScrollView>
+      </ScreenTransition>
     </SafeAreaView>
   )
 }

@@ -59,6 +59,9 @@ export default function RootLayout() {
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: '#f6f7f9' },
+          // Native page-to-page motion. The web ignores stack animations —
+          // there, each screen fades itself in via <ScreenTransition>.
+          animation: 'slide_from_right',
         }}
       />
     </QueryClientProvider>

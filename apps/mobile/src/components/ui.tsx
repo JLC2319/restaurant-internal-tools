@@ -1,7 +1,8 @@
 import type { LucideIcon } from 'lucide-react-native'
 import { AlertCircle } from 'lucide-react-native'
 import type { ReactNode } from 'react'
-import { ActivityIndicator, Pressable, Text, View } from 'react-native'
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
+import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated'
 import colors from '../theme/colors.js'
 
 /**
@@ -66,6 +67,56 @@ export function EmptyState({
     </View>
   )}
 
+/**
+ * One segmented option. The active pill is its own always-mounted layer whose
+ * opacity animates, so switching tabs crossfades instead of snapping — and
+ * the option's size never changes (the border lives on the layer, not the
+ * pressable), so labels don't shift.
+ */
+function SegmentedOption({
+  active,
+  onPress,
+  label,
+  icon: Icon,
+}: {
+  active: boolean
+  onPress: () => void
+  label: string
+  icon?: LucideIcon
+}) {
+  const pill = useAnimatedStyle(
+    () => ({ opacity: withTiming(active ? 1 : 0, { duration: 160 }) }),
+    [active]
+  )
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      onPress={onPress}
+      className="min-h-touch flex-row items-center gap-1.5 rounded-lg px-3.5 py-1.5"
+    >
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          StyleSheet.absoluteFill,
+          {
+            borderRadius: 8,
+            borderWidth: 1,
+            borderColor: colors.salt[300],
+            backgroundColor: '#ffffff',
+          },
+          pill,
+        ]}
+      />
+      {Icon && <Icon size={14} color={active ? colors.steel[900] : colors.salt[600]} />}
+      <Text className={`font-sans-medium text-sm ${active ? 'text-steel-900' : 'text-salt-600'}`}>
+        {label}
+      </Text>
+    </Pressable>
+  )
+}
+
 /** Segmented control — the recipes/training shelf toggle. */
 export function Segmented<T extends string>({
   value,
@@ -78,28 +129,15 @@ export function Segmented<T extends string>({
 }) {
   return (
     <View className="flex-row items-center gap-1 self-start rounded-xl border border-salt-200 bg-salt-100 p-1">
-      {options.map((option) => {
-        const active = value === option.id
-        const Icon = option.icon
-        return (
-          <Pressable
-            key={option.id}
-            accessibilityRole="button"
-            accessibilityState={{ selected: active }}
-            onPress={() => onChange(option.id)}
-            className={`min-h-touch flex-row items-center gap-1.5 rounded-lg px-3.5 py-1.5 ${
-              active ? 'border border-salt-300 bg-white' : ''
-            }`}
-          >
-            {Icon && <Icon size={14} color={active ? colors.steel[900] : colors.salt[600]} />}
-            <Text
-              className={`font-sans-medium text-sm ${active ? 'text-steel-900' : 'text-salt-600'}`}
-            >
-              {option.label}
-            </Text>
-          </Pressable>
-        )
-      })}
+      {options.map((option) => (
+        <SegmentedOption
+          key={option.id}
+          active={value === option.id}
+          onPress={() => onChange(option.id)}
+          label={option.label}
+          icon={option.icon}
+        />
+      ))}
     </View>
   )
 }

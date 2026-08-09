@@ -1,4 +1,4 @@
-import { useInfiniteQuery } from '@tanstack/react-query'
+import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query'
 import { Image } from 'expo-image'
 import { Link, Redirect, router } from 'expo-router'
 import type { RecipeSummary, TrainingSummary } from '@rit/shared'
@@ -26,8 +26,10 @@ import {
   useWindowDimensions,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useAnimatedStyle, withTiming } from 'react-native-reanimated'
 import { listRecipes, recipesScopeKey } from '../api/recipes'
 import { listTrainings, trainingsScopeKey } from '../api/trainings'
+import { Animated, ScreenTransition, appear, popIn, popOut } from '../components/motion'
 import { Chip, EmptyState, ErrorNote, Segmented, Skeleton, cardClass } from '../components/ui'
 import { useSession } from '../lib/useSession'
 import colors from '../theme/colors.js'
@@ -185,6 +187,9 @@ export default function ShelfScreen() {
     },
     initialPageParam: 1,
     getNextPageParam: (last) => (last.page < last.totalPages ? last.page + 1 : undefined),
+    // Keep the old results on screen (dimmed) while a new search loads —
+    // no skeleton flash between one query and the next.
+    placeholderData: keepPreviousData,
     enabled: session.token != null && session.scope != null && shelf === 'recipes',
   })
 
@@ -197,11 +202,9 @@ export default function ShelfScreen() {
     },
     initialPageParam: 1,
     getNextPageParam: (last) => (last.page < last.totalPages ? last.page + 1 : undefined),
+    placeholderData: keepPreviousData,
     enabled: session.token != null && session.scope != null && shelf === 'training',
   })
-
-  if (!session.token) return <Redirect href="/login" />
-  if (!session.scope) return <Redirect href="/scope" />
 
   const active = shelf === 'recipes' ? recipes : trainings
   const items: (RecipeSummary | TrainingSummary)[] =
@@ -209,8 +212,20 @@ export default function ShelfScreen() {
       ? (recipes.data?.pages.flatMap((page) => page.items) ?? [])
       : (trainings.data?.pages.flatMap((page) => page.items) ?? [])
 
+  // A search or refetch in flight (not pagination — the footer spinner owns
+  // that). The grid dims while stale results wait to be replaced.
+  const refreshingResults = active.isFetching && !active.isFetchingNextPage && !active.isLoading
+  const gridDim = useAnimatedStyle(
+    () => ({ flex: 1, opacity: withTiming(refreshingResults ? 0.45 : 1, { duration: 180 }) }),
+    [refreshingResults]
+  )
+
+  if (!session.token) return <Redirect href="/login" />
+  if (!session.scope) return <Redirect href="/scope" />
+
   return (
     <SafeAreaView className="flex-1 bg-salt-100" edges={['top', 'left', 'right']}>
+      <ScreenTransition>
       <View className="gap-4 px-4 pb-3 pt-2">
         <View className="flex-row items-center justify-between gap-3">
           <View className="min-w-0 flex-1">
@@ -256,18 +271,20 @@ export default function ShelfScreen() {
               style={Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : undefined}
             />
             {search.length > 0 && (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Clear search"
-                onPress={() => {
-                  setSearch('')
-                  setQ('')
-                }}
-                hitSlop={12}
-                className="size-5 items-center justify-center rounded-full bg-salt-300 active:bg-salt-400"
-              >
-                <X size={12} color={colors.steel[700]} strokeWidth={3} />
-              </Pressable>
+              <Animated.View entering={popIn} exiting={popOut}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Clear search"
+                  onPress={() => {
+                    setSearch('')
+                    setQ('')
+                  }}
+                  hitSlop={12}
+                  className="size-5 items-center justify-center rounded-full bg-salt-300 active:bg-salt-400"
+                >
+                  <X size={12} color={colors.steel[700]} strokeWidth={3} />
+                </Pressable>
+              </Animated.View>
             )}
           </View>
         </View>
@@ -280,60 +297,72 @@ export default function ShelfScreen() {
       ) : active.isLoading ? (
         <SkeletonGrid columns={columns} />
       ) : (
-        <FlatList
-          key={`${shelf}-${columns}`}
-          data={items}
-          numColumns={columns}
-          keyExtractor={(item) => item._id}
-          renderItem={({ item }) => (
-            // maxWidth keeps a lone tile in the last row at column width
-            // instead of stretching across the screen.
-            <View style={{ flex: 1, maxWidth: `${100 / columns}%` }}>
-              {'title' in item ? <TrainingTile training={item} /> : <RecipeTile recipe={item} />}
-            </View>
-          )}
-          columnWrapperStyle={{ gap: 12, paddingHorizontal: 16 }}
-          contentContainerStyle={{ gap: 12, paddingBottom: 32 }}
-          onEndReached={() => {
-            if (active.hasNextPage && !active.isFetchingNextPage) void active.fetchNextPage()
-          }}
-          onEndReachedThreshold={0.4}
-          refreshing={active.isRefetching && !active.isFetchingNextPage}
-          onRefresh={() => void active.refetch()}
-          ListEmptyComponent={
-            <View className="px-0">
-              {shelf === 'recipes' ? (
-                <EmptyState
-                  icon={BookOpen}
-                  title={q ? `No recipes matching “${q}”` : 'Nothing live yet'}
-                  hint={
-                    q
-                      ? 'Try a different search, or clear it to see everything in this scope.'
-                      : 'Recipes appear here once a chef sets a version live.'
-                  }
-                />
-              ) : (
-                <EmptyState
-                  icon={GraduationCap}
-                  title={q ? `No trainings matching “${q}”` : 'No trainings yet'}
-                  hint={
-                    q
-                      ? 'Try a different search, or clear it to see everything in this scope.'
-                      : 'Training modules appear here the moment they are published.'
-                  }
-                />
+        // Keyed by shelf + query so a tab switch or new search fades the
+        // grid in (and resets scroll) instead of snapping. The inner layer
+        // owns the fetch-dim so it never fights the entering fade.
+        <Animated.View key={`${shelf}-${q}`} entering={appear} style={{ flex: 1 }}>
+          <Animated.View style={gridDim}>
+            <FlatList
+              key={`${shelf}-${columns}`}
+              data={items}
+              numColumns={columns}
+              keyExtractor={(item) => item._id}
+              renderItem={({ item }) => (
+                // maxWidth keeps a lone tile in the last row at column width
+                // instead of stretching across the screen.
+                <View style={{ flex: 1, maxWidth: `${100 / columns}%` }}>
+                  {'title' in item ? <TrainingTile training={item} /> : <RecipeTile recipe={item} />}
+                </View>
               )}
-            </View>
-          }
-          ListFooterComponent={
-            active.isFetchingNextPage ? (
-              <View className="items-center py-4">
-                <ActivityIndicator size="small" color={colors.ember[600]} />
-              </View>
-            ) : null
-          }
-        />
+              columnWrapperStyle={{ gap: 12, paddingHorizontal: 16 }}
+              contentContainerStyle={{ gap: 12, paddingBottom: 32 }}
+              onEndReached={() => {
+                if (active.hasNextPage && !active.isFetchingNextPage) void active.fetchNextPage()
+              }}
+              onEndReachedThreshold={0.4}
+              // isPlaceholderData excluded: a new search is dimmed by the
+              // grid, not announced by the pull-to-refresh spinner.
+              refreshing={
+                active.isRefetching && !active.isFetchingNextPage && !active.isPlaceholderData
+              }
+              onRefresh={() => void active.refetch()}
+              ListEmptyComponent={
+                <View className="px-0">
+                  {shelf === 'recipes' ? (
+                    <EmptyState
+                      icon={BookOpen}
+                      title={q ? `No recipes matching “${q}”` : 'Nothing live yet'}
+                      hint={
+                        q
+                          ? 'Try a different search, or clear it to see everything in this scope.'
+                          : 'Recipes appear here once a chef sets a version live.'
+                      }
+                    />
+                  ) : (
+                    <EmptyState
+                      icon={GraduationCap}
+                      title={q ? `No trainings matching “${q}”` : 'No trainings yet'}
+                      hint={
+                        q
+                          ? 'Try a different search, or clear it to see everything in this scope.'
+                          : 'Training modules appear here the moment they are published.'
+                      }
+                    />
+                  )}
+                </View>
+              }
+              ListFooterComponent={
+                active.isFetchingNextPage ? (
+                  <View className="items-center py-4">
+                    <ActivityIndicator size="small" color={colors.ember[600]} />
+                  </View>
+                ) : null
+              }
+            />
+          </Animated.View>
+        </Animated.View>
       )}
+      </ScreenTransition>
     </SafeAreaView>
   )
 }
