@@ -239,7 +239,7 @@ export default function ShelfScreen() {
               { id: 'training', label: 'Training', icon: GraduationCap },
             ]}
           />
-          <View className="min-h-touch flex-row items-center gap-2.5 rounded-xl border border-salt-300 bg-white px-3.5">
+          <View className="min-h-touch flex-row items-center gap-2.5 rounded-full border border-salt-300 bg-white px-4">
             <Search size={16} color={colors.salt[500]} />
             <TextInput
               value={search}
