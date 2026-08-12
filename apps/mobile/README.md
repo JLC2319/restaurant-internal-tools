@@ -9,17 +9,24 @@ API, same scope headers, same safety rules as `apps/web` — see the root
 
 ```bash
 # 1. API up (from the repo root)
-pnpm dev:api
+pnpm dev:api           # or `pnpm dev` for the whole web stack — it does NOT
+                       # start this app; `pnpm dev:all` runs everything at once
 
-# 2. Point the app at the API — on a physical device localhost won't work:
-cp .env.example .env   # then set EXPO_PUBLIC_API_BASE_URL to your LAN IP
+# 2. Point the app at the API:
+cp .env.example .env   # simulator: the localhost default is fine
+                       # physical device: set EXPO_PUBLIC_API_BASE_URL to your LAN IP
 
-# 3. Start the dev server (from the repo root)
-pnpm dev:mobile        # then scan the QR with Expo Go, or press i / a
+# 3. Start it (from the repo root)
+pnpm dev:mobile        # Expo dev server; scan the QR with Expo Go, or press i / a
+pnpm dev:mobile:ios    # or open straight into the iOS simulator
 ```
 
 `@rit/shared` must be built first (`pnpm build:shared`) — the app imports its
 compiled types and enums, exactly like the web app does.
+
+The iOS simulator needs full Xcode selected as the active developer directory
+(`sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`) — a Mac
+with only the Command Line Tools can install Expo Go on nothing.
 
 ## What's here
 

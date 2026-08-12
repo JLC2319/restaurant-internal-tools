@@ -17,6 +17,7 @@ reservation systems already in place.
 | API | http://localhost:8888 |
 | Web | http://localhost:4321 |
 | Admin | http://localhost:4322 |
+| Mobile (Expo dev server) | http://localhost:8081 |
 
 **This repository is currently a scaffold.** Sections 2–8 describe code that
 exists. Section 9 describes the features that do not — do not assume any of it
@@ -86,9 +87,11 @@ Every page is behind authentication, so there is no SEO surface: pages are
 
 The mobile app is the reader only — approved content, nothing else — and it
 consumes the same API with the same scope headers. `EXPO_PUBLIC_API_BASE_URL`
-must be a LAN address for physical devices. Run with `pnpm dev:mobile`;
-typecheck is part of root `pnpm typecheck`. Details and deliberate deviations
-from the web reader: `apps/mobile/README.md`.
+must be a LAN address for physical devices. Run with `pnpm dev:mobile` (or
+`pnpm dev:mobile:ios` to open the iOS simulator directly) — root `pnpm dev`
+deliberately excludes this app; `pnpm dev:all` runs everything. Typecheck is
+part of root `pnpm typecheck`. Details and deliberate deviations from the web
+reader: `apps/mobile/README.md`.
 
 ### Shared (`packages/shared`)
 
@@ -407,6 +410,12 @@ wearing gloves and moving fast.
 | Variable | Default | Notes |
 |---|---|---|
 | `PUBLIC_API_BASE_URL` | `http://localhost:8888` | Same API as the customer app |
+
+### Mobile (`apps/mobile/.env`)
+
+| Variable | Default | Notes |
+|---|---|---|
+| `EXPO_PUBLIC_API_BASE_URL` | `http://localhost:8888` | `localhost` works on a simulator; a physical device needs the machine's LAN IP |
 
 ---
 
