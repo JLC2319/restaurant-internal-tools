@@ -100,5 +100,5 @@ await run(async () => {
     }
   }
 
-  console.log('\nDone. Sign in at http://localhost:4321/login');
+  console.log('\nDone. Sign in at http://localhost:6218/login');
 });

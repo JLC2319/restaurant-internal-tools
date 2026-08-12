@@ -10,7 +10,7 @@ import type { ApiError, ApiResult } from '@rit/shared'
  * `hydrateSession()` loads it once at app start, before the router mounts.
  */
 
-export const BASE_URL = (process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://localhost:8888').replace(
+export const BASE_URL = (process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://localhost:9317').replace(
   /\/$/,
   ''
 )

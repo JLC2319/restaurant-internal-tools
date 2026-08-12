@@ -42,7 +42,7 @@ export function parseTrustProxy(raw: string | undefined): boolean | number | str
 }
 
 export const env = {
-  port: process.env.PORT ?? '8888',
+  port: process.env.PORT ?? '9317',
   mongoUri: process.env.MONGODB_URI as string,
   jwtSecret: process.env.JWT_SECRET as string,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '7d',
@@ -52,7 +52,7 @@ export const env = {
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean),
-  webUrl: (process.env.WEB_URL ?? 'http://localhost:4321').replace(/\/$/, ''),
+  webUrl: (process.env.WEB_URL ?? 'http://localhost:6218').replace(/\/$/, ''),
 
   // Anthropic — LLM features (recipe translation, recipe drafting from
   // photos). Each feature is on whenever a key is present; its own

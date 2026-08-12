@@ -14,9 +14,9 @@ reservation systems already in place.
 
 | Layer | URL (local) |
 |---|---|
-| API | http://localhost:8888 |
-| Web | http://localhost:4321 |
-| Admin | http://localhost:4322 |
+| API | http://localhost:9317 |
+| Web | http://localhost:6218 |
+| Admin | http://localhost:6219 |
 | Mobile (Expo dev server) | http://localhost:8081 |
 
 **This repository is currently a scaffold.** Sections 2–8 describe code that
@@ -29,7 +29,7 @@ is implemented.
 
 ```
 apps/
-  admin/        @rit/admin    — Astro + React platform console (superAdmin only, port 4322)
+  admin/        @rit/admin    — Astro + React platform console (superAdmin only, port 6219)
   api/          @rit/api      — Express REST API
   mobile/       @rit/mobile   — Expo (React Native) reader app (see apps/mobile/README.md)
   scripts/      @rit/scripts  — Database scripts (tsx, no build step)
@@ -388,11 +388,11 @@ wearing gloves and moving fast.
 | `MONGODB_URI` | ✅ | — | MongoDB URI |
 | `JWT_SECRET` | ✅ | — | High-entropy random string |
 | `JWT_EXPIRES_IN` | | `7d` | Token lifetime |
-| `PORT` | | `8888` | Listen port |
+| `PORT` | | `9317` | Listen port |
 | `NODE_ENV` | | `development` | Affects morgan format; `test` skips rate limiters |
 | `CORS_ORIGIN` | | (empty) | Comma-separated allowed origins in production |
 | `TRUST_PROXY` | | `1` | Reverse-proxy hops. Drives `req.ip`, which every rate limiter keys on. Never `true` — clients could then forge `X-Forwarded-For` and pick their own bucket. |
-| `WEB_URL` | | `http://localhost:4321` | Used for links in outbound mail |
+| `WEB_URL` | | `http://localhost:6218` | Used for links in outbound mail |
 | `ANTHROPIC_API_KEY` | | (empty) | Enables the LLM features (translation, recipe drafting). All off when unset. |
 | `LLM_MODEL` | | `claude-sonnet-5` | Model for every LLM call |
 | `TRANSLATION_ENABLED` | | `true` | Set `false` to disable machine translation without removing the key |
@@ -403,19 +403,19 @@ wearing gloves and moving fast.
 
 | Variable | Default | Notes |
 |---|---|---|
-| `PUBLIC_API_BASE_URL` | `http://localhost:8888` | Must start with `PUBLIC_` |
+| `PUBLIC_API_BASE_URL` | `http://localhost:9317` | Must start with `PUBLIC_` |
 
 ### Admin (`apps/admin/.env`)
 
 | Variable | Default | Notes |
 |---|---|---|
-| `PUBLIC_API_BASE_URL` | `http://localhost:8888` | Same API as the customer app |
+| `PUBLIC_API_BASE_URL` | `http://localhost:9317` | Same API as the customer app |
 
 ### Mobile (`apps/mobile/.env`)
 
 | Variable | Default | Notes |
 |---|---|---|
-| `EXPO_PUBLIC_API_BASE_URL` | `http://localhost:8888` | `localhost` works on a simulator; a physical device needs the machine's LAN IP |
+| `EXPO_PUBLIC_API_BASE_URL` | `http://localhost:9317` | `localhost` works on a simulator; a physical device needs the machine's LAN IP |
 
 ---
 

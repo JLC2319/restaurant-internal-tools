@@ -34,7 +34,7 @@ describe('app wiring', () => {
   it('advertises the tenant scope headers on preflight', async () => {
     const response = await request(app)
       .options('/api/tenancy/tree')
-      .set('Origin', 'http://localhost:4321')
+      .set('Origin', 'http://localhost:6218')
       .set('Access-Control-Request-Method', 'GET');
 
     const allowed = String(response.headers['access-control-allow-headers']).toLowerCase();

@@ -1,6 +1,6 @@
 import type { ApiError, ApiResult } from '@rit/shared'
 
-const BASE_URL = (import.meta.env.PUBLIC_API_BASE_URL ?? 'http://localhost:8888').replace(/\/$/, '')
+const BASE_URL = (import.meta.env.PUBLIC_API_BASE_URL ?? 'http://localhost:9317').replace(/\/$/, '')
 
 /**
  * Deliberately not `rit_token`: on localhost the two apps share an origin per

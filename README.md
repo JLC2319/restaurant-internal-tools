@@ -17,7 +17,7 @@ Mirrors the `meusmenu-monorepo` conventions.
 |---|---|---|
 | API | `@rit/api` | Express 5 · Mongoose 9 · Zod 4 · JWT |
 | Web | `@rit/web` | Astro 7 (MPA) · React 19 islands · Tailwind 4 · TanStack Query 5 |
-| Admin | `@rit/admin` | Same stack as web — superAdmin console on port 4322 |
+| Admin | `@rit/admin` | Same stack as web — superAdmin console on port 6219 |
 | Mobile | `@rit/mobile` | Expo SDK 57 (React Native) · expo-router · NativeWind 4 |
 | Shared | `@rit/shared` | Zod schemas + derived types, no framework deps |
 | Scripts | `@rit/scripts` | tsx, no build step |
@@ -50,11 +50,11 @@ cp apps/mobile/.env.example apps/mobile/.env # simulator OK as-is; physical devi
 pnpm build:shared                        # shared must compile before the apps
 pnpm -F @rit/scripts seed-demo-tenant owner@example.com 'change-me-please'
 pnpm -F @rit/scripts set-platform-role owner@example.com superAdmin  # optional: admin console access
-pnpm dev                                 # API on :8888, web on :4321, admin on :4322
+pnpm dev                                 # API on :9317, web on :6218, admin on :6219
 ```
 
-Sign in at <http://localhost:4321/login>. The platform console is at
-<http://localhost:4322/login> — it needs an account with
+Sign in at <http://localhost:6218/login>. The platform console is at
+<http://localhost:6219/login> — it needs an account with
 `platformRole: superAdmin` (seeded by `set-platform-role` above).
 
 ## Commands
@@ -65,9 +65,9 @@ pnpm dev              # API + web + admin in parallel (everything except mobile)
 pnpm dev:all          # the above plus the mobile Expo dev server
 
 # One app at a time
-pnpm dev:api          # API only (tsx watch, :8888)
-pnpm dev:web          # web only (astro dev, :4321)
-pnpm dev:admin        # platform console only (astro dev, :4322)
+pnpm dev:api          # API only (tsx watch, :9317)
+pnpm dev:web          # web only (astro dev, :6218)
+pnpm dev:admin        # platform console only (astro dev, :6219)
 pnpm dev:mobile       # Expo dev server only (:8081) — press i / a for a simulator
 pnpm dev:mobile:ios   # Expo dev server + boot the iOS simulator
 pnpm dev:mobile:android
@@ -96,7 +96,7 @@ pnpm -F @rit/scripts verify-email <email>                   # flip emailVerified
   one place read filters and write permissions are decided.
 - **Web shell** — auth-gated layout, login/sign-up forms, scope switcher, typed
   API client that attaches the scope headers automatically.
-- **Platform console** (`apps/admin`) — superAdmin-only dashboard on port 4322:
+- **Platform console** (`apps/admin`) — superAdmin-only dashboard on port 6219:
   cross-tenant stats, org provisioning/suspension, and user management, backed
   by `/api/platform` routes that answer 404 to non-staff.
 - **Recipes** — structured recipes with sub-recipes, immutable versions, one
