@@ -47,8 +47,26 @@ html[data-authed] [data-requires-anon] {
   }
 }
 
+/*
+ * `backwards`, NOT `both`, and the difference is load-bearing.
+ *
+ * `both` retains the final keyframe forever, so `transform: translateY(0)`
+ * stays on the element after the animation ends — and a computed transform of
+ * anything other than `none` makes that element the containing block for every
+ * `position: fixed` descendant. BaseLayout wraps each page's slot in this
+ * utility, so `both` quietly trapped every modal and sticky bar on the site
+ * inside the main column: overlays dimmed only part of the screen, and the
+ * editors' save bars sat at the bottom of the content instead of the viewport.
+ *
+ * `backwards` applies the from-state before the animation starts (which is what
+ * the stagger delays below need) and reverts to the element's own styles when
+ * it finishes. Since the to-keyframe is just "opacity 1, no offset" — the
+ * natural state anyway — the animation looks identical and the transform goes
+ * away. Keep it this way; anything that leaves a transform behind here breaks
+ * fixed positioning page-wide, a long way from this line.
+ */
 @utility animate-fade-up {
-  animation: fade-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: fade-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
 /* Stagger helpers for lists of cards. */

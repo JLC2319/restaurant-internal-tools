@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Loader2, TriangleAlert } from 'lucide-react'
 import { cardClass } from './ui'
 
@@ -11,6 +12,12 @@ import { cardClass } from './ui'
  *
  * Purely presentational: it appears while `active` and cannot be dismissed,
  * because there is nothing sensible to do but wait or leave.
+ *
+ * Rendered into `document.body` rather than in place. `position: fixed` is
+ * resolved against the nearest ancestor with a transform, filter or
+ * backdrop-filter — not the viewport — and this overlay is mounted deep inside
+ * page content that may have any of those. A modal that dims "most of the
+ * screen" looks broken, so it does not rely on its ancestors behaving.
  */
 
 const ROTATE_MS = 2600
@@ -25,6 +32,10 @@ export function WorkingOverlay({
   messages: readonly string[]
 }) {
   const [index, setIndex] = useState(0)
+  // These are Astro islands: the first render happens on the server, where
+  // there is no `document` to portal into.
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
 
   useEffect(() => {
     if (!active) {
@@ -38,9 +49,9 @@ export function WorkingOverlay({
     return () => window.clearInterval(timer)
   }, [active, messages.length])
 
-  if (!active) return null
+  if (!active || !mounted) return null
 
-  return (
+  return createPortal(
     <div
       role="alert"
       aria-busy="true"
@@ -63,7 +74,8 @@ export function WorkingOverlay({
           Please keep this page open — closing it cancels the work.
         </p>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
