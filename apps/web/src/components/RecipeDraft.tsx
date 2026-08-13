@@ -19,6 +19,7 @@ import {
   Rocket,
   ShieldAlert,
   Sparkles,
+  Tablet,
   X,
 } from 'lucide-react'
 import { getDraftConfig, draftRecipesFromPhotos } from '../api/drafts'
@@ -139,10 +140,21 @@ function ProposalCard({
           </p>
         </div>
         {createdId ? (
-          <a href={`/recipes/${createdId}/edit`} className={primaryButtonClass}>
-            <ArrowUpRight className="size-4" aria-hidden />
-            Open in editor
-          </a>
+          <div className="flex flex-wrap items-center gap-2">
+            <a href={`/recipes/${createdId}/edit`} className={primaryButtonClass}>
+              <ArrowUpRight className="size-4" aria-hidden />
+              Open in editor
+            </a>
+            {/* Only once it is live: the reader renders the active snapshot, so
+                this link on a draft would answer "not found" to the chef who
+                just created it. */}
+            {published && (
+              <a href={`/reader/recipes/${createdId}`} className={subtleButtonClass}>
+                <Tablet className="size-4" aria-hidden />
+                See in reader
+              </a>
+            )}
+          </div>
         ) : (
           <button
             type="button"
