@@ -12,13 +12,15 @@ import {
   Leaf,
   ListOrdered,
   Plus,
+  Rocket,
   Save,
   ShieldAlert,
   Trash2,
 } from 'lucide-react'
-import { getRecipe, listRecipes, recipesScopeKey, updateRecipe } from '../api/recipes'
+import { getRecipe, listRecipes, publishRecipe, recipesScopeKey, updateRecipe } from '../api/recipes'
 import { PlatingPhotoPicker } from './PlatingPhotoPicker'
 import { QueryProvider } from './QueryProvider'
+import { canPublishOnSave, PublishOnSaveControls, usePublishOnSave } from './PublishOnSave'
 import { UnitSelect } from './RecipesTable'
 import {
   Badge,
@@ -107,6 +109,22 @@ function Editor({ recipeId }: { recipeId: string }) {
     })
   }, [recipe, form])
 
+  /**
+   * The one-save shortcut, offered only where the server would accept it: a
+   * lineage nobody has ever cooked from, in a scope whose `recipePublishMode`
+   * allows it. `publishMode` is resolved server-side from the *recipe's* scope,
+   * so this cannot disagree with what the publish call will do.
+   */
+  const shortcutAvailable =
+    recipe != null &&
+    recipe.canManage &&
+    recipe.status !== 'archived' &&
+    canPublishOnSave(recipe.publishMode, recipe.activeVersionId)
+  const [publishOnSave, setPublishOnSave] = usePublishOnSave(shortcutAvailable)
+  // Not remembered between recipes, unlike the switch above: this is a claim
+  // about one dish's allergens, and it must be made again for the next one.
+  const [signOff, setSignOff] = useState(false)
+
   const save = useMutation({
     mutationFn: async (state: FormState) => {
       const ingredients: IngredientLineInput[] = state.ingredients.map((row) =>
@@ -145,7 +163,17 @@ function Editor({ recipeId }: { recipeId: string }) {
         },
       })
       if (result.error) throw new Error(result.error.message)
-      return result.data
+      if (!publishOnSave) return result.data
+
+      // Two calls, deliberately in this order: the content is saved before
+      // anything is published, so a failure here leaves a saved draft rather
+      // than a live recipe missing the edit. The message says as much — the
+      // chef's work is not lost and the recipe is simply not live yet.
+      const published = await publishRecipe(recipeId, { approveAllergens: signOff })
+      if (published.error) {
+        throw new Error(`Your changes were saved, but publishing failed: ${published.error.message}`)
+      }
+      return published.data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['recipes'] })
@@ -199,6 +227,12 @@ function Editor({ recipeId }: { recipeId: string }) {
       setError(
         `Ingredient ${badLine + 1} needs a ${form.ingredients[badLine].kind === 'item' ? 'name' : 'recipe'} and a positive amount`
       )
+      return
+    }
+    // The server refuses this too; catching it here keeps the chef's work on
+    // screen instead of saving the content and failing on the publish call.
+    if (publishOnSave && recipe?.publishMode === 'publish_on_save_verified' && !signOff) {
+      setError('Verify the allergen tags before publishing, or turn off “Publish on save”.')
       return
     }
     save.mutate(form)
@@ -546,21 +580,47 @@ function Editor({ recipeId }: { recipeId: string }) {
       />
 
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-salt-200/80 bg-white/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-[1400px] items-center gap-2 px-4 py-3 tablet:px-6">
-          <button
-            type="submit"
-            disabled={save.isPending || recipe.status === 'archived'}
-            className={primaryButtonClass}
-          >
-            <Save className="size-4" aria-hidden />
-            {save.isPending ? 'Saving…' : 'Save changes'}
-          </button>
-          <a href={`/recipes/${recipeId}`} className={subtleButtonClass}>
-            Cancel
-          </a>
-          <p className="ml-auto hidden text-xs text-salt-500 tablet:block">
-            Saving updates the working copy only — staff keep seeing the live version.
-          </p>
+        <div className="mx-auto max-w-[1400px] space-y-3 px-4 py-3 tablet:px-6">
+          {shortcutAvailable && (
+            <PublishOnSaveControls
+              idPrefix="editor"
+              mode={recipe.publishMode}
+              publish={publishOnSave}
+              onPublishChange={setPublishOnSave}
+              signOff={signOff}
+              onSignOffChange={setSignOff}
+              allergenCount={form.allergens.length}
+              disabled={save.isPending}
+            />
+          )}
+          <div className="flex items-center gap-2">
+            <button
+              type="submit"
+              disabled={save.isPending || recipe.status === 'archived'}
+              className={primaryButtonClass}
+            >
+              {publishOnSave ? (
+                <Rocket className="size-4" aria-hidden />
+              ) : (
+                <Save className="size-4" aria-hidden />
+              )}
+              {save.isPending
+                ? publishOnSave
+                  ? 'Publishing…'
+                  : 'Saving…'
+                : publishOnSave
+                  ? 'Save and publish'
+                  : 'Save changes'}
+            </button>
+            <a href={`/recipes/${recipeId}`} className={subtleButtonClass}>
+              Cancel
+            </a>
+            <p className="ml-auto hidden text-xs text-salt-500 tablet:block">
+              {publishOnSave
+                ? 'Saving mints v1 and puts this in front of staff.'
+                : 'Saving updates the working copy only — staff keep seeing the live version.'}
+            </p>
+          </div>
         </div>
       </div>
     </form>

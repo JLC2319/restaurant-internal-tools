@@ -4,6 +4,7 @@ import {
   forkRecipeSchema,
   ingredientLineSchema,
   listRecipesQuerySchema,
+  publishRecipeSchema,
   recipeContentSchema,
   updateRecipeSchema,
 } from '../../schemas/recipes.js';
@@ -131,6 +132,28 @@ describe('forkRecipeSchema', () => {
     const result = forkRecipeSchema.safeParse({ locationId: OID });
     expect(result.success).toBe(false);
     expect(result.error?.issues[0]?.path).toEqual(['propertyId']);
+  });
+});
+
+describe('publishRecipeSchema', () => {
+  it('defaults the allergen sign-off to off', () => {
+    // The safe default: publishing and signing off are separate claims, and an
+    // omitted field must never be read as a chef having made the second one.
+    const result = publishRecipeSchema.safeParse({});
+    expect(result.success).toBe(true);
+    expect(result.data?.approveAllergens).toBe(false);
+  });
+
+  it('carries an explicit sign-off and an optional note', () => {
+    const result = publishRecipeSchema.safeParse({ approveAllergens: true, note: 'Opening menu' });
+    expect(result.success).toBe(true);
+    expect(result.data?.approveAllergens).toBe(true);
+    expect(result.data?.note).toBe('Opening menu');
+  });
+
+  it('rejects a non-boolean sign-off rather than coercing it', () => {
+    // 'false' is truthy, and a coerced string here would forge a signature.
+    expect(publishRecipeSchema.safeParse({ approveAllergens: 'false' }).success).toBe(false);
   });
 });
 

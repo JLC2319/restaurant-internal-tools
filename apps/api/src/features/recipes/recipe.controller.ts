@@ -4,6 +4,7 @@ import type {
   CreateRecipeInput,
   ForkRecipeInput,
   ListRecipesQuery,
+  PublishRecipeInput,
   SaveVersionInput,
   UpdateRecipeInput,
 } from '@rit/shared';
@@ -25,6 +26,11 @@ export async function createRecipe(req: Request, res: Response): Promise<void> {
     req.body as CreateRecipeInput
   );
   res.status(201).json(recipe);
+}
+
+export async function getScopePublishMode(req: Request, res: Response): Promise<void> {
+  const view = await recipeService.getScopePublishMode(req.tenant!);
+  res.status(200).json(view);
 }
 
 export async function getRecipe(req: Request, res: Response): Promise<void> {
@@ -65,6 +71,16 @@ export async function saveVersion(req: Request, res: Response): Promise<void> {
     req.body as SaveVersionInput
   );
   res.status(201).json(version);
+}
+
+export async function publishRecipe(req: Request, res: Response): Promise<void> {
+  const recipe = await recipeService.publishRecipe(
+    req.tenant!,
+    req.userId!,
+    pathParam(req, 'id'),
+    req.body as PublishRecipeInput
+  );
+  res.status(200).json(recipe);
 }
 
 export async function getVersion(req: Request, res: Response): Promise<void> {

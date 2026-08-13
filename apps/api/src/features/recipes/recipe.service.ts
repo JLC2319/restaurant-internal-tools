@@ -7,9 +7,11 @@ import type {
   ListRecipesQuery,
   MediaAssetView,
   PaginatedResponse,
+  PublishRecipeInput,
   RecipeContentInput,
   RecipeContentView,
   RecipeDetail,
+  RecipePublishModeView,
   RecipeSummary,
   RecipeVersionDetail,
   RecipeVersionSummary,
@@ -30,6 +32,7 @@ import {
 } from '../translations/translation.service';
 import { Property } from '../tenancy/property.model';
 import { Location } from '../tenancy/location.model';
+import { resolveRecipePublishModeForScope } from '../tenancy/tenancy.service';
 import { Recipe } from './recipe.model';
 import { RecipeVersion } from './recipeVersion.model';
 import type {
@@ -442,7 +445,16 @@ async function shapeDetail(ctx: TenantContext, head: LeanRecipe): Promise<Recipe
     : null;
 
   const visible = [active?.content, reader ? null : head.workingCopy];
-  const [subNames, photos] = await Promise.all([subNamesFor(visible), photosFor(visible)]);
+  // The publish mode rides along on the detail read so the editor offers the
+  // shortcut on exactly the recipes the server would accept it for. Resolved in
+  // parallel with the rest — it is three keyed lookups on a read that already
+  // does several, and the alternative (the client resolving it from its own
+  // scope) can disagree with the server about a recipe the chef did not move.
+  const [subNames, photos, publishMode] = await Promise.all([
+    subNamesFor(visible),
+    photosFor(visible),
+    resolveRecipePublishModeForScope(head.scope),
+  ]);
   const summarySource = active ? active.content : reader ? null : head.workingCopy;
 
   return {
@@ -460,6 +472,7 @@ async function shapeDetail(ctx: TenantContext, head: LeanRecipe): Promise<Recipe
     activeContent: active ? shapeContent(active.content, subNames, photos, reader) : null,
     workingCopy: reader ? null : shapeContent(head.workingCopy, subNames, photos, false),
     canManage: canManage(ctx, shapeScope(head.scope)),
+    publishMode,
   };
 }
 
@@ -512,6 +525,20 @@ export async function listRecipes(
   const items = rows.map((row, index) => shapeSummary(row, sources[index], photos));
 
   return { items, total, page: query.page, limit: query.limit, totalPages: Math.ceil(total / query.limit) };
+}
+
+/**
+ * The publish mode a recipe created *right now* would be governed by — the
+ * caller's own write scope, which is where `createRecipe` puts a new lineage.
+ *
+ * Exists for the screens that offer the shortcut before a recipe exists (AI
+ * draft review, above all). They could almost derive it from the tenant tree,
+ * but "almost" is the problem: the answer must come from the same resolution
+ * the publish call will run, or the UI can offer a shortcut the server refuses.
+ */
+export async function getScopePublishMode(ctx: TenantContext): Promise<RecipePublishModeView> {
+  assertRole(ctx, 'chef');
+  return { mode: await resolveRecipePublishModeForScope(scopeForWrite(ctx)) };
 }
 
 export async function getRecipe(ctx: TenantContext, id: string): Promise<RecipeDetail> {
@@ -675,6 +702,65 @@ export async function saveVersion(
   });
 
   return shapeVersionSummary(version.toObject(), head.activeVersionId);
+}
+
+/**
+ * The one-step publish for a recipe nobody has ever cooked from: mint v1 and
+ * put it in front of staff, in the order a chef would do it by hand.
+ *
+ * Three guards, and each earns its place:
+ *
+ * - **The scope's `recipePublishMode` must allow it.** Resolved from the
+ *   *recipe's* scope, so a shared property book behaves the same way for every
+ *   chef who writes into it.
+ * - **The lineage must never have been live.** Once staff are cooking from a
+ *   version, changing what they read stays two deliberate acts — save a
+ *   version, then set it live. A shortcut past that is a different feature with
+ *   a different risk, and this is not it.
+ * - **`publish_on_save_verified` requires the sign-off tick.** Not
+ *   `tagsVerified`: a dish with no allergens at all can never satisfy that (an
+ *   empty tag list is not a claim of safety — AGENTS.md §10 rule 2), and a mode
+ *   nobody can satisfy is a mode nobody turns on. What the tick means is that a
+ *   human affirmed the allergen picture, which is exactly what this mode is
+ *   for. An untagged dish still reads *Unverified* to staff afterwards.
+ *
+ * Sign-off runs before the snapshot so the approval stamps land *inside* v1
+ * rather than one version behind it. Not a transaction — nothing in this API is
+ * — so a failure between minting and activating leaves a saved, unpublished v1:
+ * visibly short of the goal, and safe, which is the right way for this to fail.
+ */
+export async function publishRecipe(
+  ctx: TenantContext,
+  userId: string,
+  id: string,
+  input: PublishRecipeInput
+): Promise<RecipeDetail> {
+  assertRole(ctx, 'chef');
+  const head = await loadForWrite(ctx, id);
+
+  const mode = await resolveRecipePublishModeForScope(head.scope);
+  if (mode === 'manual') {
+    throw new AppError('Publishing on save is turned off for this recipe’s scope', 409);
+  }
+  if (head.activeVersionId) {
+    throw new AppError(
+      'This recipe is already live. Save a version and set it live to change what staff read.',
+      409
+    );
+  }
+  if (mode === 'publish_on_save_verified' && !input.approveAllergens) {
+    throw new AppError(
+      'This scope requires allergen sign-off before a recipe goes live. Verify the allergen tags, then publish.',
+      409
+    );
+  }
+
+  if (input.approveAllergens) {
+    await approveAllergens(ctx, userId, id, {});
+  }
+
+  const version = await saveVersion(ctx, userId, id, input.note ? { note: input.note } : {});
+  return activateVersion(ctx, userId, id, version._id);
 }
 
 export async function listVersions(ctx: TenantContext, id: string): Promise<RecipeVersionSummary[]> {

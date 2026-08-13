@@ -11,6 +11,7 @@ import type {
   MembershipStatus,
   PlatformRole,
   RecipeStatus,
+  RecipePublishMode,
   RichTextDoc,
   TenantContext,
   TenantRole,
@@ -37,6 +38,7 @@ export type {
   MediaStatus,
   MembershipStatus,
   PlatformRole,
+  RecipePublishMode,
   RecipeStatus,
   TenantContext,
   TenantRole,
@@ -91,6 +93,7 @@ export interface IOrgContact {
  */
 export interface ITenantSettings {
   translationPublishMode: TranslationPublishMode;
+  recipePublishMode: RecipePublishMode;
 }
 
 /**
@@ -100,6 +103,7 @@ export interface ITenantSettings {
  */
 export interface ITenantSettingsOverride {
   translationPublishMode: TranslationPublishMode | null;
+  recipePublishMode: RecipePublishMode | null;
 }
 
 export interface IOrganization extends Document {

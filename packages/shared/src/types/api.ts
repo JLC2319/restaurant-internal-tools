@@ -9,6 +9,7 @@ import type {
   MediaStatus,
   MembershipStatus,
   PlatformRole,
+  RecipePublishMode,
   RecipeStatus,
   TenantRole,
   TenantScope,
@@ -298,6 +299,13 @@ export interface RecipeDetail extends RecipeSummary {
   workingCopy: RecipeContentView | null;
   /** Whether the caller may edit/version/fork this recipe (role + write tier). */
   canManage: boolean;
+  /**
+   * `recipePublishMode` resolved for *this recipe's* scope, so the editor offers
+   * the publish-on-save shortcut on exactly the recipes the server would accept
+   * it for. Server-resolved rather than worked out from the caller's active
+   * scope — the two can differ, and only one of them governs the document.
+   */
+  publishMode: RecipePublishMode;
 }
 
 /** One row of a recipe's version history. */
@@ -381,6 +389,15 @@ export interface RecipeTranslationState {
    */
   publishMode: TranslationPublishMode;
   translation: RecipeTranslationView | null;
+}
+
+/**
+ * The publish mode governing a recipe the caller creates *now*, resolved for
+ * their own write scope. For the screens that offer the publish-on-save
+ * shortcut before there is a recipe to read it from.
+ */
+export interface RecipePublishModeView {
+  mode: RecipePublishMode;
 }
 
 // ── AI recipe drafting ────────────────────────────────────────────────────────

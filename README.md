@@ -100,7 +100,10 @@ pnpm -F @rit/scripts verify-email <email>                   # flip emailVerified
   cross-tenant stats, org provisioning/suspension, and user management, backed
   by `/api/platform` routes that answer 404 to non-staff.
 - **Recipes** — structured recipes with sub-recipes, immutable versions, one
-  live version per lineage, forking, and human allergen sign-off.
+  live version per lineage, forking, and human allergen sign-off. A brand-new
+  recipe can skip straight to staff with "Publish on save" where the scope's
+  `recipePublishMode` allows it; anything already live still changes the
+  deliberate way.
 - **Training** — modules built from rich text, photos and video behind a
   publish gate, with per-person completions.
 - **Reader** — iPad-first `/reader` surface for the line: live recipes and
@@ -110,7 +113,8 @@ pnpm -F @rit/scripts verify-email <email>                   # flip emailVerified
   the reader's Español toggle only ever shows approved, current text.
 - **AI drafting** — photos of recipe cards/pages in, structured recipe
   proposals out. Review-first: nothing is saved until a chef creates each
-  proposal as an ordinary unpublished draft.
+  proposal, and what that creates is an ordinary draft unless the chef turns on
+  "Publish on save" for it.
 
 ## What is not
 
