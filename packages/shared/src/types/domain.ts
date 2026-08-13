@@ -125,14 +125,60 @@ export type TranslationPublishMode = (typeof translationPublishModeValues)[numbe
 /** What a tenant gets before anyone configures anything: today's behaviour. */
 export const DEFAULT_TRANSLATION_PUBLISH_MODE: TranslationPublishMode = 'manual';
 
+/**
+ * How much ceremony stands between writing a **brand-new** recipe and staff
+ * reading it. Only ever consulted for a lineage that has never been live; a
+ * recipe with an active version always goes through save-version-then-set-live,
+ * because changing what a kitchen is already cooking from is a deliberate act.
+ *
+ * - `manual` — no shortcut. Save a version, then set it live, as always.
+ * - `publish_on_save` — the editor offers "Publish on save": one save mints v1
+ *   and puts it in front of staff. Allergen sign-off is a separate tick beside
+ *   it, the chef's call; skipped, the recipe goes live reading *Unverified* to
+ *   staff, exactly as an unsigned recipe does today.
+ * - `publish_on_save_verified` — the same shortcut, but the sign-off tick is
+ *   required: nothing reaches staff by this path until a human has affirmed the
+ *   allergen picture.
+ *
+ * Note which direction the modes run. Unlike `translationPublishMode`, whose
+ * top mode relaxes the review gate, every mode here keeps a human on the
+ * allergen sign-off and the strictest mode is the *last* one. Nothing in this
+ * setting may ever stamp `approvedBy` for a review that did not happen — see
+ * AGENTS.md §10, which rules allergen tags out of that exception entirely.
+ */
+export const recipePublishModeValues = [
+  'manual',
+  'publish_on_save',
+  'publish_on_save_verified',
+] as const;
+export type RecipePublishMode = (typeof recipePublishModeValues)[number];
+
+/**
+ * The inheritance floor, and what a document written before this field existed
+ * resolves to. Orgs that predate the feature keep the flow their chefs already
+ * know; the shortcut is something someone turns on, never something that
+ * appears under them. New orgs are *stamped* with
+ * `NEW_ORG_RECIPE_PUBLISH_MODE` at creation instead.
+ */
+export const DEFAULT_RECIPE_PUBLISH_MODE: RecipePublishMode = 'manual';
+
+/**
+ * What a freshly created org is stamped with. Onboarding is precisely when a
+ * kitchen has 200 recipes to type in and no reason yet to care about version
+ * history, so new tenants start with the shortcut available.
+ */
+export const NEW_ORG_RECIPE_PUBLISH_MODE: RecipePublishMode = 'publish_on_save';
+
 /** Settings held at the top of the tree. Always concrete — nothing to inherit from. */
 export interface TenantSettings {
   translationPublishMode: TranslationPublishMode;
+  recipePublishMode: RecipePublishMode;
 }
 
 /** Settings at a property or location. `null` means "inherit from the parent". */
 export interface TenantSettingsOverride {
   translationPublishMode: TranslationPublishMode | null;
+  recipePublishMode: RecipePublishMode | null;
 }
 
 /**
@@ -149,6 +195,20 @@ export function resolveTranslationPublishMode(
   location?: TranslationPublishMode | null
 ): TranslationPublishMode {
   return location ?? property ?? org ?? DEFAULT_TRANSLATION_PUBLISH_MODE;
+}
+
+/**
+ * The same narrowest-first resolution for the recipe publish shortcut, keyed on
+ * the recipe's own scope. A location chef writing into the property's shared
+ * book gets the property's answer, not their own location's — the book behaves
+ * the same way for everyone who writes into it.
+ */
+export function resolveRecipePublishMode(
+  org: RecipePublishMode | null | undefined,
+  property?: RecipePublishMode | null,
+  location?: RecipePublishMode | null
+): RecipePublishMode {
+  return location ?? property ?? org ?? DEFAULT_RECIPE_PUBLISH_MODE;
 }
 
 // ── Review / approval gate ────────────────────────────────────────────────────

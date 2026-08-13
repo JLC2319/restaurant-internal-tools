@@ -12,17 +12,37 @@ vi.mock('../../../features/recipes/recipe.model', () => ({
   },
 }));
 vi.mock('../../../features/recipes/recipeVersion.model', () => ({
-  RecipeVersion: { find: vi.fn(), create: vi.fn() },
+  RecipeVersion: { find: vi.fn(), findOne: vi.fn(), findById: vi.fn(), create: vi.fn() },
+}));
+vi.mock('../../../features/tenancy/tenancy.service', () => ({
+  resolveRecipePublishModeForScope: vi.fn(),
+}));
+vi.mock('../../../features/translations/translation.service', () => ({
+  autoTranslateOnPublish: vi.fn().mockResolvedValue(undefined),
+  beginAutoTranslation: vi.fn().mockResolvedValue(true),
+  invalidateForActiveVersion: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock('../../../features/media/media.service', () => ({
+  assertPhotosAttachable: vi.fn(),
+  resolveAssets: vi.fn().mockResolvedValue(new Map()),
 }));
 vi.mock('../../../features/tenancy/property.model', () => ({ Property: { exists: vi.fn() } }));
 vi.mock('../../../features/tenancy/location.model', () => ({ Location: { exists: vi.fn() } }));
 
 import { Recipe } from '../../../features/recipes/recipe.model';
 import { RecipeVersion } from '../../../features/recipes/recipeVersion.model';
+import { resolveRecipePublishModeForScope } from '../../../features/tenancy/tenancy.service';
+import {
+  autoTranslateOnPublish,
+  beginAutoTranslation,
+  invalidateForActiveVersion,
+} from '../../../features/translations/translation.service';
+import { resolveAssets } from '../../../features/media/media.service';
 import {
   assertNoCycle,
   listRecipes,
   mergeAllergenTags,
+  publishRecipe,
   saveVersion,
 } from '../../../features/recipes/recipe.service';
 import { AppError } from '../../../lib/AppError';
@@ -219,5 +239,120 @@ describe('saveVersion', () => {
       expect.objectContaining({ version: 4, content: workingCopy, scope })
     );
     expect(summary).toMatchObject({ version: 4, note: 'richer stock', isActive: false });
+  });
+});
+
+describe('publishRecipe', () => {
+  const SCOPE = { orgId: 'org-1', propertyId: null, locationId: null };
+
+  /**
+   * Wires up the mocked models for one publish of a never-live recipe.
+   *
+   * `Recipe.findOne` is answered in call order because the path uses it four
+   * times with two different terminals: three `loadForWrite` reads that await
+   * the document directly (publish → saveVersion → activateVersion), then the
+   * `.lean()` read behind the final `getRecipe`.
+   */
+  function arrangePublish(): { save: ReturnType<typeof vi.fn> } {
+    const save = vi.fn();
+    const head = { scope: SCOPE, status: 'active', activeVersionId: null, save };
+    const leanHead = {
+      _id: A,
+      name: 'Demi-glace',
+      scope: SCOPE,
+      status: 'active',
+      currentVersion: 1,
+      activeVersionId: B,
+      activeVersion: 1,
+      workingCopy: { ingredients: [], allergens: [], photoIds: [], dietary: [], steps: [], description: '', yield: { amount: 1, unit: 'qt' } },
+      forkedFrom: null,
+      createdBy: C,
+      createdAt: new Date('2026-08-01'),
+      modifiedAt: new Date('2026-08-01'),
+    };
+
+    vi.mocked(Recipe.findOne)
+      .mockReturnValueOnce(head as never)
+      .mockReturnValueOnce(head as never)
+      .mockReturnValueOnce(head as never)
+      .mockReturnValueOnce({ lean: vi.fn().mockResolvedValue(leanHead) } as never);
+    vi.mocked(Recipe.findOneAndUpdate).mockReturnValue({
+      lean: vi.fn().mockResolvedValue({ ...leanHead, activeVersionId: null, activeVersion: null }),
+    } as never);
+    vi.mocked(RecipeVersion.create).mockResolvedValue({
+      toObject: () => ({
+        _id: B,
+        recipeId: A,
+        version: 1,
+        name: 'Demi-glace',
+        note: null,
+        createdBy: C,
+        createdAt: new Date('2026-08-01'),
+      }),
+    } as never);
+    vi.mocked(RecipeVersion.findOne).mockReturnValue({
+      select: () => ({ lean: vi.fn().mockResolvedValue({ _id: B, version: 1 }) }),
+    } as never);
+    vi.mocked(RecipeVersion.findById).mockReturnValue({
+      lean: vi.fn().mockResolvedValue({ _id: B, content: leanHead.workingCopy }),
+    } as never);
+
+    return { save };
+  }
+
+  // The global `beforeEach` resets every mock, implementations included, so the
+  // ones this path *awaits* have to be re-armed here — an un-armed mock returns
+  // undefined, and `undefined.catch(…)` is a very confusing way to fail.
+  beforeEach(() => {
+    vi.mocked(resolveRecipePublishModeForScope).mockResolvedValue('publish_on_save');
+    vi.mocked(autoTranslateOnPublish).mockResolvedValue(undefined as never);
+    // The claim runs first and gates the job; unarmed it returns undefined and
+    // the translation would never be scheduled.
+    vi.mocked(beginAutoTranslation).mockResolvedValue(true);
+    vi.mocked(invalidateForActiveVersion).mockResolvedValue(undefined as never);
+    vi.mocked(resolveAssets).mockResolvedValue(new Map());
+  });
+
+  it('mints a version, activates it, and fires the tenant auto-translation', async () => {
+    const { save } = arrangePublish();
+
+    const detail = await publishRecipe(ctx(), C, A, { approveAllergens: false });
+
+    expect(RecipeVersion.create).toHaveBeenCalledWith(expect.objectContaining({ version: 1 }));
+    expect(save).toHaveBeenCalled();
+    expect(detail.activeVersion).toBe(1);
+
+    // The whole point of routing through `activateVersion` rather than setting
+    // the pointer inline: publishing this way must do everything setting a
+    // version live does, and firing the org/property/location translation
+    // setting is part of that. `autoTranslateOnPublish` decides for itself what
+    // the mode means — this only pins that it is asked.
+    expect(beginAutoTranslation).toHaveBeenCalledWith(A);
+    expect(autoTranslateOnPublish).toHaveBeenCalledWith(A, C);
+  });
+
+  it('refuses without touching anything when the scope is manual', async () => {
+    vi.mocked(resolveRecipePublishModeForScope).mockResolvedValue('manual');
+    vi.mocked(Recipe.findOne).mockReturnValueOnce({
+      scope: SCOPE,
+      status: 'active',
+      activeVersionId: null,
+    } as never);
+
+    await expect(publishRecipe(ctx(), C, A, { approveAllergens: false })).rejects.toThrow(AppError);
+    expect(RecipeVersion.create).not.toHaveBeenCalled();
+    expect(autoTranslateOnPublish).not.toHaveBeenCalled();
+  });
+
+  it('refuses on a lineage that is already live', async () => {
+    vi.mocked(Recipe.findOne).mockReturnValueOnce({
+      scope: SCOPE,
+      status: 'active',
+      activeVersionId: B,
+    } as never);
+
+    await expect(publishRecipe(ctx(), C, A, { approveAllergens: false })).rejects.toThrow(AppError);
+    expect(RecipeVersion.create).not.toHaveBeenCalled();
+    expect(autoTranslateOnPublish).not.toHaveBeenCalled();
   });
 });

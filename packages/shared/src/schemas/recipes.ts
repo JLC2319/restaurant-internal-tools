@@ -96,6 +96,21 @@ export const saveVersionSchema = z.object({
 });
 
 /**
+ * Publish a never-published recipe in one act: mint v1 and put it in front of
+ * staff. Governed by `recipePublishMode` on the recipe's scope, and refused for
+ * a lineage that is already live — changing what a kitchen cooks from stays a
+ * two-step decision.
+ *
+ * `approveAllergens` carries the chef's allergen sign-off, ticked in the same
+ * panel. It is a human pressing a control, exactly like the standalone approve
+ * endpoint, and stamps their id; nothing here ever approves a tag on its own.
+ */
+export const publishRecipeSchema = z.object({
+  note: z.string().trim().max(300).optional(),
+  approveAllergens: z.boolean().default(false),
+});
+
+/**
  * Fork a recipe into a new lineage at a target scope. `versionId` names the
  * source snapshot; omitted, the active version is used.
  */
@@ -136,6 +151,7 @@ export type RecipeContentInput = z.infer<typeof recipeContentSchema>;
 export type CreateRecipeInput = z.infer<typeof createRecipeSchema>;
 export type UpdateRecipeInput = z.infer<typeof updateRecipeSchema>;
 export type SaveVersionInput = z.infer<typeof saveVersionSchema>;
+export type PublishRecipeInput = z.infer<typeof publishRecipeSchema>;
 export type ForkRecipeInput = z.infer<typeof forkRecipeSchema>;
 export type ApproveAllergensInput = z.infer<typeof approveAllergensSchema>;
 export type ListRecipesQuery = z.infer<typeof listRecipesQuerySchema>;

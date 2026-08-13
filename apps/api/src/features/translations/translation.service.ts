@@ -339,6 +339,7 @@ export async function getTranslationState(
     enabled: env.translationEnabled,
     canManage: manage,
     publishMode: await resolvePublishModeForScope(head.scope),
+    ...autoTranslationFlags(head),
     translation: null,
   };
 
@@ -410,6 +411,10 @@ export async function requestTranslation(
     },
     { returnDocument: 'after', upsert: true }
   ).lean();
+
+  // A chef translating by hand settles whatever the last automatic attempt did
+  // or failed to do, so the marker (and the failure note it drives) goes.
+  await Recipe.updateOne({ _id: head._id }, { $set: { autoTranslation: null } });
 
   return shapeTranslation(doc!, false);
 }
@@ -620,6 +625,118 @@ async function runAutoTranslation(
 }
 
 /**
+ * How long a `running` marker is believed before it is read as a failure.
+ *
+ * A translation is tens of seconds of LLM time; three minutes is generous.
+ * The marker is cleared by the job itself, so the only way one survives this
+ * long is a process that died mid-run — and the honest thing to tell a chef
+ * then is that the attempt failed, not to poll at them forever.
+ */
+const AUTO_TRANSLATION_TIMEOUT_MS = 3 * 60_000;
+
+/**
+ * Claims the automatic run on the recipe, before the work starts.
+ *
+ * Awaited by the caller — unlike the translation itself — because it is one
+ * small local write and because of what it prevents: a chef who publishes and
+ * opens the recipe immediately would otherwise be offered a "Translate" button
+ * for work already in flight, and pressing it would run the whole thing twice.
+ * Stamping the marker inside the activation closes that window entirely.
+ *
+ * Returns whether a run will actually happen, so the caller only detaches the
+ * job when there is one. Re-checks the same gates the job does; they are cheap
+ * and this is the only place that decides.
+ */
+export async function beginAutoTranslation(
+  recipeId: Types.ObjectId | string
+): Promise<boolean> {
+  try {
+    if (!env.translationEnabled) return false;
+
+    const head = await Recipe.findById(recipeId).select('status activeVersionId scope').lean();
+    if (!head || head.status !== 'active' || !head.activeVersionId) return false;
+
+    const { mode, targets } = await loadPublishConfig(head.scope);
+    if (mode === 'manual' || targets.length === 0) return false;
+
+    await Recipe.updateOne(
+      { _id: head._id },
+      {
+        $set: {
+          autoTranslation: {
+            status: 'running',
+            startedAt: new Date(),
+            versionId: head.activeVersionId,
+          },
+        },
+      }
+    );
+    return true;
+  } catch (err) {
+    // Never block publishing on the bookkeeping. Losing the marker costs the
+    // chef a "Translate" button that starts a duplicate run — annoying, not
+    // wrong — where throwing here would fail an activation that already
+    // succeeded.
+    console.error('Could not mark automatic translation as started', {
+      recipeId: String(recipeId),
+      error: err instanceof Error ? err.message : err,
+    });
+    return false;
+  }
+}
+
+/** Clears the marker, or leaves `failed` behind for the UI to explain. */
+async function endAutoTranslation(
+  recipeId: Types.ObjectId | string,
+  outcome: 'done' | 'failed'
+): Promise<void> {
+  try {
+    const head = await Recipe.findById(recipeId).select('autoTranslation').lean();
+    // Only ever clear our own run. A newer activation may have claimed the
+    // marker while this one was thinking, and finishing late must not wipe the
+    // newer run's "running" out from under the page watching it.
+    if (head?.autoTranslation?.status !== 'running') return;
+
+    await Recipe.updateOne(
+      { _id: recipeId },
+      {
+        $set: {
+          autoTranslation:
+            outcome === 'done'
+              ? null
+              : { ...head.autoTranslation, status: 'failed' as const },
+        },
+      }
+    );
+  } catch (err) {
+    console.error('Could not clear the automatic translation marker', {
+      recipeId: String(recipeId),
+      error: err instanceof Error ? err.message : err,
+    });
+  }
+}
+
+/**
+ * Reads the run marker as the two booleans the UI needs.
+ *
+ * A `running` marker older than the timeout is reported as a failure rather
+ * than as still running: the job clears its own marker, so an old one means
+ * the process carrying it is gone.
+ */
+function autoTranslationFlags(head: LeanRecipe): {
+  autoTranslating: boolean;
+  autoTranslationFailed: boolean;
+} {
+  const marker = head.autoTranslation;
+  if (!marker) return { autoTranslating: false, autoTranslationFailed: false };
+  if (marker.status === 'failed') {
+    return { autoTranslating: false, autoTranslationFailed: true };
+  }
+  const running = Date.now() - new Date(marker.startedAt).getTime() < AUTO_TRANSLATION_TIMEOUT_MS;
+  return { autoTranslating: running, autoTranslationFailed: !running };
+}
+
+/**
  * The automatic half of the feature: a version going live translates the
  * recipe by itself, when the recipe's scope is configured for it.
  *
@@ -628,6 +745,9 @@ async function runAutoTranslation(
  * roll back — staff visibility of the English must not wait on the Spanish.
  * Nothing here throws: a failure leaves the recipe exactly as `manual` mode
  * would, with the chef's "Translate" button still there to press.
+ *
+ * It does, however, always clear the marker `beginAutoTranslation` set, so the
+ * page watching it stops polling whichever way this goes.
  */
 export async function autoTranslateOnPublish(
   recipeId: Types.ObjectId | string,
@@ -637,10 +757,16 @@ export async function autoTranslateOnPublish(
     if (!env.translationEnabled) return;
 
     const head = await Recipe.findById(recipeId).lean();
-    if (!head || head.status !== 'active' || !head.activeVersionId) return;
+    if (!head || head.status !== 'active' || !head.activeVersionId) {
+      await endAutoTranslation(recipeId, 'failed');
+      return;
+    }
 
     const { mode, targets } = await loadPublishConfig(head.scope);
-    if (mode === 'manual') return;
+    if (mode === 'manual') {
+      await endAutoTranslation(recipeId, 'done');
+      return;
+    }
 
     const activeVersionId = head.activeVersionId;
     for (const locale of targets) {
@@ -648,6 +774,7 @@ export async function autoTranslateOnPublish(
       // is no user waiting on this.
       await runAutoTranslation(head, activeVersionId, locale, mode, actorUserId);
     }
+    await endAutoTranslation(recipeId, 'done');
   } catch (err) {
     // Swallowed by design — see the doc comment. Logged loudly because the
     // chef gets no error toast for something they did not press a button for.
@@ -655,6 +782,10 @@ export async function autoTranslateOnPublish(
       recipeId: String(recipeId),
       error: err instanceof Error ? err.message : err,
     });
+    // The marker is the only trace the chef will see, so it has to survive the
+    // swallow — otherwise the page polls until it times out and calls a failure
+    // that already happened a "failure" three minutes late.
+    await endAutoTranslation(recipeId, 'failed');
   }
 }
 

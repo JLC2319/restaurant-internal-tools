@@ -11,6 +11,7 @@ import {
   Languages,
   MapPin,
   Network,
+  Rocket,
   Trash2,
   Upload,
   Users,
@@ -21,6 +22,7 @@ import { getScope } from '../api/client'
 import { useActiveRole } from './useActiveRole'
 import { QueryProvider } from './QueryProvider'
 import { TranslationPublishingCard } from './TranslationPublishing'
+import { RecipePublishingCard } from './RecipePublishing'
 import { OrgMembersSection } from './OrgMembers'
 import { SettingsShell } from './SettingsShell'
 import type { SettingsSection } from './SettingsShell'
@@ -482,6 +484,14 @@ function Settings() {
       label: 'Details',
       icon: Building2,
       render: () => <DetailsForm key={`d-${data._id}`} org={data} canEdit={canEdit} />,
+    },
+    {
+      id: 'publishing',
+      label: 'Recipe publishing',
+      icon: Rocket,
+      render: () => (
+        <RecipePublishingCard org={data} canEditOrg={canEdit} canEditOverrides={isAdmin} />
+      ),
     },
     {
       id: 'translation',

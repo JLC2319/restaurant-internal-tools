@@ -9,6 +9,7 @@ import type {
   MediaStatus,
   MembershipStatus,
   PlatformRole,
+  RecipePublishMode,
   RecipeStatus,
   TenantRole,
   TenantScope,
@@ -298,6 +299,13 @@ export interface RecipeDetail extends RecipeSummary {
   workingCopy: RecipeContentView | null;
   /** Whether the caller may edit/version/fork this recipe (role + write tier). */
   canManage: boolean;
+  /**
+   * `recipePublishMode` resolved for *this recipe's* scope, so the editor offers
+   * the publish-on-save shortcut on exactly the recipes the server would accept
+   * it for. Server-resolved rather than worked out from the caller's active
+   * scope — the two can differ, and only one of them governs the document.
+   */
+  publishMode: RecipePublishMode;
 }
 
 /** One row of a recipe's version history. */
@@ -380,7 +388,33 @@ export interface RecipeTranslationState {
    * so the UI can tell a chef what setting a version live will do here.
    */
   publishMode: TranslationPublishMode;
+  /**
+   * An automatic translation is running for this recipe *right now* — kicked
+   * off by the version going live, and not finished yet.
+   *
+   * The UI polls on this rather than offering "Translate to Spanish": the
+   * button would queue a second run of work already in flight, and a chef who
+   * publishes and immediately opens the recipe would otherwise be told nothing
+   * is happening. Per recipe rather than per locale, because one run covers
+   * every target locale in turn.
+   */
+  autoTranslating: boolean;
+  /**
+   * The last automatic run did not produce anything — it errored, or its
+   * process died and the marker aged out. Distinguishes "nobody has translated
+   * this" from "we tried and it did not work", which want different words.
+   */
+  autoTranslationFailed: boolean;
   translation: RecipeTranslationView | null;
+}
+
+/**
+ * The publish mode governing a recipe the caller creates *now*, resolved for
+ * their own write scope. For the screens that offer the publish-on-save
+ * shortcut before there is a recipe to read it from.
+ */
+export interface RecipePublishModeView {
+  mode: RecipePublishMode;
 }
 
 // ── AI recipe drafting ────────────────────────────────────────────────────────

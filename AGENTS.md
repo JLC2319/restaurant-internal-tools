@@ -190,11 +190,28 @@ decision can never disagree.
 - Changing settings is admin-only at every tier, even where the surrounding
   update is not (`updateLocation` is otherwise open to a manager).
 
-Today the only setting is `translationPublishMode`
-(`manual | auto_review | auto_publish` — see §10). Adding another means one
-field on each schema in `tenantSettings.model.ts`, one on `ITenantSettings` /
-`ITenantSettingsOverride`, one on the Zod schemas, and one entry in the web
-settings shell's section array.
+Two settings live here today:
+
+- `translationPublishMode` (`manual | auto_review | auto_publish` — see §10),
+  resolved by `resolveTranslationPublishMode`.
+- `recipePublishMode` (`manual | publish_on_save | publish_on_save_verified`),
+  resolved by `resolveRecipePublishMode`. How much ceremony stands between
+  writing a **brand-new** recipe and staff cooking from it — see §9.
+
+Adding another means one field on each schema in `tenantSettings.model.ts`, one
+on `ITenantSettings` / `ITenantSettingsOverride`, one on the Zod schemas, and
+one entry in the web settings shell's section array. The two publishing cards
+share their picker, override rows and PATCH wiring via
+`components/PublishModeSettings.tsx`; a third setting of this shape should use
+it rather than copy either card.
+
+`recipePublishMode` has **two** defaults, and the split is load-bearing. The
+Mongoose default (`NEW_ORG_RECIPE_PUBLISH_MODE`, `publish_on_save`) stamps orgs
+created from now on — onboarding is exactly when a kitchen has a whole book to
+type in. `DEFAULT_RECIPE_PUBLISH_MODE` (`manual`) is the inheritance floor that
+orgs predating the field resolve to, so nobody's flow changes under them.
+Collapsing the two constants silently changes behaviour for every existing
+tenant.
 
 ### Roles
 
@@ -429,8 +446,8 @@ relevant one before starting.
 
 | Feature | Folder | Note |
 |---|---|---|
-| Recipe data model | `features/recipes` | **Done** — everything else reads from it |
-| LLM EN→ES translation + review gate | `features/translations` | **Done** — machine output lands `pending_review`; chef edits/approves; activating a different version (or renaming) makes approved text stale and staff-invisible; reader's Español toggle renders approved+current only. Per-scope `translationPublishMode` (§4) can fire the translation automatically on publish, and `auto_publish` can skip review entirely — the single exception in §10 |
+| Recipe data model | `features/recipes` | **Done** — everything else reads from it. `POST /:id/publish` mints v1 and sets it live in one call for a lineage that has **never** been live, gated by per-scope `recipePublishMode` (§4); anything already live still goes save-version-then-activate |
+| LLM EN→ES translation + review gate | `features/translations` | **Done** — machine output lands `pending_review`; chef edits/approves; activating a different version (or renaming) makes approved text stale and staff-invisible; reader's Español toggle renders approved+current only. Per-scope `translationPublishMode` (§4) can fire the translation automatically on publish, and `auto_publish` can skip review entirely — the single exception in §10. An automatic run is claimed on `Recipe.autoTranslation` *before* the job detaches, so the recipe page polls (`autoTranslating`) instead of offering a button that would run it twice; a `running` marker older than three minutes reads as a failure, so a dead process can never leave a page polling forever |
 | AI recipe drafting | `features/drafting` | **Done** — photos → structured proposals (review-first; nothing persists until a chef creates each as an ordinary unpublished draft). Tags transcribed only, never inferred |
 | Training modules | `features/training` | **Done** — blocks + publish gate + completions; translation gate pending |
 | Media storage | `features/media` | **Photos & streamed video done**; transcoding still open |
@@ -489,6 +506,17 @@ convenience everywhere:
 
    Do not extend this exception to allergen tags, and do not add a second
    feature that reuses it. Rule 2 below has no equivalent escape hatch.
+
+   **`recipePublishMode` is not a second exception**, and the distinction is
+   worth holding onto. It changes how many clicks a chef spends publishing a
+   new recipe; it never changes who signs off. `publish_on_save` offers the
+   allergen tick beside the publish switch and `publish_on_save_verified`
+   insists on it, but in both cases the stamp records the human who ticked it —
+   there is no mode in which the server approves a tag on its own, and
+   `approveAllergens` defaults to `false` precisely so an omitted field can
+   never be read as a signature. A recipe published without the tick reaches
+   staff showing no allergen tags and the unverified warning, which is rule 2
+   working, not a gap in it.
 2. **An absent allergen tag is not a claim of safety.** Only `approved` tags
    reach staff; an untagged or unreviewed dish must never read as safe.
    Allergens propagate upward through sub-recipes — a dish is only as safe as

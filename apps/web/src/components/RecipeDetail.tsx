@@ -18,6 +18,7 @@ import {
   Scale,
   ShieldAlert,
   ShieldCheck,
+  Tablet,
   Timer,
 } from 'lucide-react'
 import {
@@ -723,6 +724,16 @@ function Detail({ recipeId }: { recipeId: string }) {
                 </button>
               )}
             </>
+          )}
+          {/* The chef's "Live" tab shows the active snapshot in chef chrome;
+              this opens the surface the line actually reads, Español toggle and
+              allergen warnings included. Only once there is something live to
+              read — the reader answers 404 for an unpublished lineage. */}
+          {recipe.activeVersionId && (
+            <a href={`/reader/recipes/${recipe._id}`} className={subtleButtonClass}>
+              <Tablet className="size-4" aria-hidden />
+              See in reader
+            </a>
           )}
           <button
             type="button"

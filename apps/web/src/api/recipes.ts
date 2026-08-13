@@ -4,7 +4,9 @@ import type {
   CreateRecipeInput,
   ForkRecipeInput,
   PaginatedResponse,
+  PublishRecipeInput,
   RecipeDetail,
+  RecipePublishModeView,
   RecipeStatus,
   RecipeSummary,
   RecipeVersionDetail,
@@ -44,6 +46,14 @@ export function listRecipes(
   if (params.live) query.set('live', 'true')
   const qs = query.toString()
   return apiRequest<PaginatedResponse<RecipeSummary>>(`/api/recipes${qs ? `?${qs}` : ''}`)
+}
+
+/**
+ * The publish mode a recipe created right now would get. For screens offering
+ * the shortcut before a recipe exists — the AI draft review, above all.
+ */
+export function getScopePublishMode(): Promise<ApiResult<RecipePublishModeView>> {
+  return apiRequest<RecipePublishModeView>('/api/recipes/publish-mode')
 }
 
 export function getRecipe(id: string): Promise<ApiResult<RecipeDetail>> {
@@ -88,6 +98,21 @@ export function saveVersion(
   input: SaveVersionInput
 ): Promise<ApiResult<RecipeVersionSummary>> {
   return apiRequest<RecipeVersionSummary>(`/api/recipes/${id}/versions`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+}
+
+/**
+ * Mint v1 and set it live in one call. Only valid for a recipe that has never
+ * been live, and only where `recipePublishMode` allows it — the server checks
+ * both, so a stale toggle on screen fails loudly rather than half-publishing.
+ */
+export function publishRecipe(
+  id: string,
+  input: PublishRecipeInput
+): Promise<ApiResult<RecipeDetail>> {
+  return apiRequest<RecipeDetail>(`/api/recipes/${id}/publish`, {
     method: 'POST',
     body: JSON.stringify(input),
   })

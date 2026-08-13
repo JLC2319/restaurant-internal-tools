@@ -4,6 +4,7 @@ import {
   createRecipeSchema,
   forkRecipeSchema,
   listRecipesQuerySchema,
+  publishRecipeSchema,
   saveVersionSchema,
   updateRecipeSchema,
 } from '@rit/shared';
@@ -19,6 +20,9 @@ recipeRouter.use(authenticate, resolveTenant);
 // Reads are open to every member — the service narrows what staff can see
 // (active versions only, approved allergen tags only).
 recipeRouter.get('/', validateQuery(listRecipesQuerySchema), recipeController.listRecipes);
+// Registered BEFORE '/:id' — Express matches in order, and a literal path
+// declared after a parameterised one is unreachable.
+recipeRouter.get('/publish-mode', requireRole('chef'), recipeController.getScopePublishMode);
 recipeRouter.get('/:id', recipeController.getRecipe);
 
 recipeRouter.post(
@@ -46,6 +50,15 @@ recipeRouter.post(
   requireRole('chef'),
   validate(saveVersionSchema),
   recipeController.saveVersion
+);
+// Mint v1 and set it live in one call, for a lineage that has never been live.
+// Gated by `recipePublishMode` on the recipe's scope — the service decides, not
+// the route, because the answer depends on where the recipe lives.
+recipeRouter.post(
+  '/:id/publish',
+  requireRole('chef'),
+  validate(publishRecipeSchema),
+  recipeController.publishRecipe
 );
 recipeRouter.get('/:id/versions/:versionId', requireRole('chef'), recipeController.getVersion);
 recipeRouter.post(

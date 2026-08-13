@@ -513,3 +513,216 @@ describe('archival', () => {
     expect(unarchived.body.status).toBe('active');
   });
 });
+
+/**
+ * The one-step publish for brand-new recipes, and the `recipePublishMode`
+ * setting that governs it. What matters here is the shape of the shortcut: it
+ * mints and activates in one call, it refuses on lineages staff already cook
+ * from, and it never signs off an allergen tag the chef did not tick.
+ */
+describe('publish on save', () => {
+  /** Sets the org-wide mode. Admin-only, so this uses the owner's token. */
+  async function setOrgMode(token: string, orgId: string, mode: string): Promise<void> {
+    const response = await as(token, orgId)
+      .patch('/api/tenancy/organization')
+      .send({ settings: { recipePublishMode: mode } });
+    expect(response.status).toBe(200);
+    expect(response.body.settings.recipePublishMode).toBe(mode);
+  }
+
+  it('mints v1 and puts it in front of staff in one call', async () => {
+    const owner = await registerAndLogin('pub-owner@example.com');
+    const orgId = await createOrg(owner.token, 'Publish Org');
+    const staff = await addMember(owner.token, orgId, 'pub-staff@example.com', 'staff');
+
+    // A new org starts on the shortcut — that is the onboarding case it exists
+    // for, and it is the one default that differs from the inheritance floor.
+    const mode = await as(owner.token, orgId).get('/api/recipes/publish-mode');
+    expect(mode.status).toBe(200);
+    expect(mode.body.mode).toBe('publish_on_save');
+
+    const recipeId = await createRecipe(owner.token, orgId, 'Bourbon Glaze', {
+      content: content({ ingredients: [itemLine('Bourbon')], steps: ['Reduce by half'] }),
+    });
+
+    const published = await as(owner.token, orgId)
+      .post(`/api/recipes/${recipeId}/publish`)
+      .send({ note: 'Opening menu' });
+    expect(published.status).toBe(200);
+    expect(published.body.activeVersion).toBe(1);
+    expect(published.body.activeVersionId).not.toBeNull();
+    expect(published.body.activeContent.steps).toEqual(['Reduce by half']);
+
+    // The version carries the note, and is the one staff read.
+    const versions = await as(owner.token, orgId).get(`/api/recipes/${recipeId}/versions`);
+    expect(versions.body).toHaveLength(1);
+    expect(versions.body[0].note).toBe('Opening menu');
+    expect(versions.body[0].isActive).toBe(true);
+
+    const staffView = await as(staff.token, orgId).get(`/api/recipes/${recipeId}`);
+    expect(staffView.status).toBe(200);
+    expect(staffView.body.activeContent.steps).toEqual(['Reduce by half']);
+  });
+
+  it('leaves allergen tags pending when the chef does not sign off', async () => {
+    const owner = await registerAndLogin('pub-nosign@example.com');
+    const orgId = await createOrg(owner.token, 'No Signoff Org');
+    const staff = await addMember(owner.token, orgId, 'pub-nosign-staff@example.com', 'staff');
+
+    const recipeId = await createRecipe(owner.token, orgId, 'Cream Sauce', {
+      content: content({ ingredients: [itemLine('Heavy cream')], allergens: ['milk'] }),
+    });
+
+    const published = await as(owner.token, orgId)
+      .post(`/api/recipes/${recipeId}/publish`)
+      .send({});
+    expect(published.status).toBe(200);
+    expect(published.body.workingCopy.allergens[0].status).toBe('pending_review');
+    expect(published.body.workingCopy.allergens[0].approvedBy).toBeNull();
+    expect(published.body.allergensVerified).toBe(false);
+
+    // SAFETY: the recipe is live, but staff see no allergen tags and the
+    // unverified flag — publishing fast must never imply a sign-off.
+    const staffView = await as(staff.token, orgId).get(`/api/recipes/${recipeId}`);
+    expect(staffView.body.activeContent.allergens).toEqual([]);
+    expect(staffView.body.allergensVerified).toBe(false);
+  });
+
+  it('stamps the publishing chef when they do sign off', async () => {
+    const owner = await registerAndLogin('pub-sign@example.com');
+    const orgId = await createOrg(owner.token, 'Signoff Org');
+    const chef = await addMember(owner.token, orgId, 'pub-sign-chef@example.com', 'chef');
+
+    const recipeId = await createRecipe(chef.token, orgId, 'Almond Cake', {
+      content: content({ ingredients: [itemLine('Almond flour')], allergens: ['tree_nuts'] }),
+    });
+
+    const published = await as(chef.token, orgId)
+      .post(`/api/recipes/${recipeId}/publish`)
+      .send({ approveAllergens: true });
+    expect(published.status).toBe(200);
+
+    // A real signature, and the approval is inside v1 rather than a version
+    // behind it — the snapshot is taken after the sign-off, not before.
+    const tag = published.body.workingCopy.allergens[0];
+    expect(tag.status).toBe('approved');
+    expect(tag.approvedBy).toBe(chef.userId);
+    expect(published.body.allergensVerified).toBe(true);
+    expect(published.body.activeContent.allergens[0].status).toBe('approved');
+  });
+
+  it('refuses on a lineage staff already cook from', async () => {
+    const owner = await registerAndLogin('pub-live@example.com');
+    const orgId = await createOrg(owner.token, 'Already Live Org');
+
+    const recipeId = await createRecipe(owner.token, orgId, 'House Vinaigrette');
+    expect((await as(owner.token, orgId).post(`/api/recipes/${recipeId}/publish`).send({})).status).toBe(
+      200
+    );
+
+    // Changing what a kitchen is already reading stays two deliberate acts.
+    const second = await as(owner.token, orgId).post(`/api/recipes/${recipeId}/publish`).send({});
+    expect(second.status).toBe(409);
+    expect(second.body.message).toMatch(/already live/i);
+  });
+
+  it('refuses entirely when the scope is set to manual', async () => {
+    const owner = await registerAndLogin('pub-manual@example.com');
+    const orgId = await createOrg(owner.token, 'Manual Org');
+    await setOrgMode(owner.token, orgId, 'manual');
+
+    const recipeId = await createRecipe(owner.token, orgId, 'Slow Braise');
+    const attempt = await as(owner.token, orgId).post(`/api/recipes/${recipeId}/publish`).send({});
+    expect(attempt.status).toBe(409);
+
+    const mode = await as(owner.token, orgId).get('/api/recipes/publish-mode');
+    expect(mode.body.mode).toBe('manual');
+  });
+
+  it('requires the sign-off tick under publish_on_save_verified', async () => {
+    const owner = await registerAndLogin('pub-verified@example.com');
+    const orgId = await createOrg(owner.token, 'Verified Org');
+    await setOrgMode(owner.token, orgId, 'publish_on_save_verified');
+
+    const recipeId = await createRecipe(owner.token, orgId, 'Peanut Sauce', {
+      content: content({ ingredients: [itemLine('Peanut butter')], allergens: ['peanuts'] }),
+    });
+
+    const unsigned = await as(owner.token, orgId).post(`/api/recipes/${recipeId}/publish`).send({});
+    expect(unsigned.status).toBe(409);
+
+    // Nothing was published, and nothing was approved on the way to failing.
+    const afterFailure = await as(owner.token, orgId).get(`/api/recipes/${recipeId}`);
+    expect(afterFailure.body.activeVersionId).toBeNull();
+    expect(afterFailure.body.workingCopy.allergens[0].status).toBe('pending_review');
+
+    const signed = await as(owner.token, orgId)
+      .post(`/api/recipes/${recipeId}/publish`)
+      .send({ approveAllergens: true });
+    expect(signed.status).toBe(200);
+    expect(signed.body.activeVersion).toBe(1);
+    expect(signed.body.allergensVerified).toBe(true);
+  });
+
+  it('resolves the mode from the recipe\'s scope, not the caller\'s', async () => {
+    const owner = await registerAndLogin('pub-scope@example.com');
+    const orgId = await createOrg(owner.token, 'Scoped Publish Org');
+    const propertyId = await createProperty(owner.token, orgId, 'Downtown');
+    const locationId = await createLocation(owner.token, orgId, propertyId, 'Main St');
+
+    // The property opts out; the org keeps the shortcut.
+    const patched = await as(owner.token, orgId)
+      .patch(`/api/tenancy/properties/${propertyId}`)
+      .send({ settings: { recipePublishMode: 'manual' } });
+    expect(patched.status).toBe(200);
+
+    const propertyRecipe = await createRecipe(owner.token, orgId, 'Property Standard', {
+      propertyId,
+    });
+    const orgRecipe = await createRecipe(owner.token, orgId, 'Org Standard');
+
+    // Same caller, same active scope, two different answers — because the
+    // setting follows the document, not the person writing it.
+    const refused = await as(owner.token, orgId)
+      .post(`/api/recipes/${propertyRecipe}/publish`)
+      .send({});
+    expect(refused.status).toBe(409);
+
+    const allowed = await as(owner.token, orgId).post(`/api/recipes/${orgRecipe}/publish`).send({});
+    expect(allowed.status).toBe(200);
+
+    // The detail read reports the same resolution the publish call used, so the
+    // editor cannot offer a shortcut the server would refuse.
+    const detail = await as(owner.token, orgId).get(`/api/recipes/${propertyRecipe}`);
+    expect(detail.body.publishMode).toBe('manual');
+
+    // A location under that property inherits the opt-out.
+    const locationRecipe = await createRecipe(owner.token, orgId, 'Location Special', {
+      propertyId,
+      locationId,
+    });
+    const locationDetail = await as(owner.token, orgId).get(`/api/recipes/${locationRecipe}`);
+    expect(locationDetail.body.publishMode).toBe('manual');
+  });
+
+  it('is closed to staff', async () => {
+    const owner = await registerAndLogin('pub-staff-gate@example.com');
+    const orgId = await createOrg(owner.token, 'Publish Gate Org');
+    const staff = await addMember(owner.token, orgId, 'pub-gate-staff@example.com', 'staff');
+
+    const recipeId = await createRecipe(owner.token, orgId, 'Staff Cannot Publish');
+    const attempt = await as(staff.token, orgId).post(`/api/recipes/${recipeId}/publish`).send({});
+    expect(attempt.status).toBe(403);
+    expect((await as(staff.token, orgId).get('/api/recipes/publish-mode')).status).toBe(403);
+  });
+
+  it('does not let "publish-mode" be read as a recipe id', async () => {
+    // Route ordering: the literal path is registered before '/:id', or this
+    // would 404 as a missing recipe instead of answering.
+    const owner = await registerAndLogin('pub-route@example.com');
+    const orgId = await createOrg(owner.token, 'Route Org');
+    const response = await as(owner.token, orgId).get('/api/recipes/publish-mode');
+    expect(response.status).toBe(200);
+    expect(response.body).toHaveProperty('mode');
+  });
+});

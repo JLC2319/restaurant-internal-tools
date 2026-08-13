@@ -1,5 +1,10 @@
 import { Schema } from 'mongoose';
-import { DEFAULT_TRANSLATION_PUBLISH_MODE, translationPublishModeValues } from '@rit/shared';
+import {
+  DEFAULT_TRANSLATION_PUBLISH_MODE,
+  NEW_ORG_RECIPE_PUBLISH_MODE,
+  recipePublishModeValues,
+  translationPublishModeValues,
+} from '@rit/shared';
 import type { ITenantSettings, ITenantSettingsOverride } from '../../types/index';
 
 /**
@@ -25,6 +30,17 @@ export const orgSettingsSchema = new Schema<ITenantSettings>(
       // have: translating is a deliberate act until someone says otherwise.
       default: DEFAULT_TRANSLATION_PUBLISH_MODE,
     },
+    recipePublishMode: {
+      type: String,
+      enum: recipePublishModeValues,
+      // Note this default is NOT `DEFAULT_RECIPE_PUBLISH_MODE`, and the split is
+      // deliberate. A Mongoose default only applies to documents created from
+      // now on, so stamping `publish_on_save` here hands the shortcut to new
+      // orgs — the ones onboarding a whole recipe book — while orgs that
+      // predate the field store nothing and resolve to `manual` through
+      // `shapeSettings`, keeping the flow their chefs already know.
+      default: NEW_ORG_RECIPE_PUBLISH_MODE,
+    },
   },
   { _id: false }
 );
@@ -34,6 +50,11 @@ export const settingsOverrideSchema = new Schema<ITenantSettingsOverride>(
     translationPublishMode: {
       type: String,
       enum: [...translationPublishModeValues, null],
+      default: null,
+    },
+    recipePublishMode: {
+      type: String,
+      enum: [...recipePublishModeValues, null],
       default: null,
     },
   },

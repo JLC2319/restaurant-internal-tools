@@ -99,6 +99,20 @@ const recipeSchema = new Schema<IRecipe>(
       ),
       default: null,
     },
+    // Set before the detached translation job starts and cleared when it
+    // finishes, so the recipe page can show "translating…" instead of a button
+    // that would start the same work twice. See translation.service.
+    autoTranslation: {
+      type: new Schema(
+        {
+          status: { type: String, enum: ['running', 'failed'], required: true },
+          startedAt: { type: Date, required: true },
+          versionId: { type: Schema.Types.ObjectId, ref: 'RecipeVersion', default: null },
+        },
+        { _id: false }
+      ),
+      default: null,
+    },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   },
   { timestamps: { createdAt: 'createdAt', updatedAt: 'modifiedAt' } }

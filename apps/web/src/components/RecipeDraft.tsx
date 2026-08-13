@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import type { CreateRecipeInput, DraftRecipesResponse, RecipeDraftProposal } from '@rit/shared'
+import type {
+  CreateRecipeInput,
+  DraftRecipesResponse,
+  RecipeDraftProposal,
+  RecipePublishMode,
+} from '@rit/shared'
 import { MAX_DRAFT_PHOTOS, MAX_DRAFT_TOTAL_BYTES, roleAtLeast } from '@rit/shared'
 import {
   ArrowLeft,
@@ -11,14 +16,22 @@ import {
   ImagePlus,
   Info,
   Leaf,
+  Rocket,
   ShieldAlert,
   Sparkles,
+  Tablet,
   X,
 } from 'lucide-react'
 import { getDraftConfig, draftRecipesFromPhotos } from '../api/drafts'
-import { createRecipe, recipesScopeKey } from '../api/recipes'
+import {
+  createRecipe,
+  getScopePublishMode,
+  publishRecipe,
+  recipesScopeKey,
+} from '../api/recipes'
 import { useActiveRole } from './useActiveRole'
 import { QueryProvider } from './QueryProvider'
+import { PublishOnSaveControls, usePublishOnSave } from './PublishOnSave'
 import { DRAFTING_MESSAGES, WorkingOverlay } from './WorkingOverlay'
 import {
   EmptyState,
@@ -68,19 +81,49 @@ function proposalToContent(p: RecipeDraftProposal): CreateRecipeInput['content']
   }
 }
 
-function ProposalCard({ proposal, index }: { proposal: RecipeDraftProposal; index: number }) {
+function ProposalCard({
+  proposal,
+  index,
+  publishMode,
+  publish,
+  onPublishChange,
+}: {
+  proposal: RecipeDraftProposal
+  index: number
+  publishMode: RecipePublishMode
+  publish: boolean
+  onPublishChange: (next: boolean) => void
+}) {
   const [error, setError] = useState<string | null>(null)
   const [createdId, setCreatedId] = useState<string | null>(null)
+  const [published, setPublished] = useState(false)
+  // Per proposal, never remembered: each dish's allergens are their own claim.
+  const [signOff, setSignOff] = useState(false)
 
   const create = useMutation({
     mutationFn: async () => {
       const result = await createRecipe({ name: proposal.name, content: proposalToContent(proposal) })
       if (result.error) throw new Error(result.error.message)
-      return result.data
+      if (!publish) return { recipe: result.data, published: false }
+
+      // Created first, published second. A failure here leaves the draft on the
+      // recipe list rather than losing the proposal, and the chef can publish
+      // it from the editor.
+      const live = await publishRecipe(result.data._id, { approveAllergens: signOff })
+      if (live.error) {
+        setCreatedId(result.data._id)
+        throw new Error(`Created as a draft, but publishing failed: ${live.error.message}`)
+      }
+      return { recipe: live.data, published: true }
     },
-    onSuccess: (recipe) => setCreatedId(recipe._id),
+    onSuccess: ({ recipe, published: didPublish }) => {
+      setCreatedId(recipe._id)
+      setPublished(didPublish)
+    },
     onError: (err: Error) => setError(err.message),
   })
+
+  const signOffMissing = publish && publishMode === 'publish_on_save_verified' && !signOff
 
   return (
     <article
@@ -97,10 +140,21 @@ function ProposalCard({ proposal, index }: { proposal: RecipeDraftProposal; inde
           </p>
         </div>
         {createdId ? (
-          <a href={`/recipes/${createdId}/edit`} className={primaryButtonClass}>
-            <ArrowUpRight className="size-4" aria-hidden />
-            Open in editor
-          </a>
+          <div className="flex flex-wrap items-center gap-2">
+            <a href={`/recipes/${createdId}/edit`} className={primaryButtonClass}>
+              <ArrowUpRight className="size-4" aria-hidden />
+              Open in editor
+            </a>
+            {/* Only once it is live: the reader renders the active snapshot, so
+                this link on a draft would answer "not found" to the chef who
+                just created it. */}
+            {published && (
+              <a href={`/reader/recipes/${createdId}`} className={subtleButtonClass}>
+                <Tablet className="size-4" aria-hidden />
+                See in reader
+              </a>
+            )}
+          </div>
         ) : (
           <button
             type="button"
@@ -108,11 +162,21 @@ function ProposalCard({ proposal, index }: { proposal: RecipeDraftProposal; inde
               setError(null)
               create.mutate()
             }}
-            disabled={create.isPending}
+            disabled={create.isPending || signOffMissing}
             className={primaryButtonClass}
           >
-            <CookingPot className="size-4" aria-hidden />
-            {create.isPending ? 'Creating…' : 'Create draft recipe'}
+            {publish ? (
+              <Rocket className="size-4" aria-hidden />
+            ) : (
+              <CookingPot className="size-4" aria-hidden />
+            )}
+            {create.isPending
+              ? publish
+                ? 'Publishing…'
+                : 'Creating…'
+              : publish
+                ? 'Create and publish'
+                : 'Create draft recipe'}
           </button>
         )}
       </header>
@@ -121,8 +185,30 @@ function ProposalCard({ proposal, index }: { proposal: RecipeDraftProposal; inde
       {createdId && (
         <p className="flex items-center gap-2 rounded-xl bg-basil-50 px-4 py-2.5 text-sm font-medium text-basil-700 ring-1 ring-basil-200 ring-inset">
           <Check className="size-4" aria-hidden />
-          Created as a draft only chefs can see. Review it, save a version, then set it live.
+          {published
+            ? 'Published as v1 — staff can cook from this now. Edit it any time; changes go through versions.'
+            : 'Created as a draft only chefs can see. Review it, save a version, then set it live.'}
         </p>
+      )}
+
+      {!createdId && publishMode !== 'manual' && (
+        <div className="rounded-xl bg-white px-4 py-3 ring-1 ring-salt-200 ring-inset">
+          <PublishOnSaveControls
+            idPrefix={`proposal-${index}`}
+            mode={publishMode}
+            publish={publish}
+            onPublishChange={onPublishChange}
+            signOff={signOff}
+            onSignOffChange={setSignOff}
+            allergenCount={proposal.allergens.length}
+            disabled={create.isPending}
+          />
+          {signOffMissing && (
+            <p className="mt-2 text-xs font-medium text-citron-700">
+              This scope requires allergen sign-off before a recipe goes live.
+            </p>
+          )}
+        </div>
       )}
 
       {proposal.description && (
@@ -217,6 +303,25 @@ function Drafter() {
       return res.data
     },
   })
+
+  /**
+   * The publish mode for the scope these proposals would be created in. Asked
+   * of the server rather than worked out here, so the switch appears on exactly
+   * the screens where the publish call would succeed.
+   */
+  const { data: publishModeView } = useQuery({
+    queryKey: ['recipes', ...recipesScopeKey(), 'publish-mode'],
+    queryFn: async () => {
+      const res = await getScopePublishMode()
+      if (res.error) throw new Error(res.error.message)
+      return res.data
+    },
+    enabled: canDraft,
+  })
+  const publishMode = publishModeView?.mode ?? 'manual'
+  // One switch for the page, not one per proposal: a chef reviewing six cards
+  // from one batch of photos is making a single decision about all of them.
+  const [publish, setPublish] = usePublishOnSave(publishMode !== 'manual')
 
   // Object URLs are revoked when their thumbnail is removed (below) and, as a
   // backstop, all together on unmount — via a ref so this cleanup runs once.
@@ -324,7 +429,14 @@ function Drafter() {
 
         <div className="space-y-5">
           {result.proposals.map((proposal, index) => (
-            <ProposalCard key={index} proposal={proposal} index={index} />
+            <ProposalCard
+              key={index}
+              proposal={proposal}
+              index={index}
+              publishMode={publishMode}
+              publish={publish}
+              onPublishChange={setPublish}
+            />
           ))}
         </div>
       </div>

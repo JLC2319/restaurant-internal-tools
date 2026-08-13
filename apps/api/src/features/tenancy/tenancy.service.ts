@@ -1,4 +1,10 @@
-import { DEFAULT_TRANSLATION_PUBLISH_MODE, roleAtLeast, toSlug } from '@rit/shared';
+import {
+  DEFAULT_RECIPE_PUBLISH_MODE,
+  DEFAULT_TRANSLATION_PUBLISH_MODE,
+  resolveRecipePublishMode,
+  roleAtLeast,
+  toSlug,
+} from '@rit/shared';
 import type {
   CreateLocationInput,
   CreateOrganizationInput,
@@ -12,6 +18,7 @@ import type {
   OrgMemberRow,
   PaginatedResponse,
   PropertySummary,
+  RecipePublishMode,
   TenantContext,
   TenantTree,
   UpdateLocationInput,
@@ -53,6 +60,7 @@ export function shapeOrg(org: Lean<{ name: string; slug: string; status: string 
 function shapeSettings(settings: Partial<TenantSettings> | null | undefined): TenantSettings {
   return {
     translationPublishMode: settings?.translationPublishMode ?? DEFAULT_TRANSLATION_PUBLISH_MODE,
+    recipePublishMode: settings?.recipePublishMode ?? DEFAULT_RECIPE_PUBLISH_MODE,
   };
 }
 
@@ -62,7 +70,36 @@ function shapeSettingsOverride(
 ): TenantSettingsOverride {
   return {
     translationPublishMode: settings?.translationPublishMode ?? null,
+    recipePublishMode: settings?.recipePublishMode ?? null,
   };
+}
+
+/**
+ * Resolves `recipePublishMode` for a document living at `scope`, narrowest tier
+ * first (location → property → org).
+ *
+ * Keyed on the **document's** scope, never the caller's `TenantContext`: a
+ * property's shared recipe book must behave the same way whoever writes into
+ * it, and a chef switching their active scope must not change what saving does
+ * to a recipe they did not move. The mirror of `resolvePublishModeForScope` in
+ * the translations service, which does the same job for that setting.
+ */
+export async function resolveRecipePublishModeForScope(scope: {
+  orgId: unknown;
+  propertyId?: unknown;
+  locationId?: unknown;
+}): Promise<RecipePublishMode> {
+  const [org, property, location] = await Promise.all([
+    Organization.findById(scope.orgId).select('settings').lean(),
+    scope.propertyId ? Property.findById(scope.propertyId).select('settings').lean() : null,
+    scope.locationId ? Location.findById(scope.locationId).select('settings').lean() : null,
+  ]);
+
+  return resolveRecipePublishMode(
+    org?.settings?.recipePublishMode ?? DEFAULT_RECIPE_PUBLISH_MODE,
+    property?.settings?.recipePublishMode ?? null,
+    location?.settings?.recipePublishMode ?? null
+  );
 }
 
 export function shapeProperty(

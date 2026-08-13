@@ -8,7 +8,10 @@ import {
 } from '../../schemas/tenancy.js';
 import { toSlug } from '../../schemas/common.js';
 import {
+  DEFAULT_RECIPE_PUBLISH_MODE,
   DEFAULT_TRANSLATION_PUBLISH_MODE,
+  NEW_ORG_RECIPE_PUBLISH_MODE,
+  resolveRecipePublishMode,
   resolveTranslationPublishMode,
   roleAtLeast,
 } from '../../types/domain.js';
@@ -125,6 +128,77 @@ describe('resolveTranslationPublishMode', () => {
   it('falls back to the safe default when nothing is set anywhere', () => {
     expect(resolveTranslationPublishMode(undefined)).toBe(DEFAULT_TRANSLATION_PUBLISH_MODE);
     expect(DEFAULT_TRANSLATION_PUBLISH_MODE).toBe('manual');
+  });
+});
+
+describe('recipe publish mode settings', () => {
+  it('accepts a mode on the org', () => {
+    const result = updateOrganizationSchema.safeParse({
+      settings: { recipePublishMode: 'publish_on_save' },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects an unknown mode', () => {
+    const result = updateOrganizationSchema.safeParse({
+      settings: { recipePublishMode: 'publish_everything' },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('refuses a null mode on the org but allows it on a property or location', () => {
+    expect(
+      updateOrganizationSchema.safeParse({ settings: { recipePublishMode: null } }).success
+    ).toBe(false);
+    expect(updatePropertySchema.safeParse({ settings: { recipePublishMode: null } }).success).toBe(
+      true
+    );
+    expect(updateLocationSchema.safeParse({ settings: { recipePublishMode: null } }).success).toBe(
+      true
+    );
+  });
+
+  // Both settings must survive one patch naming only the other — the API writes
+  // dot-notation keys precisely so a partial patch cannot clear its neighbour.
+  it('accepts a patch naming either setting alone', () => {
+    expect(
+      updateLocationSchema.safeParse({ settings: { recipePublishMode: 'manual' } }).success
+    ).toBe(true);
+    expect(
+      updateLocationSchema.safeParse({ settings: { translationPublishMode: 'manual' } }).success
+    ).toBe(true);
+  });
+});
+
+describe('resolveRecipePublishMode', () => {
+  it('takes the narrowest set value', () => {
+    expect(
+      resolveRecipePublishMode('manual', 'publish_on_save', 'publish_on_save_verified')
+    ).toBe('publish_on_save_verified');
+    expect(resolveRecipePublishMode('manual', 'publish_on_save', null)).toBe('publish_on_save');
+    expect(resolveRecipePublishMode('publish_on_save', null, null)).toBe('publish_on_save');
+  });
+
+  it('lets a narrower scope opt back out of the shortcut', () => {
+    // One location that wants every recipe reviewed the slow way can say so,
+    // whatever the group above it does.
+    expect(resolveRecipePublishMode('publish_on_save', null, 'manual')).toBe('manual');
+    expect(resolveRecipePublishMode('publish_on_save', 'manual', null)).toBe('manual');
+  });
+
+  // Orgs written before the setting existed have no value at any tier, and must
+  // keep behaving the way their chefs already know.
+  it('falls back to manual when nothing is set anywhere', () => {
+    expect(resolveRecipePublishMode(undefined)).toBe(DEFAULT_RECIPE_PUBLISH_MODE);
+    expect(DEFAULT_RECIPE_PUBLISH_MODE).toBe('manual');
+  });
+
+  // ...while a *new* org is stamped with the shortcut at creation. The split is
+  // the whole reason there are two constants; collapsing them silently changes
+  // behaviour for every existing tenant.
+  it('starts new orgs on the shortcut', () => {
+    expect(NEW_ORG_RECIPE_PUBLISH_MODE).toBe('publish_on_save');
+    expect(NEW_ORG_RECIPE_PUBLISH_MODE).not.toBe(DEFAULT_RECIPE_PUBLISH_MODE);
   });
 });
 

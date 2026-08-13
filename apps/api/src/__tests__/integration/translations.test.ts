@@ -398,3 +398,89 @@ describe('tenant isolation', () => {
     ).toBe(404);
   });
 });
+
+/**
+ * The marker that tells a freshly-published recipe's page "Spanish is on its
+ * way". What matters is that it always resolves: every path out of a run
+ * clears it, and a marker left behind by a dead process ages into a failure
+ * rather than a page that polls forever.
+ */
+describe('automatic translation status', () => {
+  /** Writes the marker the way `beginAutoTranslation` does. */
+  async function setMarker(
+    recipeId: string,
+    status: 'running' | 'failed',
+    startedAt: Date
+  ): Promise<void> {
+    const head = await Recipe.findById(recipeId).lean();
+    await Recipe.updateOne(
+      { _id: recipeId },
+      { $set: { autoTranslation: { status, startedAt, versionId: head!.activeVersionId } } }
+    );
+  }
+
+  async function readState(token: string, orgId: string, recipeId: string) {
+    const response = await as(token, orgId).get(`/api/translations/recipes/${recipeId}?locale=es`);
+    expect(response.status).toBe(200);
+    return response.body as { autoTranslating: boolean; autoTranslationFailed: boolean };
+  }
+
+  it('reports neither running nor failed when nothing has been attempted', async () => {
+    const owner = await registerAndLogin('auto-none@example.com');
+    const orgId = await createOrg(owner.token, 'Auto None Org');
+    const recipeId = await createLiveRecipe(owner.token, orgId, 'Untranslated Vinaigrette');
+
+    const state = await readState(owner.token, orgId, recipeId);
+    expect(state.autoTranslating).toBe(false);
+    expect(state.autoTranslationFailed).toBe(false);
+  });
+
+  it('reports a fresh run as in flight, so the page polls instead of offering the button', async () => {
+    const owner = await registerAndLogin('auto-running@example.com');
+    const orgId = await createOrg(owner.token, 'Auto Running Org');
+    const recipeId = await createLiveRecipe(owner.token, orgId, 'Busy Vinaigrette');
+    await setMarker(recipeId, 'running', new Date());
+
+    const state = await readState(owner.token, orgId, recipeId);
+    expect(state.autoTranslating).toBe(true);
+    expect(state.autoTranslationFailed).toBe(false);
+  });
+
+  it('ages a stranded run into a failure rather than polling forever', async () => {
+    const owner = await registerAndLogin('auto-stranded@example.com');
+    const orgId = await createOrg(owner.token, 'Auto Stranded Org');
+    const recipeId = await createLiveRecipe(owner.token, orgId, 'Stranded Vinaigrette');
+    // The job clears its own marker, so one this old means the process that
+    // owned it is gone — an API restart mid-translation, say.
+    await setMarker(recipeId, 'running', new Date(Date.now() - 10 * 60_000));
+
+    const state = await readState(owner.token, orgId, recipeId);
+    expect(state.autoTranslating).toBe(false);
+    expect(state.autoTranslationFailed).toBe(true);
+  });
+
+  it('reports an explicit failure', async () => {
+    const owner = await registerAndLogin('auto-failed@example.com');
+    const orgId = await createOrg(owner.token, 'Auto Failed Org');
+    const recipeId = await createLiveRecipe(owner.token, orgId, 'Failed Vinaigrette');
+    await setMarker(recipeId, 'failed', new Date());
+
+    const state = await readState(owner.token, orgId, recipeId);
+    expect(state.autoTranslating).toBe(false);
+    expect(state.autoTranslationFailed).toBe(true);
+  });
+
+  it('does not mark a run when the scope translates manually', async () => {
+    // The default mode. Activating must leave no marker at all, or every
+    // recipe in a manual org would poll for a translation nobody asked for.
+    const owner = await registerAndLogin('auto-manual@example.com');
+    const orgId = await createOrg(owner.token, 'Auto Manual Org');
+    const recipeId = await createLiveRecipe(owner.token, orgId, 'Manual Vinaigrette');
+
+    const head = await Recipe.findById(recipeId).lean();
+    expect(head!.autoTranslation ?? null).toBeNull();
+
+    const state = await readState(owner.token, orgId, recipeId);
+    expect(state.autoTranslating).toBe(false);
+  });
+});
