@@ -28,6 +28,7 @@ import { assertCanWriteAt, assertRole, scopeForWrite, scopeReadFilter } from '..
 import { assertPhotosAttachable, resolveAssets } from '../media/media.service';
 import {
   autoTranslateOnPublish,
+  beginAutoTranslation,
   invalidateForActiveVersion,
 } from '../translations/translation.service';
 import { Property } from '../tenancy/property.model';
@@ -57,16 +58,25 @@ type LeanVersion = Omit<IRecipeVersion, keyof Document> & { _id: unknown };
 
 /**
  * Kicks off automatic translation for a recipe whose live text just changed,
- * without waiting for it.
+ * without waiting for the translation itself.
  *
- * Detached on purpose: whether the Spanish gets written is a setting on the
- * tenant, but whether the *English* goes live is what the chef pressed the
- * button for. An LLM call takes seconds and may fail, and neither may delay or
- * roll back the activation. `autoTranslateOnPublish` never rejects — the catch
- * is a belt-and-braces guard against an unhandled rejection taking the process
- * down, since nothing awaits this promise.
+ * Two halves, and the split is the point. Claiming the run is *awaited*: it is
+ * one small local write, and it means the recipe page a chef opens a second
+ * later already knows Spanish is coming, instead of offering a "Translate"
+ * button that would run the same work twice. The translation itself stays
+ * detached — whether the Spanish gets written is a setting on the tenant, but
+ * whether the *English* goes live is what the chef pressed the button for, and
+ * an LLM call that takes seconds and may fail must never delay or roll back the
+ * activation.
+ *
+ * `autoTranslateOnPublish` never rejects — the catch is a belt-and-braces guard
+ * against an unhandled rejection taking the process down, since nothing awaits
+ * this promise.
  */
-function scheduleAutoTranslation(recipeId: string, userId: string): void {
+async function scheduleAutoTranslation(recipeId: string, userId: string): Promise<void> {
+  const willRun = await beginAutoTranslation(recipeId);
+  if (!willRun) return;
+
   void autoTranslateOnPublish(recipeId, userId).catch((err) => {
     console.error('Automatic translation could not be scheduled', err);
   });
@@ -635,7 +645,7 @@ export async function updateRecipe(
 
   await head.save();
   const detail = await getRecipe(ctx, id);
-  if (renamedWhileLive) scheduleAutoTranslation(id, userId);
+  if (renamedWhileLive) await scheduleAutoTranslation(id, userId);
   return detail;
 }
 
@@ -829,7 +839,7 @@ export async function activateVersion(
   await invalidateForActiveVersion(id, version._id as Types.ObjectId);
 
   const detail = await getRecipe(ctx, id);
-  scheduleAutoTranslation(id, userId);
+  await scheduleAutoTranslation(id, userId);
   return detail;
 }
 

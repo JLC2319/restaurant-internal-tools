@@ -244,6 +244,22 @@ export interface IForkedFrom {
  * A recipe lineage head: identity + the mutable working copy + the pointer to
  * the active (staff-visible) version. Immutable history lives in RecipeVersion.
  */
+/**
+ * The background translation run kicked off by the last activation.
+ *
+ * Exists so a chef opening a recipe seconds after publishing is told the
+ * Spanish is on its way, rather than being offered a "Translate" button for
+ * work already in flight. Cleared on success; a run whose process died leaves
+ * `running` behind, which `getTranslationState` ages out into a failure rather
+ * than polling forever.
+ */
+export interface IAutoTranslation {
+  status: 'running' | 'failed';
+  startedAt: Date;
+  /** The activation that triggered the run. */
+  versionId: Types.ObjectId | null;
+}
+
 export interface IRecipe extends Document {
   scope: IScope;
   name: string;
@@ -255,6 +271,8 @@ export interface IRecipe extends Document {
   /** Denormalised from the active version doc for list display. */
   activeVersion: number | null;
   forkedFrom: IForkedFrom | null;
+  /** Null whenever no automatic translation is running or recently failed. */
+  autoTranslation: IAutoTranslation | null;
   createdBy: Types.ObjectId;
   createdAt: Date;
   modifiedAt: Date;

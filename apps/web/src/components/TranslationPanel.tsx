@@ -6,7 +6,17 @@ import type {
   TranslationPayloadInput,
   TranslationPublishMode,
 } from '@rit/shared'
-import { Bot, Check, Languages, RefreshCw, Save, ShieldAlert, Sparkles, X } from 'lucide-react'
+import {
+  Bot,
+  Check,
+  Languages,
+  Loader2,
+  RefreshCw,
+  Save,
+  ShieldAlert,
+  Sparkles,
+  X,
+} from 'lucide-react'
 import {
   approveRecipeTranslation,
   getRecipeTranslation,
@@ -55,6 +65,13 @@ const PUBLISH_MODE_HINT: Record<TranslationPublishMode, string | null> = {
     'This scope translates automatically when a version goes live and publishes it to staff without review.',
 }
 
+/**
+ * How often to ask whether the background translation has landed. Fast enough
+ * that the Spanish appears to arrive on its own, slow enough to be nothing on a
+ * page a chef leaves open — and it only runs while a run is actually in flight.
+ */
+const AUTO_POLL_MS = 2500
+
 const fieldLabel = 'text-2xs font-semibold tracking-wide text-salt-500 uppercase'
 const sourceText = 'text-sm leading-relaxed text-salt-600'
 const areaClass = `${inputClass} min-h-0 resize-y py-2 text-sm leading-relaxed`
@@ -72,6 +89,14 @@ export function TranslationPanel({ recipe }: { recipe: RecipeDetailData }) {
       if (result.error) throw new Error(result.error.message)
       return result.data
     },
+    /**
+     * Publishing kicks the translation off in the background, so a chef who
+     * opens the recipe straight afterwards lands on a page whose answer is
+     * about to change. Poll while the server says a run is in flight and stop
+     * the moment it is not — `autoTranslating` goes false on success, on
+     * failure, and on a run whose process died, so this always terminates.
+     */
+    refetchInterval: (query) => (query.state.data?.autoTranslating ? AUTO_POLL_MS : false),
   })
 
   const translation = state?.translation ?? null
@@ -231,30 +256,55 @@ export function TranslationPanel({ recipe }: { recipe: RecipeDetailData }) {
           </p>
         )}
 
-        {!translation && (
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="max-w-xl text-sm text-salt-600">
-              Translates the live version (v{recipe.activeVersion}) into Spanish for review.
-              Nothing reaches staff until you approve it here.
-            </p>
-            {state?.enabled ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setError(null)
-                  translate.mutate()
-                }}
-                disabled={busy}
-                className={primaryButtonClass}
-              >
-                <Languages className="size-4" aria-hidden />
-                {translate.isPending ? 'Translating…' : 'Translate to Spanish'}
-              </button>
-            ) : (
-              <p className="text-sm text-salt-500 italic">
-                Machine translation is not configured on this server.
+        {/* Work is already in flight — offering the button here would start the
+            same translation a second time, and telling a chef nothing is
+            happening seconds after they published is simply untrue. The query
+            above polls while this is up, so the finished Spanish replaces it. */}
+        {!translation && state?.autoTranslating && (
+          <p className="flex items-center gap-2.5 rounded-xl bg-steel-50 px-4 py-3 text-sm text-steel-700 ring-1 ring-steel-200 ring-inset">
+            <Loader2 className="size-4 shrink-0 animate-spin text-ember-600" aria-hidden />
+            <span>
+              Translating this recipe into Spanish now — it started when v{recipe.activeVersion}{' '}
+              went live. This page updates itself when it lands.
+            </span>
+          </p>
+        )}
+
+        {!translation && !state?.autoTranslating && (
+          <div className="space-y-3">
+            {state?.autoTranslationFailed && (
+              <p className="flex items-start gap-2.5 rounded-xl bg-citron-50 px-4 py-3 text-sm text-citron-700 ring-1 ring-citron-200 ring-inset">
+                <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+                <span>
+                  The automatic translation for this recipe did not finish. Nothing was saved and
+                  staff are unaffected — translate it here when you are ready.
+                </span>
               </p>
             )}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="max-w-xl text-sm text-salt-600">
+                Translates the live version (v{recipe.activeVersion}) into Spanish for review.
+                Nothing reaches staff until you approve it here.
+              </p>
+              {state?.enabled ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError(null)
+                    translate.mutate()
+                  }}
+                  disabled={busy}
+                  className={primaryButtonClass}
+                >
+                  <Languages className="size-4" aria-hidden />
+                  {translate.isPending ? 'Translating…' : 'Translate to Spanish'}
+                </button>
+              ) : (
+                <p className="text-sm text-salt-500 italic">
+                  Machine translation is not configured on this server.
+                </p>
+              )}
+            </div>
           </div>
         )}
 

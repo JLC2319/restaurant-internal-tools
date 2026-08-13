@@ -19,6 +19,7 @@ vi.mock('../../../features/tenancy/tenancy.service', () => ({
 }));
 vi.mock('../../../features/translations/translation.service', () => ({
   autoTranslateOnPublish: vi.fn().mockResolvedValue(undefined),
+  beginAutoTranslation: vi.fn().mockResolvedValue(true),
   invalidateForActiveVersion: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('../../../features/media/media.service', () => ({
@@ -33,6 +34,7 @@ import { RecipeVersion } from '../../../features/recipes/recipeVersion.model';
 import { resolveRecipePublishModeForScope } from '../../../features/tenancy/tenancy.service';
 import {
   autoTranslateOnPublish,
+  beginAutoTranslation,
   invalidateForActiveVersion,
 } from '../../../features/translations/translation.service';
 import { resolveAssets } from '../../../features/media/media.service';
@@ -304,6 +306,9 @@ describe('publishRecipe', () => {
   beforeEach(() => {
     vi.mocked(resolveRecipePublishModeForScope).mockResolvedValue('publish_on_save');
     vi.mocked(autoTranslateOnPublish).mockResolvedValue(undefined as never);
+    // The claim runs first and gates the job; unarmed it returns undefined and
+    // the translation would never be scheduled.
+    vi.mocked(beginAutoTranslation).mockResolvedValue(true);
     vi.mocked(invalidateForActiveVersion).mockResolvedValue(undefined as never);
     vi.mocked(resolveAssets).mockResolvedValue(new Map());
   });
@@ -322,6 +327,7 @@ describe('publishRecipe', () => {
     // version live does, and firing the org/property/location translation
     // setting is part of that. `autoTranslateOnPublish` decides for itself what
     // the mode means — this only pins that it is asked.
+    expect(beginAutoTranslation).toHaveBeenCalledWith(A);
     expect(autoTranslateOnPublish).toHaveBeenCalledWith(A, C);
   });
 

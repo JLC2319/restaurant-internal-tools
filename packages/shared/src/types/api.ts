@@ -388,6 +388,23 @@ export interface RecipeTranslationState {
    * so the UI can tell a chef what setting a version live will do here.
    */
   publishMode: TranslationPublishMode;
+  /**
+   * An automatic translation is running for this recipe *right now* — kicked
+   * off by the version going live, and not finished yet.
+   *
+   * The UI polls on this rather than offering "Translate to Spanish": the
+   * button would queue a second run of work already in flight, and a chef who
+   * publishes and immediately opens the recipe would otherwise be told nothing
+   * is happening. Per recipe rather than per locale, because one run covers
+   * every target locale in turn.
+   */
+  autoTranslating: boolean;
+  /**
+   * The last automatic run did not produce anything — it errored, or its
+   * process died and the marker aged out. Distinguishes "nobody has translated
+   * this" from "we tried and it did not work", which want different words.
+   */
+  autoTranslationFailed: boolean;
   translation: RecipeTranslationView | null;
 }
 
