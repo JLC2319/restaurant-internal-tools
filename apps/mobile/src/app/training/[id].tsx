@@ -16,6 +16,7 @@ import { useState } from 'react'
 import { Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { WebView } from 'react-native-webview'
+import { BASE_URL } from '../../api/client'
 import { completeTraining, getTraining, trainingsScopeKey, uncompleteTraining } from '../../api/trainings'
 import { ScreenTransition } from '../../components/motion'
 import { RichText } from '../../components/RichText'
@@ -63,6 +64,35 @@ function VideoBlock({ media, caption }: { media: MediaAssetView; caption: string
   )
 }
 
+/**
+ * A WebView pointed straight at `embedSrc` loads the player as the top-level
+ * document, so it arrives with no referrer and YouTube refuses it: "Video
+ * player configuration error" (error 153) — reproducible by opening an embed
+ * URL directly in any browser. Framing it inside a bare page whose baseUrl is
+ * an ordinary origin gives the player the embedding context it checks for.
+ *
+ * The referrer is this deployment's own API origin — the provider's own domain
+ * is rejected in turn (error 152), and inventing a domain we don't own would
+ * send a referrer for a site that isn't us. The framed src is still only ever
+ * the server-derived `embedSrc`.
+ */
+const EMBED_REFERRER = BASE_URL
+
+function embedPage(src: string): string {
+  return `<!doctype html>
+<html>
+  <head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" /></head>
+  <body style="margin:0;height:100vh;background:${colors.steel[900]};overflow:hidden">
+    <iframe
+      src="${src.replace(/"/g, '&quot;')}"
+      style="border:0;display:block;width:100%;height:100%"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+      allowfullscreen
+    ></iframe>
+  </body>
+</html>`
+}
+
 function EmbedBlock({ src, caption }: { src: string; caption: string | null }) {
   return (
     <View className="gap-3">
@@ -81,9 +111,11 @@ function EmbedBlock({ src, caption }: { src: string; caption: string | null }) {
           />
         ) : (
           <WebView
-            source={{ uri: src }}
+            source={{ html: embedPage(src), baseUrl: EMBED_REFERRER }}
+            originWhitelist={['http://*', 'https://*']}
             style={{ flex: 1, backgroundColor: colors.steel[900] }}
             allowsFullscreenVideo
+            allowsInlineMediaPlayback
             javaScriptEnabled
             domStorageEnabled
             mediaPlaybackRequiresUserAction
