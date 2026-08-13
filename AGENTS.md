@@ -88,7 +88,9 @@ Every page is behind authentication, so there is no SEO surface: pages are
 The mobile app is the reader only — approved content, nothing else — and it
 consumes the same API with the same scope headers. `EXPO_PUBLIC_API_BASE_URL`
 must be a LAN address for physical devices. Run with `pnpm dev:mobile` (or
-`pnpm dev:mobile:ios` to open the iOS simulator directly) — root `pnpm dev`
+`pnpm dev:mobile:ios` to open the iOS simulator directly, or
+`pnpm dev:mobile:sims` to open an iPhone *and* an iPad simulator against one
+dev server — see `apps/mobile/scripts/dev-simulators.sh`) — root `pnpm dev`
 deliberately excludes this app; `pnpm dev:all` runs everything. Typecheck is
 part of root `pnpm typecheck`. Details and deliberate deviations from the web
 reader: `apps/mobile/README.md`.

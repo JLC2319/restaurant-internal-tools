@@ -19,6 +19,16 @@ cp .env.example .env   # simulator: the localhost default is fine
 # 3. Start it (from the repo root)
 pnpm dev:mobile        # Expo dev server; scan the QR with Expo Go, or press i / a
 pnpm dev:mobile:ios    # or open straight into the iOS simulator
+pnpm dev:mobile:sims   # or into an iPhone *and* an iPad at once, one dev server
+```
+
+`dev:mobile:sims` (`scripts/dev-simulators.sh`) boots both simulators, makes
+sure each has Expo Go, and hands them the dev server URL once Metro is up —
+handy for checking a layout at phone and tablet width in the same pass. Pick
+different devices by name if you want another pair:
+
+```bash
+PHONE_SIM="iPhone 17e" TABLET_SIM="iPad mini (A17 Pro)" pnpm dev:mobile:sims
 ```
 
 `@rit/shared` must be built first (`pnpm build:shared`) — the app imports its

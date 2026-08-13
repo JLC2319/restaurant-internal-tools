@@ -11,6 +11,7 @@
     "dev:admin": "pnpm --filter @rit/admin dev",
     "dev:mobile": "pnpm --filter @rit/mobile dev",
     "dev:mobile:ios": "pnpm --filter @rit/mobile ios",
+    "dev:mobile:sims": "pnpm --filter @rit/mobile ios:sims",
     "dev:mobile:android": "pnpm --filter @rit/mobile android",
     "build:shared": "pnpm --filter @rit/shared build",
     "build:api": "pnpm --filter @rit/shared build && pnpm --filter @rit/api build",

@@ -8,6 +8,7 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
+    "ios:sims": "./scripts/dev-simulators.sh",
     "typecheck": "tsc --noEmit",
     "lint": "expo lint"
   },

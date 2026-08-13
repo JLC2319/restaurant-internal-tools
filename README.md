@@ -70,6 +70,7 @@ pnpm dev:web          # web only (astro dev, :6218)
 pnpm dev:admin        # platform console only (astro dev, :6219)
 pnpm dev:mobile       # Expo dev server only (:8081) — press i / a for a simulator
 pnpm dev:mobile:ios   # Expo dev server + boot the iOS simulator
+pnpm dev:mobile:sims  # …+ open it in an iPhone and an iPad simulator at once
 pnpm dev:mobile:android
 
 # Checks & builds
