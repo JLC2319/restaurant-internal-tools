@@ -6,6 +6,8 @@
     "dev": "pnpm --parallel --filter './apps/*' --filter '!@rit/mobile' dev",
     "dev:all": "pnpm --parallel --filter './apps/*' dev",
     "build": "pnpm --filter './packages/*' build && pnpm --filter './apps/*' build",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "dev:api": "pnpm --filter @rit/api dev",
     "dev:web": "pnpm --filter @rit/web dev",
     "dev:admin": "pnpm --filter @rit/admin dev",
@@ -24,6 +26,8 @@
     "script": "pnpm --filter @rit/scripts exec"
   },
   "devDependencies": {
+    "prettier": "^3.9.6",
+    "prettier-plugin-astro": "^0.14.1",
     "typescript": "^6.0.3"
   },
   "packageManager": "pnpm@11.10.0",

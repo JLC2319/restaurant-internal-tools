@@ -2,12 +2,13 @@ packages:
   - 'apps/*'
   - 'packages/*'
 
-settings:
-  onlyBuiltDependencies:
-    - esbuild
-    - sharp
+# `allowBuilds` is the pnpm 11 gate for dependency build scripts. (An earlier
+# `settings.onlyBuiltDependencies` block lived here; `settings` is not a valid
+# workspace key, so pnpm ignored it and the entries below were doing the work.)
 allowBuilds:
   '@parcel/watcher': true
   esbuild: true
   mongodb-memory-server: true
   sharp: true
+  # Native resolver binary behind eslint-plugin-import, used by eslint-config-expo.
+  unrs-resolver: true

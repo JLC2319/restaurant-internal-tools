@@ -1,0 +1,9 @@
+node_modules/
+dist/
+build/
+.astro/
+out/
+coverage/
+pnpm-lock.yaml
+apps/scripts/output/
+apps/mobile/.expo/
