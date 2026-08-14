@@ -29,7 +29,8 @@ import {
   updateTrainingTranslation,
 } from '@/features/translations/api'
 import { trainingsScopeKey } from '@/features/training/api'
-import { TRANSLATING_MESSAGES, WorkingOverlay } from '@/components/ui/WorkingOverlay'
+import { TRANSLATING_MESSAGES } from '@/features/translations/messages'
+import { WorkingOverlay } from '@/components/ui/WorkingOverlay'
 import {
   Badge,
   ErrorNote,

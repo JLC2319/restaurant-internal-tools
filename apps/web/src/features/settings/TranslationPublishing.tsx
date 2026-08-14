@@ -9,9 +9,8 @@ import {
   ModeRadioGroup,
   OverrideRows,
   PublishModeBody,
-  SavedTick,
 } from '@/features/settings/PublishModeSettings'
-import { ErrorNote, SectionCard } from '@/components/ui'
+import { ErrorNote, SavedTick, SectionCard } from '@/components/ui'
 
 /**
  * Where a tenant decides what publishing does to the Spanish — one card for

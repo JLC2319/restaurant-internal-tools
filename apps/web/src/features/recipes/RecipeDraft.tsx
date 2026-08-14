@@ -34,7 +34,8 @@ import { ScopePicker, defaultScopeSelection } from '@/features/tenancy/ScopePick
 import type { ScopeSelection } from '@/features/tenancy/ScopePicker'
 import { QueryProvider } from '@/lib/QueryProvider'
 import { PublishOnSaveControls, usePublishOnSave } from '@/features/recipes/PublishOnSave'
-import { DRAFTING_MESSAGES, WorkingOverlay } from '@/components/ui/WorkingOverlay'
+import { DRAFTING_MESSAGES } from '@/features/recipes/draftingMessages'
+import { WorkingOverlay } from '@/components/ui/WorkingOverlay'
 import {
   EmptyState,
   ErrorNote,

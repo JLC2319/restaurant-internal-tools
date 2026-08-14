@@ -15,10 +15,11 @@ import {
 } from 'lucide-react'
 import { getTraining, trainingsScopeKey } from '@/features/training/api'
 import { getTrainingTranslation, machineTranslateTraining } from '@/features/translations/api'
+import { TRANSLATING_MESSAGES } from '@/features/translations/messages'
 import { readerEs } from '@/features/reader/es'
-import { BlockView, CompletionCard } from '@/features/training/TrainingDetail'
+import { BlockView, CompletionCard } from '@/features/training/TrainingContent'
 import { QueryProvider } from '@/lib/QueryProvider'
-import { TRANSLATING_MESSAGES, WorkingOverlay } from '@/components/ui/WorkingOverlay'
+import { WorkingOverlay } from '@/components/ui/WorkingOverlay'
 import { EmptyState, ErrorNote, Skeleton, cardClass } from '@/components/ui'
 
 /**

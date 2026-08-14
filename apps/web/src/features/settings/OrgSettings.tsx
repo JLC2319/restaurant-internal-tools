@@ -5,7 +5,6 @@ import type { OrganizationProfile, UpdateOrganizationInput } from '@rit/shared'
 import { roleAtLeast } from '@rit/shared'
 import {
   Building2,
-  Check,
   Contact,
   ImageIcon,
   Languages,
@@ -32,6 +31,7 @@ import type { SettingsSection } from '@/components/ui/SettingsShell'
 import {
   Badge,
   ErrorNote,
+  SavedTick,
   Segmented,
   SectionCard,
   Skeleton,
@@ -45,16 +45,6 @@ import {
 function orNull(value: string): string | null {
   const trimmed = value.trim()
   return trimmed === '' ? null : trimmed
-}
-
-function SavedTick({ show }: { show: boolean }) {
-  if (!show) return null
-  return (
-    <span className="inline-flex items-center gap-1.5 text-sm font-medium text-basil-600">
-      <Check className="size-4" aria-hidden />
-      Saved
-    </span>
-  )
 }
 
 /** One mutation shape shared by every card below: PATCH then refresh the cache. */

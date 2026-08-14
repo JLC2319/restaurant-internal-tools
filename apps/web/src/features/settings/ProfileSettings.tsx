@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { SubmitEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { AuthUser, Locale, MembershipSummary } from '@rit/shared'
-import { BadgeCheck, Building2, Check, KeyRound, MailWarning, UserRound } from 'lucide-react'
+import { BadgeCheck, Building2, KeyRound, MailWarning, UserRound } from 'lucide-react'
 import { changePassword, getMe, getMyMemberships, updateMe } from '@/features/auth/api'
 import { QueryProvider } from '@/lib/QueryProvider'
 import { SettingsShell } from '@/components/ui/SettingsShell'
@@ -10,6 +10,7 @@ import type { SettingsSection } from '@/components/ui/SettingsShell'
 import {
   Badge,
   ErrorNote,
+  SavedTick,
   SectionCard,
   Segmented,
   Skeleton,
@@ -25,17 +26,6 @@ function orNull(value: string): string | null {
 
 function initials(user: AuthUser): string {
   return `${user.name.first[0] ?? ''}${user.name.last[0] ?? ''}`.toUpperCase()
-}
-
-/** Transient basil "Saved" tick shown next to a submit button. */
-function SavedTick({ show }: { show: boolean }) {
-  if (!show) return null
-  return (
-    <span className="inline-flex items-center gap-1.5 text-sm font-medium text-basil-600">
-      <Check className="size-4" aria-hidden />
-      Saved
-    </span>
-  )
 }
 
 function IdentityCard({ user }: { user: AuthUser }) {

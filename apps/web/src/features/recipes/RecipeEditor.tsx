@@ -21,7 +21,7 @@ import { getRecipe, listRecipes, publishRecipe, recipesScopeKey, updateRecipe } 
 import { PlatingPhotoPicker } from '@/features/recipes/PlatingPhotoPicker'
 import { QueryProvider } from '@/lib/QueryProvider'
 import { canPublishOnSave, PublishOnSaveControls, usePublishOnSave } from '@/features/recipes/PublishOnSave'
-import { UnitSelect } from '@/features/recipes/RecipesTable'
+import { UnitSelect } from '@/features/recipes/UnitSelect'
 import {
   Badge,
   ErrorNote,

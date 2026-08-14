@@ -38,16 +38,6 @@ export type PublishModeKey = keyof TenantSettingsOverride
 /** The mode union belonging to one settings key — `'manual' | …` for that key. */
 export type ModeOf<K extends PublishModeKey> = NonNullable<TenantSettingsOverride[K]>
 
-export function SavedTick({ show }: { show: boolean }) {
-  if (!show) return null
-  return (
-    <span className="inline-flex items-center gap-1.5 text-sm font-medium text-basil-600">
-      <Check className="size-4" aria-hidden />
-      Saved
-    </span>
-  )
-}
-
 /**
  * The org-level picker: one card per mode, radio semantics.
  *

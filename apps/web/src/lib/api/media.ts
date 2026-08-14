@@ -1,5 +1,5 @@
 import type { ApiError, ApiResult, MediaAssetView } from '@rit/shared'
-import { BASE_URL, apiRequest, getScope, getToken, handleUnauthorized } from '@/lib/api/client'
+import { BASE_URL, apiRequest, buildAuthScopeHeaders, handleUnauthorized } from '@/lib/api/client'
 
 /**
  * Media uploads. The API decides an upload's real format from its bytes, so
@@ -30,12 +30,9 @@ export function uploadVideo(
     const xhr = new XMLHttpRequest()
     xhr.open('POST', `${BASE_URL}/api/media/videos`)
 
-    const token = getToken()
-    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
-    const scope = getScope()
-    if (scope?.orgId) xhr.setRequestHeader('X-Org-Id', scope.orgId)
-    if (scope?.propertyId) xhr.setRequestHeader('X-Property-Id', scope.propertyId)
-    if (scope?.locationId) xhr.setRequestHeader('X-Location-Id', scope.locationId)
+    for (const [name, value] of Object.entries(buildAuthScopeHeaders())) {
+      xhr.setRequestHeader(name, value)
+    }
 
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) onProgress(event.loaded / event.total)

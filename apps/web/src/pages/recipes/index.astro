@@ -1,5 +1,6 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
+import PageHeader from '@/components/PageHeader.astro';
 import { ScopeSwitcher } from '@/features/tenancy/ScopeSwitcher';
 import { RecipesTable } from '@/features/recipes/RecipesTable';
 ---
@@ -7,13 +8,11 @@ import { RecipesTable } from '@/features/recipes/RecipesTable';
 <BaseLayout title="Recipes">
   <ScopeSwitcher client:load slot="header-actions" />
 
-  <header class="max-w-2xl">
-    <p class="text-xs font-semibold tracking-widest text-ember-600 uppercase">Recipe book</p>
-    <h1 class="mt-2 text-3xl font-bold tracking-tight text-steel-900">Recipes</h1>
-    <p class="mt-2 text-sm text-salt-600">
-      Staff see the live version of each dish. Chefs draft, version, publish and fork.
-    </p>
-  </header>
+  <PageHeader
+    eyebrow="Recipe book"
+    title="Recipes"
+    subtitle="Staff see the live version of each dish. Chefs draft, version, publish and fork."
+  />
 
   <div class="mt-6 tablet:mt-8">
     <RecipesTable client:load />

@@ -12,16 +12,13 @@ import type {
   UpdateTrainingAccessInput,
   UpdateTrainingInput,
 } from '@rit/shared'
-import { apiRequest, getScope } from '@/lib/api/client'
+import { apiRequest, buildQuery } from '@/lib/api/client'
 
 /**
  * Query-key prefix segment for the active scope — same rule as recipes: a
  * scope switch must never serve one tenant's trainings under another's header.
  */
-export function trainingsScopeKey(): (string | null)[] {
-  const scope = getScope()
-  return [scope?.orgId ?? null, scope?.propertyId ?? null, scope?.locationId ?? null]
-}
+export { scopeKey as trainingsScopeKey } from '@/lib/api/client'
 
 export interface ListTrainingsParams {
   q?: string
@@ -33,13 +30,13 @@ export interface ListTrainingsParams {
 export function listTrainings(
   params: ListTrainingsParams = {}
 ): Promise<ApiResult<PaginatedResponse<TrainingSummary>>> {
-  const query = new URLSearchParams()
-  if (params.q) query.set('q', params.q)
-  if (params.page) query.set('page', String(params.page))
-  if (params.limit) query.set('limit', String(params.limit))
-  if (params.status) query.set('status', params.status)
-  const qs = query.toString()
-  return apiRequest<PaginatedResponse<TrainingSummary>>(`/api/training${qs ? `?${qs}` : ''}`)
+  const qs = buildQuery({
+    q: params.q,
+    page: params.page,
+    limit: params.limit,
+    status: params.status,
+  })
+  return apiRequest<PaginatedResponse<TrainingSummary>>(`/api/training${qs}`)
 }
 
 export function getTraining(id: string): Promise<ApiResult<TrainingDetail>> {

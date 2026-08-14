@@ -6,8 +6,6 @@ import { roleAtLeast } from '@rit/shared'
 import {
   Archive,
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   Clock,
   GraduationCap,
   Layers,
@@ -29,6 +27,7 @@ import {
   Badge,
   EmptyState,
   ErrorNote,
+  Pager,
   Segmented,
   Skeleton,
   cardClass,
@@ -377,31 +376,7 @@ function Browser() {
         </ul>
       )}
 
-      {data && data.totalPages > 1 && (
-        <div className="flex items-center justify-center gap-3 pt-2">
-          <button
-            type="button"
-            disabled={page <= 1}
-            onClick={() => setPage((p) => p - 1)}
-            className={subtleButtonClass}
-          >
-            <ChevronLeft className="size-4" aria-hidden />
-            Previous
-          </button>
-          <span className="text-sm text-salt-600">
-            Page {data.page} of {data.totalPages}
-          </span>
-          <button
-            type="button"
-            disabled={page >= data.totalPages}
-            onClick={() => setPage((p) => p + 1)}
-            className={subtleButtonClass}
-          >
-            Next
-            <ChevronRight className="size-4" aria-hidden />
-          </button>
-        </div>
-      )}
+      {data && <Pager page={data.page} totalPages={data.totalPages} onPage={setPage} />}
     </div>
   )
 }

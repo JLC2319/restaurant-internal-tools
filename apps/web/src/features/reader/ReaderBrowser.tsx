@@ -4,8 +4,6 @@ import type { RecipeSummary, TrainingSummary } from '@rit/shared'
 import {
   BookOpen,
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   GraduationCap,
   Layers,
   Play,
@@ -19,12 +17,12 @@ import { QueryProvider } from '@/lib/QueryProvider'
 import {
   EmptyState,
   ErrorNote,
+  Pager,
   Segmented,
   Skeleton,
   cardClass,
   cardHoverClass,
   inputClass,
-  subtleButtonClass,
 } from '@/components/ui'
 
 /**
@@ -176,43 +174,6 @@ function SkeletonGrid() {
         </li>
       ))}
     </ul>
-  )
-}
-
-function Pager({
-  page,
-  totalPages,
-  onPage,
-}: {
-  page: number
-  totalPages: number
-  onPage: (next: number) => void
-}) {
-  if (totalPages <= 1) return null
-  return (
-    <div className="flex items-center justify-center gap-3 pt-2">
-      <button
-        type="button"
-        disabled={page <= 1}
-        onClick={() => onPage(page - 1)}
-        className={subtleButtonClass}
-      >
-        <ChevronLeft className="size-4" aria-hidden />
-        Previous
-      </button>
-      <span className="text-sm text-salt-600">
-        Page {page} of {totalPages}
-      </span>
-      <button
-        type="button"
-        disabled={page >= totalPages}
-        onClick={() => onPage(page + 1)}
-        className={subtleButtonClass}
-      >
-        Next
-        <ChevronRight className="size-4" aria-hidden />
-      </button>
-    </div>
   )
 }
 

@@ -22,11 +22,12 @@ import {
 } from 'lucide-react'
 import { getDraftConfig, draftTrainingsFromMaterials } from '@/lib/api/drafts'
 import { createTraining, trainingsScopeKey } from '@/features/training/api'
+import { TRAINING_DRAFTING_MESSAGES } from '@/features/training/draftingMessages'
 import { useActiveRole } from '@/features/auth/useActiveRole'
 import { ScopePicker, defaultScopeSelection } from '@/features/tenancy/ScopePicker'
 import type { ScopeSelection } from '@/features/tenancy/ScopePicker'
 import { QueryProvider } from '@/lib/QueryProvider'
-import { TRAINING_DRAFTING_MESSAGES, WorkingOverlay } from '@/components/ui/WorkingOverlay'
+import { WorkingOverlay } from '@/components/ui/WorkingOverlay'
 import {
   EmptyState,
   ErrorNote,

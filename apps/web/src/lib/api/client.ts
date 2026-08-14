@@ -49,6 +49,32 @@ export function setScope(scope: ActiveScope): void {
 }
 
 /**
+ * React-query cache-key triple for the active scope, null fallbacks. Feature
+ * modules re-export this so every scoped query key carries the scope — a scope
+ * switch can never serve one tenant's data under another's header.
+ */
+export function scopeKey(): (string | null)[] {
+  const scope = getScope()
+  return [scope?.orgId ?? null, scope?.propertyId ?? null, scope?.locationId ?? null]
+}
+
+/**
+ * Builds a list-endpoint query string: '' when nothing is set, otherwise a
+ * ready-to-append '?...'. Falsy values mean "not filtering" — the same truthy
+ * checks the list callers used when they built URLSearchParams inline.
+ */
+export function buildQuery(
+  params: Record<string, string | number | boolean | undefined>
+): string {
+  const query = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) {
+    if (value) query.set(key, String(value))
+  }
+  const qs = query.toString()
+  return qs ? `?${qs}` : ''
+}
+
+/**
  * Called whenever the API returns 401. Clears the stored auth and sends the
  * user back to login rather than leaving them on a page that will never load.
  */
@@ -64,6 +90,24 @@ export function handleSuspended(): void {
   if (typeof window === 'undefined') return
   clearAuth()
   window.location.href = '/login?suspended=1'
+}
+
+/**
+ * Auth + tenant-scope headers as a plain record — shared with the one caller
+ * (the XHR video upload) that cannot go through `apiRequest`.
+ */
+export function buildAuthScopeHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {}
+
+  const token = getToken()
+  if (token) headers.Authorization = `Bearer ${token}`
+
+  const scope = getScope()
+  if (scope?.orgId) headers['X-Org-Id'] = scope.orgId
+  if (scope?.propertyId) headers['X-Property-Id'] = scope.propertyId
+  if (scope?.locationId) headers['X-Location-Id'] = scope.locationId
+
+  return headers
 }
 
 /**
@@ -83,14 +127,11 @@ function buildHeaders(
     ? {}
     : { 'Content-Type': 'application/json' }
 
-  const token = getToken()
-  if (token) headers.Authorization = `Bearer ${token}`
-
   if (withScope) {
-    const scope = getScope()
-    if (scope?.orgId) headers['X-Org-Id'] = scope.orgId
-    if (scope?.propertyId) headers['X-Property-Id'] = scope.propertyId
-    if (scope?.locationId) headers['X-Location-Id'] = scope.locationId
+    Object.assign(headers, buildAuthScopeHeaders())
+  } else {
+    const token = getToken()
+    if (token) headers.Authorization = `Bearer ${token}`
   }
 
   return { ...headers, ...(extra as Record<string, string> | undefined) }

@@ -18,10 +18,11 @@ import {
 } from 'lucide-react'
 import { getRecipe, recipesScopeKey } from '@/features/recipes/api'
 import { getRecipeTranslation, machineTranslateRecipe } from '@/features/translations/api'
+import { TRANSLATING_MESSAGES } from '@/features/translations/messages'
 import { allergenEs, dietaryEs, readerEs, unitEs } from '@/features/reader/es'
 import { PlatingGallery } from '@/features/recipes/PlatingGallery'
 import { QueryProvider } from '@/lib/QueryProvider'
-import { TRANSLATING_MESSAGES, WorkingOverlay } from '@/components/ui/WorkingOverlay'
+import { WorkingOverlay } from '@/components/ui/WorkingOverlay'
 import { EmptyState, ErrorNote, Skeleton, cardClass } from '@/components/ui'
 
 /**

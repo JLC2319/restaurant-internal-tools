@@ -16,13 +16,10 @@ import type {
   UpdateOrganizationInput,
   UpdatePropertyInput,
 } from '@rit/shared'
-import { apiRequest, getScope } from '@/lib/api/client'
+import { apiRequest } from '@/lib/api/client'
 
 /** Cache-key fragment for queries that change with the active scope. */
-export function tenancyScopeKey(): string[] {
-  const scope = getScope()
-  return [scope?.orgId ?? '', scope?.propertyId ?? '', scope?.locationId ?? '']
-}
+export { scopeKey as tenancyScopeKey } from '@/lib/api/client'
 
 export function getOrganization(): Promise<ApiResult<OrganizationProfile>> {
   return apiRequest<OrganizationProfile>('/api/tenancy/organization')

@@ -17,17 +17,14 @@ import type {
   UpdateRecipeAccessInput,
   UpdateRecipeInput,
 } from '@rit/shared'
-import { apiRequest, getScope } from '@/lib/api/client'
+import { apiRequest, buildQuery } from '@/lib/api/client'
 
 /**
  * Query-key prefix segment for the active scope. Every recipe query key
  * includes it so a scope switch can never serve one tenant's recipes under
  * another's header (the switcher also hard-reloads — belt and braces).
  */
-export function recipesScopeKey(): (string | null)[] {
-  const scope = getScope()
-  return [scope?.orgId ?? null, scope?.propertyId ?? null, scope?.locationId ?? null]
-}
+export { scopeKey as recipesScopeKey } from '@/lib/api/client'
 
 export interface ListRecipesParams {
   q?: string
@@ -41,14 +38,14 @@ export interface ListRecipesParams {
 export function listRecipes(
   params: ListRecipesParams = {}
 ): Promise<ApiResult<PaginatedResponse<RecipeSummary>>> {
-  const query = new URLSearchParams()
-  if (params.q) query.set('q', params.q)
-  if (params.page) query.set('page', String(params.page))
-  if (params.limit) query.set('limit', String(params.limit))
-  if (params.status) query.set('status', params.status)
-  if (params.live) query.set('live', 'true')
-  const qs = query.toString()
-  return apiRequest<PaginatedResponse<RecipeSummary>>(`/api/recipes${qs ? `?${qs}` : ''}`)
+  const qs = buildQuery({
+    q: params.q,
+    page: params.page,
+    limit: params.limit,
+    status: params.status,
+    live: params.live,
+  })
+  return apiRequest<PaginatedResponse<RecipeSummary>>(`/api/recipes${qs}`)
 }
 
 /**

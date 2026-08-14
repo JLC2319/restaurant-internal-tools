@@ -1,5 +1,6 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
+import PageHeader from '@/components/PageHeader.astro';
 import { ScopeSwitcher } from '@/features/tenancy/ScopeSwitcher';
 import { OrgSettings } from '@/features/settings/OrgSettings';
 ---
@@ -7,14 +8,11 @@ import { OrgSettings } from '@/features/settings/OrgSettings';
 <BaseLayout title="Organization">
   <ScopeSwitcher client:load slot="header-actions" />
 
-  <header class="max-w-2xl">
-    <p class="text-xs font-semibold tracking-widest text-ember-600 uppercase">Organization</p>
-    <h1 class="mt-2 text-3xl font-bold tracking-tight text-steel-900">Organization settings</h1>
-    <p class="mt-2 text-sm text-salt-600">
-      Company details, publishing, structure and membership. What you can change depends on your
-      role.
-    </p>
-  </header>
+  <PageHeader
+    eyebrow="Organization"
+    title="Organization settings"
+    subtitle="Company details, publishing, structure and membership. What you can change depends on your role."
+  />
 
   {/* One island: the settings shell owns the section nav, and every section
       shares its QueryProvider cache rather than refetching per card. */}
