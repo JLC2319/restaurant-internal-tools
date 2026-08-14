@@ -517,11 +517,30 @@ function Reader({ recipeId }: { recipeId: string }) {
     content,
     lang === 'es' && usableTranslation ? usableTranslation : null
   )
+  const heroPhoto = content.photos[0]?.url ?? null
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <header className="animate-fade-up space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="mx-auto max-w-5xl space-y-6 tablet:space-y-8">
+      <header className="animate-fade-up relative overflow-hidden rounded-3xl border border-salt-200 bg-white/95 p-5 shadow-sm tablet:p-8">
+        {heroPhoto && (
+          <>
+            <div
+              aria-hidden
+              className="absolute inset-0 bg-cover bg-center opacity-15"
+              style={{ backgroundImage: `url(${heroPhoto})` }}
+            />
+            <div
+              aria-hidden
+              className="absolute inset-0 bg-linear-to-b from-white/80 via-white/92 to-white"
+            />
+          </>
+        )}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -top-12 right-[-3rem] size-48 rounded-full bg-ember-100/55 blur-3xl"
+        />
+        <div className="relative space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
           <a
             href="/reader"
             className="inline-flex min-h-touch items-center gap-1.5 text-sm font-semibold text-salt-600 transition-colors hover:text-steel-900"
@@ -531,47 +550,53 @@ function Reader({ recipeId }: { recipeId: string }) {
           </a>
           <LanguageControl recipeId={recipeId} lang={lang} onLang={setLang} />
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-3xl font-bold tracking-tight text-steel-900 tablet:text-4xl">
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-xs font-semibold tracking-[0.18em] text-ember-700 uppercase">
+              Active recipe
+            </p>
+            <span className="rounded-full bg-steel-900 px-2.5 py-1 font-mono text-2xs font-semibold text-salt-50">
+              v{recipe.activeVersion} {display.t.live}
+            </span>
+            {display.aiAssisted && (
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-2xs font-semibold ring-1 ring-inset ${
+                  display.aiUnreviewed
+                    ? 'bg-citron-50 text-citron-700 ring-citron-200'
+                    : 'bg-steel-50 text-steel-600 ring-steel-200'
+                }`}
+              >
+                <Bot className="size-3" aria-hidden />
+                {display.aiUnreviewed ? readerEs.aiUnreviewed : readerEs.aiAssisted}
+              </span>
+            )}
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight text-steel-900 tablet:text-5xl">
             {display.name}
           </h1>
-          <span className="rounded-full bg-steel-900 px-2.5 py-1 font-mono text-2xs font-semibold text-salt-50">
-            v{recipe.activeVersion} {display.t.live}
-          </span>
-          {display.aiAssisted && (
-            <span
-              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-2xs font-semibold ring-1 ring-inset ${
-                display.aiUnreviewed
-                  ? 'bg-citron-50 text-citron-700 ring-citron-200'
-                  : 'bg-steel-50 text-steel-600 ring-steel-200'
-              }`}
-            >
-              <Bot className="size-3" aria-hidden />
-              {display.aiUnreviewed ? readerEs.aiUnreviewed : readerEs.aiAssisted}
-            </span>
+          {display.description && (
+            <p className="max-w-3xl text-sm leading-relaxed text-salt-700 tablet:text-base">
+              {display.description}
+            </p>
           )}
         </div>
-        {display.description && (
-          <p className="max-w-2xl leading-relaxed text-salt-600">{display.description}</p>
-        )}
       </header>
 
       {display.aiUnreviewed && (
-        <p className="flex items-start gap-2.5 rounded-xl bg-citron-50 px-4 py-3 text-sm text-citron-700 ring-1 ring-citron-200 ring-inset">
+        <p className="flex items-start gap-2.5 rounded-2xl bg-citron-50 px-4 py-3.5 text-sm text-citron-700 ring-1 ring-citron-200 ring-inset">
           <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
           <span>{readerEs.unreviewedWarning}</span>
         </p>
       )}
 
       {!recipe.allergensVerified && (
-        <p className="flex items-start gap-2.5 rounded-xl bg-citron-50 px-4 py-3 text-sm text-citron-700 ring-1 ring-citron-200 ring-inset">
+        <p className="flex items-start gap-2.5 rounded-2xl bg-citron-50 px-4 py-3.5 text-sm text-citron-700 ring-1 ring-citron-200 ring-inset">
           <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
           <span>{display.t.allergenWarning}</span>
         </p>
       )}
 
-      <div className={`${cardClass} animate-fade-up fade-delay-1 space-y-7 p-5 tablet:p-8`}>
-        <div className="grid gap-3 phablet:grid-cols-3">
+      <div className={`${cardClass} animate-fade-up fade-delay-1 space-y-8 rounded-3xl p-5 tablet:p-9`}>
+        <div className="grid gap-3 phablet:grid-cols-3 tablet:gap-4">
           <StatTile
             icon={Scale}
             label={display.t.yield}
@@ -590,8 +615,8 @@ function Reader({ recipeId }: { recipeId: string }) {
         <Ingredients display={display} />
         <Method display={display} />
 
-        <section className="flex flex-wrap gap-x-10 gap-y-4">
-          <div>
+        <section className="grid gap-5 tablet:grid-cols-2">
+          <div className="rounded-2xl bg-salt-50 p-4 ring-1 ring-salt-200 ring-inset">
             <h2 className="mb-2 text-xs font-semibold tracking-wide text-salt-600 uppercase">
               {display.t.allergens}
             </h2>
@@ -612,7 +637,7 @@ function Reader({ recipeId }: { recipeId: string }) {
             )}
           </div>
           {display.dietaryLabels.length > 0 && (
-            <div>
+            <div className="rounded-2xl bg-salt-50 p-4 ring-1 ring-salt-200 ring-inset">
               <h2 className="mb-2 text-xs font-semibold tracking-wide text-salt-600 uppercase">
                 {display.t.dietary}
               </h2>

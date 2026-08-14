@@ -7,13 +7,17 @@ import { ReaderBrowser } from '../../components/ReaderBrowser';
 <BaseLayout title="Reader">
   <ScopeSwitcher client:load slot="header-actions" />
 
-  <header class="max-w-2xl">
-    <p class="text-xs font-semibold tracking-widest text-ember-600 uppercase">Reader</p>
-    <h1 class="mt-2 text-3xl font-bold tracking-tight text-steel-900">On the line</h1>
-    <p class="mt-2 text-sm text-salt-600">
-      Live recipes and published training only — everything on this screen has been approved.
-      Drafts and works-in-progress never appear here.
-    </p>
+  <header class="animate-fade-up relative overflow-hidden rounded-3xl border border-salt-200 bg-white/90 p-6 shadow-sm tablet:p-8">
+    <div aria-hidden="true" class="pointer-events-none absolute -top-14 right-[-3rem] size-56 rounded-full bg-ember-100/65 blur-3xl"></div>
+    <div aria-hidden="true" class="pointer-events-none absolute -bottom-20 left-[-2rem] size-56 rounded-full bg-basil-100/60 blur-3xl"></div>
+    <div class="relative max-w-3xl">
+      <p class="text-xs font-semibold tracking-[0.18em] text-ember-700 uppercase">Reader</p>
+      <h1 class="mt-3 text-3xl font-bold tracking-tight text-steel-900 tablet:text-4xl">On the line</h1>
+      <p class="mt-3 text-sm leading-relaxed text-salt-700 tablet:text-base">
+        Live recipes and published training only. This is the service shelf: what your team reads
+        here is exactly what can be cooked, taught, and verified right now.
+      </p>
+    </div>
   </header>
 
   <div class="mt-6 tablet:mt-8">

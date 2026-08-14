@@ -11,6 +11,7 @@ import {
   Clock,
   Film,
   GraduationCap,
+  Languages,
   Layers,
   Lock,
   LockOpen,
@@ -290,12 +291,23 @@ function ManagePanel({ training }: { training: TrainingDetailData }) {
     publish.isPending || unpublish.isPending || archive.isPending || unarchive.isPending
 
   return (
-    <section className={`${cardClass} space-y-4 p-5`}>
+    <section className={`${cardClass} space-y-4 rounded-3xl p-5`}>
+      <header className="flex items-center gap-2.5 border-b border-salt-200/80 pb-3">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-ember-50 text-ember-600 ring-1 ring-ember-100 ring-inset">
+          <Pencil className="size-4" aria-hidden />
+        </span>
+        <div>
+          <h3 className="font-semibold text-steel-900">Module controls</h3>
+          <p className="text-xs text-salt-600">Publish state, editing, and roster actions.</p>
+        </div>
+      </header>
+
       {error && <ErrorNote>{error}</ErrorNote>}
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="grid gap-2">
+        <div className="grid gap-2">
         {training.status !== 'archived' && (
-          <a href={`/training/${training._id}/edit`} className={subtleButtonClass}>
+          <a href={`/training/${training._id}/edit`} className={`${subtleButtonClass} w-full justify-start`}>
             <Pencil className="size-4" aria-hidden />
             Edit content
           </a>
@@ -306,7 +318,7 @@ function ManagePanel({ training }: { training: TrainingDetailData }) {
             type="button"
             onClick={() => publish.mutate()}
             disabled={busy || training.blockCount === 0}
-            className={primaryButtonClass}
+            className={`${primaryButtonClass} w-full justify-start`}
             title={training.blockCount === 0 ? 'Add content before publishing' : undefined}
           >
             <Radio className="size-4" aria-hidden />
@@ -318,7 +330,7 @@ function ManagePanel({ training }: { training: TrainingDetailData }) {
             type="button"
             onClick={() => unpublish.mutate()}
             disabled={busy}
-            className={subtleButtonClass}
+            className={`${subtleButtonClass} w-full justify-start`}
           >
             <RotateCcw className="size-4" aria-hidden />
             {unpublish.isPending ? 'Unpublishing…' : 'Unpublish'}
@@ -330,7 +342,7 @@ function ManagePanel({ training }: { training: TrainingDetailData }) {
             type="button"
             onClick={() => unarchive.mutate()}
             disabled={busy}
-            className={subtleButtonClass}
+            className={`${subtleButtonClass} w-full justify-start`}
           >
             <ArchiveRestore className="size-4" aria-hidden />
             {unarchive.isPending ? 'Restoring…' : 'Unarchive'}
@@ -344,16 +356,17 @@ function ManagePanel({ training }: { training: TrainingDetailData }) {
               }
             }}
             disabled={busy}
-            className={`${subtleButtonClass} ml-auto`}
+            className={`${subtleButtonClass} w-full justify-start`}
           >
             <Archive className="size-4" aria-hidden />
             {archive.isPending ? 'Archiving…' : 'Archive'}
           </button>
         )}
+        </div>
       </div>
 
       {training.completedCount != null && (
-        <div className="border-t border-salt-200 pt-4">
+        <div className="rounded-2xl border border-salt-200 bg-salt-50/70 p-3">
           <button
             type="button"
             onClick={() => setShowRoster((v) => !v)}
@@ -370,7 +383,7 @@ function ManagePanel({ training }: { training: TrainingDetailData }) {
             />
           </button>
           {showRoster && (
-            <div className="animate-fade-up pt-2">
+            <div className="animate-fade-up mt-2 border-t border-salt-200 pt-2">
               <CompletionsPanel trainingId={training._id} />
             </div>
           )}
@@ -672,6 +685,7 @@ function AccessPanel({ training }: { training: TrainingDetailData }) {
 
 function Detail({ trainingId }: { trainingId: string }) {
   const { role } = useActiveRole()
+  const [translationOpen, setTranslationOpen] = useState(false)
   const { data: training, error, isLoading } = useQuery({
     queryKey: ['trainings', ...trainingsScopeKey(), 'detail', trainingId],
     queryFn: async () => {
@@ -697,8 +711,17 @@ function Detail({ trainingId }: { trainingId: string }) {
   const isManager = role != null && roleAtLeast(role, 'manager')
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 tablet:space-y-8">
-      <header className="animate-fade-up space-y-3">
+    <div className="mx-auto max-w-6xl space-y-6 tablet:space-y-8">
+      <header className="animate-fade-up relative overflow-hidden rounded-3xl border border-salt-200 bg-white/95 p-5 shadow-sm tablet:p-7">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -top-16 right-[-4rem] size-56 rounded-full bg-basil-100/55 blur-3xl"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -bottom-20 left-[-4rem] size-56 rounded-full bg-ember-100/50 blur-3xl"
+        />
+        <div className="relative space-y-3">
         <div className="flex flex-wrap items-center gap-2.5">
           <p className="text-xs font-semibold tracking-widest text-ember-600 uppercase">
             Training module
@@ -713,9 +736,13 @@ function Detail({ trainingId }: { trainingId: string }) {
             </span>
           )}
         </div>
-        <h1 className="text-3xl font-bold tracking-tight text-steel-900">{training.title}</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-steel-900 tablet:text-4xl">
+          {training.title}
+        </h1>
         {training.description && (
-          <p className="max-w-2xl text-salt-600">{training.description}</p>
+          <p className="max-w-3xl text-sm leading-relaxed text-salt-700 tablet:text-base">
+            {training.description}
+          </p>
         )}
         <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-salt-500">
           <span className="inline-flex items-center gap-1.5">
@@ -733,28 +760,67 @@ function Detail({ trainingId }: { trainingId: string }) {
             Updated {new Date(training.modifiedAt).toLocaleDateString()}
           </span>
         </p>
+        </div>
       </header>
 
-      {training.canManage && <ManagePanel training={training} />}
-      {training.canManage && isManager && <PlacementPanel training={training} />}
-      {training.canManage && <AccessPanel training={training} />}
-      {training.canManage && <TrainingTranslationPanel training={training} />}
+      <div className="grid gap-6 laptop:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="space-y-6">
+          {visibleBlocks.length === 0 ? (
+            <p className="rounded-2xl bg-salt-50 px-4 py-12 text-center text-sm text-salt-500 ring-1 ring-salt-200 ring-inset">
+              This training has no content yet.
+            </p>
+          ) : (
+            <article
+              className={`${cardClass} animate-fade-up fade-delay-1 space-y-8 rounded-3xl p-5 phablet:p-7 tablet:space-y-10 tablet:p-12`}
+            >
+              {visibleBlocks.map((block, index) => (
+                <BlockView key={index} block={block} index={index} />
+              ))}
+            </article>
+          )}
 
-      {visibleBlocks.length === 0 ? (
-        <p className="rounded-2xl bg-salt-50 px-4 py-12 text-center text-sm text-salt-500 ring-1 ring-salt-200 ring-inset">
-          This training has no content yet.
-        </p>
-      ) : (
-        <article
-          className={`${cardClass} animate-fade-up fade-delay-1 space-y-8 p-5 phablet:p-7 tablet:space-y-10 tablet:p-12`}
-        >
-          {visibleBlocks.map((block, index) => (
-            <BlockView key={index} block={block} index={index} />
-          ))}
-        </article>
+          <CompletionCard training={training} />
+        </div>
+
+        {training.canManage && (
+          <aside className="space-y-6 laptop:sticky laptop:top-24 laptop:self-start">
+            <ManagePanel training={training} />
+            {isManager && <PlacementPanel training={training} />}
+            <AccessPanel training={training} />
+          </aside>
+        )}
+      </div>
+
+      {training.canManage && (
+        <section className={`${cardClass} overflow-hidden rounded-3xl`}>
+          <button
+            type="button"
+            onClick={() => setTranslationOpen((open) => !open)}
+            aria-expanded={translationOpen}
+            className="flex min-h-touch w-full cursor-pointer items-center gap-2.5 border-b border-salt-200/80 bg-white px-5 py-4 text-left transition-colors hover:bg-salt-50 tablet:px-6"
+          >
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-ember-50 text-ember-600 ring-1 ring-ember-100 ring-inset">
+              <Languages className="size-4" aria-hidden />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold text-steel-900">Spanish translation review</p>
+              <p className="text-xs text-salt-600">
+                Collapsed by default to keep the module view focused.
+              </p>
+            </div>
+            <ChevronDown
+              className={`size-4 shrink-0 text-salt-500 transition-transform duration-200 ${translationOpen ? 'rotate-180' : ''}`}
+              aria-hidden
+            />
+          </button>
+
+          {translationOpen && (
+            <div className="animate-fade-up p-3 tablet:p-4">
+              <TrainingTranslationPanel training={training} />
+            </div>
+          )}
+        </section>
       )}
-
-      <CompletionCard training={training} />
     </div>
   )
 }

@@ -234,6 +234,7 @@ function Reader({ trainingId }: { trainingId: string }) {
   const description = esTranslation
     ? esTranslation.payload.description || training.description
     : training.description
+  const heroImage = training.heroImage?.url ?? null
 
   // Substitute translated text and captions by original index *before*
   // filtering out blocks whose media has been deleted — the payload aligns
@@ -254,9 +255,27 @@ function Reader({ trainingId }: { trainingId: string }) {
   )
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 tablet:space-y-8">
-      <header className="animate-fade-up space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="mx-auto max-w-5xl space-y-6 tablet:space-y-8">
+      <header className="animate-fade-up relative overflow-hidden rounded-3xl border border-salt-200 bg-white/95 p-5 shadow-sm tablet:p-8">
+        {heroImage && (
+          <>
+            <div
+              aria-hidden
+              className="absolute inset-0 bg-cover bg-center opacity-15"
+              style={{ backgroundImage: `url(${heroImage})` }}
+            />
+            <div
+              aria-hidden
+              className="absolute inset-0 bg-linear-to-b from-white/80 via-white/92 to-white"
+            />
+          </>
+        )}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -top-12 right-[-3rem] size-48 rounded-full bg-basil-100/60 blur-3xl"
+        />
+        <div className="relative space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
           <a
             href="/reader"
             className="inline-flex min-h-touch items-center gap-1.5 text-sm font-semibold text-salt-600 transition-colors hover:text-steel-900"
@@ -266,51 +285,52 @@ function Reader({ trainingId }: { trainingId: string }) {
           </a>
           <LanguageControl trainingId={trainingId} lang={lang} onLang={setLang} />
         </div>
-        <div className="flex flex-wrap items-center gap-2.5">
-          <p className="text-xs font-semibold tracking-widest text-ember-600 uppercase">
-            Training module
-          </p>
-          {esTranslation != null && (
-            <span
-              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-2xs font-semibold ring-1 ring-inset ${
-                aiUnreviewed
-                  ? 'bg-citron-50 text-citron-700 ring-citron-200'
-                  : 'bg-steel-50 text-steel-600 ring-steel-200'
-              }`}
-            >
-              <Bot className="size-3" aria-hidden />
-              {aiUnreviewed ? readerEs.aiUnreviewed : readerEs.aiAssisted}
-            </span>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <p className="text-xs font-semibold tracking-[0.18em] text-ember-700 uppercase">
+              Training module
+            </p>
+            {esTranslation != null && (
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-2xs font-semibold ring-1 ring-inset ${
+                  aiUnreviewed
+                    ? 'bg-citron-50 text-citron-700 ring-citron-200'
+                    : 'bg-steel-50 text-steel-600 ring-steel-200'
+                }`}
+              >
+                <Bot className="size-3" aria-hidden />
+                {aiUnreviewed ? readerEs.aiUnreviewed : readerEs.aiAssisted}
+              </span>
+            )}
+            {training.myCompletion != null && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-basil-50 px-2.5 py-1 text-2xs font-semibold tracking-wide text-basil-700 uppercase ring-1 ring-basil-200 ring-inset">
+                <CheckCircle2 className="size-3.5" aria-hidden />
+                Completed
+              </span>
+            )}
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight text-steel-900 tablet:text-5xl">{title}</h1>
+          {description && (
+            <p className="max-w-3xl text-sm leading-relaxed text-salt-700 tablet:text-base">
+              {description}
+            </p>
           )}
-          {training.myCompletion != null && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-basil-50 px-2.5 py-1 text-2xs font-semibold tracking-wide text-basil-700 uppercase ring-1 ring-basil-200 ring-inset">
-              <CheckCircle2 className="size-3.5" aria-hidden />
-              Completed
-            </span>
-          )}
-        </div>
-        <h1 className="text-3xl font-bold tracking-tight text-steel-900 tablet:text-4xl">
-          {title}
-        </h1>
-        {description && (
-          <p className="max-w-2xl leading-relaxed text-salt-600">{description}</p>
-        )}
-        <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-salt-500">
-          <span className="inline-flex items-center gap-1.5">
-            <Layers className="size-3.5" aria-hidden />
-            {visibleBlocks.length} {visibleBlocks.length === 1 ? 'section' : 'sections'}
-          </span>
-          {training.videoCount > 0 && (
+          <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-salt-500">
             <span className="inline-flex items-center gap-1.5">
-              <Film className="size-3.5" aria-hidden />
-              {training.videoCount} {training.videoCount === 1 ? 'video' : 'videos'}
+              <Layers className="size-3.5" aria-hidden />
+              {visibleBlocks.length} {visibleBlocks.length === 1 ? 'section' : 'sections'}
             </span>
-          )}
-          <span className="inline-flex items-center gap-1.5">
-            <Clock className="size-3.5" aria-hidden />
-            Updated {new Date(training.modifiedAt).toLocaleDateString()}
-          </span>
-        </p>
+            {training.videoCount > 0 && (
+              <span className="inline-flex items-center gap-1.5">
+                <Film className="size-3.5" aria-hidden />
+                {training.videoCount} {training.videoCount === 1 ? 'video' : 'videos'}
+              </span>
+            )}
+            <span className="inline-flex items-center gap-1.5">
+              <Clock className="size-3.5" aria-hidden />
+              Updated {new Date(training.modifiedAt).toLocaleDateString()}
+            </span>
+          </p>
+        </div>
       </header>
 
       {aiUnreviewed && (
@@ -326,7 +346,7 @@ function Reader({ trainingId }: { trainingId: string }) {
         </p>
       ) : (
         <article
-          className={`${cardClass} animate-fade-up fade-delay-1 space-y-8 p-5 phablet:p-7 tablet:space-y-10 tablet:p-12`}
+          className={`${cardClass} animate-fade-up fade-delay-1 space-y-8 rounded-3xl p-5 phablet:p-7 tablet:space-y-10 tablet:p-12`}
         >
           {visibleBlocks.map((block, index) => (
             <BlockView key={index} block={block} index={index} />

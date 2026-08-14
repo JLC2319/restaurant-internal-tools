@@ -7,11 +7,13 @@ import {
   Archive,
   ArchiveRestore,
   Building2,
+  ChevronDown,
   Flame,
   GitCommitVertical,
   GitFork,
   History,
   Leaf,
+  Languages,
   Lock,
   LockOpen,
   Pencil,
@@ -120,7 +122,9 @@ function ContentSection({
   return (
     <div className="space-y-6">
       {content.description && (
-        <p className="text-sm leading-relaxed text-steel-800">{content.description}</p>
+        <p className="rounded-2xl bg-salt-50 px-4 py-3 text-sm leading-relaxed text-steel-800 ring-1 ring-salt-200 ring-inset">
+          {content.description}
+        </p>
       )}
 
       <div className="grid gap-3 phablet:grid-cols-3">
@@ -133,7 +137,7 @@ function ContentSection({
         )}
       </div>
 
-      <section>
+      <section className="rounded-2xl bg-salt-50/70 p-4 ring-1 ring-salt-200 ring-inset tablet:p-5">
         <h2 className="mb-3 font-semibold text-steel-900">Ingredients</h2>
         {content.ingredients.length === 0 ? (
           <p className="text-sm text-salt-500">No ingredients yet.</p>
@@ -165,7 +169,7 @@ function ContentSection({
         )}
       </section>
 
-      <section>
+      <section className="rounded-2xl bg-salt-50/70 p-4 ring-1 ring-salt-200 ring-inset tablet:p-5">
         <h2 className="mb-3 font-semibold text-steel-900">Method</h2>
         {content.steps.length === 0 ? (
           <p className="text-sm text-salt-500">No steps yet.</p>
@@ -183,8 +187,8 @@ function ContentSection({
         )}
       </section>
 
-      <section className="flex flex-wrap gap-x-10 gap-y-4">
-        <div>
+      <section className="grid gap-4 tablet:grid-cols-2">
+        <div className="rounded-2xl bg-salt-50/70 p-4 ring-1 ring-salt-200 ring-inset">
           <h2 className="mb-2 text-xs font-semibold tracking-wide text-salt-600 uppercase">
             Allergens
           </h2>
@@ -199,7 +203,7 @@ function ContentSection({
           )}
         </div>
         {content.dietary.length > 0 && (
-          <div>
+          <div className="rounded-2xl bg-salt-50/70 p-4 ring-1 ring-salt-200 ring-inset">
             <h2 className="mb-2 text-xs font-semibold tracking-wide text-salt-600 uppercase">
               Dietary
             </h2>
@@ -781,6 +785,7 @@ function Detail({ recipeId }: { recipeId: string }) {
   const queryClient = useQueryClient()
   const [view, setView] = useState<'working' | 'active'>('working')
   const [openForm, setOpenForm] = useState<'none' | 'saveVersion' | 'fork'>('none')
+  const [translationOpen, setTranslationOpen] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const { role } = useActiveRole()
   const { data: tree } = useTenantTree()
@@ -873,10 +878,19 @@ function Detail({ recipeId }: { recipeId: string }) {
   const viewingLive = isChefView && view === 'active' && recipe.activeContent != null
 
   return (
-    <div className="space-y-6">
-      <header className="space-y-3">
+    <div className="mx-auto max-w-6xl space-y-6 tablet:space-y-8">
+      <header className="animate-fade-up relative overflow-hidden rounded-3xl border border-salt-200 bg-white/95 p-5 shadow-sm tablet:p-7">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -top-16 right-[-4rem] size-56 rounded-full bg-ember-100/60 blur-3xl"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -bottom-16 left-[-4rem] size-56 rounded-full bg-basil-100/45 blur-3xl"
+        />
+        <div className="relative space-y-3">
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-3xl font-bold tracking-tight text-steel-900">{recipe.name}</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-steel-900 tablet:text-4xl">{recipe.name}</h1>
           {recipe.status === 'archived' && <Badge value="archived" />}
           {recipe.activeVersion != null ? (
             <Badge value="active" label={`v${recipe.activeVersion} live`} />
@@ -915,6 +929,7 @@ function Detail({ recipeId }: { recipeId: string }) {
             at v{recipe.forkedFrom.version}.
           </p>
         )}
+        </div>
       </header>
 
       {!recipe.allergensVerified && (
@@ -930,131 +945,155 @@ function Detail({ recipeId }: { recipeId: string }) {
       {actionError && <ErrorNote>{actionError}</ErrorNote>}
 
       {isChefView && (
-        <div className="flex flex-wrap items-center gap-2">
-          {recipe.activeContent && (
-            <div className="mr-auto">
-              <Segmented
-                ariaLabel="Content view"
-                value={view}
-                onChange={(next) => {
-                  setView(next)
-                  // The version form acts on the working copy; leaving it open
-                  // over the live snapshot is the same lie as the Edit button.
-                  if (next === 'active') setOpenForm('none')
-                }}
-                options={[
-                  {
-                    id: 'working',
-                    label: (
-                      <>
-                        <PencilRuler className="size-3.5" aria-hidden /> Working copy
-                      </>
-                    ),
-                  },
-                  {
-                    id: 'active',
-                    label: (
-                      <>
-                        <Radio className="size-3.5" aria-hidden /> Live (v{recipe.activeVersion})
-                      </>
-                    ),
-                  },
-                ]}
-              />
-            </div>
-          )}
+        <div className="rounded-2xl border border-salt-200 bg-white/90 p-3 shadow-xs tablet:p-4">
+          <div className="flex flex-wrap items-center gap-2">
+            {recipe.activeContent && (
+              <div className="mr-auto">
+                <Segmented
+                  ariaLabel="Content view"
+                  value={view}
+                  onChange={(next) => {
+                    setView(next)
+                    // The version form acts on the working copy; leaving it open
+                    // over the live snapshot is the same lie as the Edit button.
+                    if (next === 'active') setOpenForm('none')
+                  }}
+                  options={[
+                    {
+                      id: 'working',
+                      label: (
+                        <>
+                          <PencilRuler className="size-3.5" aria-hidden /> Working copy
+                        </>
+                      ),
+                    },
+                    {
+                      id: 'active',
+                      label: (
+                        <>
+                          <Radio className="size-3.5" aria-hidden /> Live (v{recipe.activeVersion})
+                        </>
+                      ),
+                    },
+                  ]}
+                />
+              </div>
+            )}
 
-          {recipe.canManage && (
-            <>
-              {/* Working-copy actions only. A published version is immutable, so
-                  none of these belong beside it — see `viewingLive` above. */}
-              {!viewingLive && (
-                <>
-                  <a href={`/recipes/${recipe._id}/edit`} className={subtleButtonClass}>
-                    <Pencil className="size-4" aria-hidden />
-                    Edit
-                  </a>
-                  <button
-                    type="button"
-                    onClick={() => setOpenForm(openForm === 'saveVersion' ? 'none' : 'saveVersion')}
-                    className={subtleButtonClass}
-                  >
-                    <GitCommitVertical className="size-4" aria-hidden />
-                    Save as version
-                  </button>
-                  {pendingAllergens && (
+            <details className="relative ml-auto">
+              <summary
+                className={`${subtleButtonClass} list-none [&::-webkit-details-marker]:hidden`}
+              >
+                Actions
+                <ChevronDown className="size-4" aria-hidden />
+              </summary>
+              <div className="absolute top-full right-0 z-20 mt-2 w-60 rounded-2xl bg-white p-2 shadow-lg ring-1 ring-salt-200">
+                <div className="grid gap-1">
+                  {recipe.canManage && !viewingLive && (
+                    <>
+                      <a
+                        href={`/recipes/${recipe._id}/edit`}
+                        className={`${subtleButtonClass} w-full justify-start`}
+                      >
+                        <Pencil className="size-4" aria-hidden />
+                        Edit
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => setOpenForm(openForm === 'saveVersion' ? 'none' : 'saveVersion')}
+                        className={`${subtleButtonClass} w-full justify-start`}
+                      >
+                        <GitCommitVertical className="size-4" aria-hidden />
+                        Save as version
+                      </button>
+                      {pendingAllergens && (
+                        <button
+                          type="button"
+                          onClick={() => approve.mutate()}
+                          disabled={approve.isPending}
+                          className={`${subtleButtonClass} w-full justify-start`}
+                        >
+                          <ShieldCheck className="size-4 text-basil-600" aria-hidden />
+                          Approve allergens
+                        </button>
+                      )}
+                    </>
+                  )}
+
+                  {/* The chef's "Live" tab shows the active snapshot in chef
+                      chrome; this opens the surface the line actually reads,
+                      Español toggle and allergen warnings included. Only once
+                      there is something live to read — the reader answers 404
+                      for an unpublished lineage. */}
+                  {recipe.activeVersionId && (
+                    <a
+                      href={`/reader/recipes/${recipe._id}`}
+                      className={`${subtleButtonClass} w-full justify-start`}
+                    >
+                      <Tablet className="size-4" aria-hidden />
+                      See in reader
+                    </a>
+                  )}
+
+                  {recipe.canManage && recipe.activeVersionId && (
                     <button
                       type="button"
-                      onClick={() => approve.mutate()}
-                      disabled={approve.isPending}
-                      className={subtleButtonClass}
+                      onClick={() => {
+                        if (
+                          window.confirm('Staff will immediately lose access to this recipe. Continue?')
+                        ) {
+                          deactivate.mutate()
+                        }
+                      }}
+                      disabled={deactivate.isPending}
+                      className={`${subtleButtonClass} w-full justify-start`}
                     >
-                      <ShieldCheck className="size-4 text-basil-600" aria-hidden />
-                      Approve allergens
+                      <Radio className="size-4" aria-hidden />
+                      Take offline
                     </button>
                   )}
-                </>
-              )}
-              {recipe.activeVersionId && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (window.confirm('Staff will immediately lose access to this recipe. Continue?')) {
-                      deactivate.mutate()
-                    }
-                  }}
-                  disabled={deactivate.isPending}
-                  className={subtleButtonClass}
-                >
-                  Take offline
-                </button>
-              )}
-            </>
-          )}
-          {/* The chef's "Live" tab shows the active snapshot in chef chrome;
-              this opens the surface the line actually reads, Español toggle and
-              allergen warnings included. Only once there is something live to
-              read — the reader answers 404 for an unpublished lineage. */}
-          {recipe.activeVersionId && (
-            <a href={`/reader/recipes/${recipe._id}`} className={subtleButtonClass}>
-              <Tablet className="size-4" aria-hidden />
-              See in reader
-            </a>
-          )}
-          <button
-            type="button"
-            onClick={() => setOpenForm(openForm === 'fork' ? 'none' : 'fork')}
-            className={subtleButtonClass}
-          >
-            <GitFork className="size-4" aria-hidden />
-            Fork
-          </button>
-          {isManager &&
-            (recipe.status === 'archived' ? (
-              <button
-                type="button"
-                onClick={() => unarchive.mutate()}
-                disabled={unarchive.isPending}
-                className={subtleButtonClass}
-              >
-                <ArchiveRestore className="size-4" aria-hidden />
-                Unarchive
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  if (window.confirm('Archive this recipe? It disappears from staff lists.')) {
-                    archive.mutate()
-                  }
-                }}
-                disabled={archive.isPending}
-                className={subtleButtonClass}
-              >
-                <Archive className="size-4" aria-hidden />
-                Archive
-              </button>
-            ))}
+
+                  {isManager &&
+                    (recipe.status === 'archived' ? (
+                      <button
+                        type="button"
+                        onClick={() => unarchive.mutate()}
+                        disabled={unarchive.isPending}
+                        className={`${subtleButtonClass} w-full justify-start`}
+                      >
+                        <ArchiveRestore className="size-4" aria-hidden />
+                        Unarchive
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (
+                            window.confirm('Archive this recipe? It disappears from staff lists.')
+                          ) {
+                            archive.mutate()
+                          }
+                        }}
+                        disabled={archive.isPending}
+                        className={`${subtleButtonClass} w-full justify-start`}
+                      >
+                        <Archive className="size-4" aria-hidden />
+                        Archive
+                      </button>
+                    ))}
+
+                  <button
+                    type="button"
+                    onClick={() => setOpenForm(openForm === 'fork' ? 'none' : 'fork')}
+                    className={`${subtleButtonClass} w-full justify-start`}
+                  >
+                    <GitFork className="size-4" aria-hidden />
+                    Fork
+                  </button>
+                </div>
+              </div>
+            </details>
+          </div>
         </div>
       )}
 
@@ -1074,7 +1113,7 @@ function Detail({ recipeId }: { recipeId: string }) {
       {openForm === 'fork' && <ForkForm recipe={recipe} onDone={() => setOpenForm('none')} />}
 
       <div className={isChefView ? 'grid gap-6 laptop:grid-cols-[minmax(0,1fr)_340px]' : ''}>
-        <div className={`${cardClass} p-5 tablet:p-7`}>
+        <div className={`${cardClass} rounded-3xl p-5 tablet:p-7`}>
           {content ? (
             <ContentSection content={content} recipeName={recipe.name} />
           ) : (
@@ -1091,7 +1130,36 @@ function Detail({ recipeId }: { recipeId: string }) {
         )}
       </div>
 
-      {recipe.canManage && <TranslationPanel recipe={recipe} />}
+      {recipe.canManage && (
+        <section className={`${cardClass} overflow-hidden rounded-3xl`}>
+          <button
+            type="button"
+            onClick={() => setTranslationOpen((open) => !open)}
+            aria-expanded={translationOpen}
+            className="flex min-h-touch w-full cursor-pointer items-center gap-2.5 border-b border-salt-200/80 bg-white px-5 py-4 text-left transition-colors hover:bg-salt-50 tablet:px-6"
+          >
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-ember-50 text-ember-600 ring-1 ring-ember-100 ring-inset">
+              <Languages className="size-4" aria-hidden />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold text-steel-900">Spanish translation review</p>
+              <p className="text-xs text-salt-600">
+                Collapsed by default to keep the recipe detail focused.
+              </p>
+            </div>
+            <ChevronDown
+              className={`size-4 shrink-0 text-salt-500 transition-transform duration-200 ${translationOpen ? 'rotate-180' : ''}`}
+              aria-hidden
+            />
+          </button>
+
+          {translationOpen && (
+            <div className="animate-fade-up p-3 tablet:p-4">
+              <TranslationPanel recipe={recipe} />
+            </div>
+          )}
+        </section>
+      )}
     </div>
   )
 }

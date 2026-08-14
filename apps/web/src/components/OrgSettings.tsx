@@ -32,6 +32,7 @@ import type { SettingsSection } from './SettingsShell'
 import {
   Badge,
   ErrorNote,
+  Segmented,
   SectionCard,
   Skeleton,
   TogglePill,
@@ -444,6 +445,7 @@ function TreeSection() {
 
 function Settings() {
   const { role, isLoading: roleLoading } = useActiveRole()
+  const [translationView, setTranslationView] = useState<'recipes' | 'training'>('recipes')
   const scope = getScope()
   // The API refuses org edits from a property- or location-scoped membership,
   // so the controls only render for an org-wide admin. Cosmetic — the server
@@ -486,7 +488,30 @@ function Settings() {
       id: 'details',
       label: 'Details',
       icon: Building2,
-      render: () => <DetailsForm key={`d-${data._id}`} org={data} canEdit={canEdit} />,
+      render: () => (
+        <div className="space-y-6">
+          <DetailsForm key={`d-${data._id}`} org={data} canEdit={canEdit} />
+          <AddressContactForm key={`a-${data._id}`} org={data} canEdit={canEdit} />
+        </div>
+      ),
+    },
+    {
+      id: 'members',
+      label: 'Members',
+      icon: Users,
+      render: () => <OrgMembersSection />,
+    },
+    {
+      id: 'structure',
+      label: 'Properties & locations',
+      icon: Network,
+      render: () => <TreeSection />,
+    },
+    {
+      id: 'branding',
+      label: 'Branding',
+      icon: ImageIcon,
+      render: () => <LogoSection org={data} canEdit={canEdit} />,
     },
     {
       id: 'publishing',
@@ -504,38 +529,33 @@ function Settings() {
       // them to their own subtree — even though the org default does not.
       render: () => (
         <div className="space-y-6">
-          <TranslationPublishingCard org={data} canEditOrg={canEdit} canEditOverrides={isAdmin} />
-          <TrainingTranslationPublishingCard
-            org={data}
-            canEditOrg={canEdit}
-            canEditOverrides={isAdmin}
-          />
+          <div className="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-salt-200 tablet:p-4">
+            <Segmented
+              ariaLabel="Translation publishing target"
+              value={translationView}
+              onChange={setTranslationView}
+              options={[
+                { id: 'recipes', label: 'Recipes' },
+                { id: 'training', label: 'Training' },
+              ]}
+            />
+          </div>
+
+          {translationView === 'recipes' ? (
+            <TranslationPublishingCard
+              org={data}
+              canEditOrg={canEdit}
+              canEditOverrides={isAdmin}
+            />
+          ) : (
+            <TrainingTranslationPublishingCard
+              org={data}
+              canEditOrg={canEdit}
+              canEditOverrides={isAdmin}
+            />
+          )}
         </div>
       ),
-    },
-    {
-      id: 'branding',
-      label: 'Branding',
-      icon: ImageIcon,
-      render: () => <LogoSection org={data} canEdit={canEdit} />,
-    },
-    {
-      id: 'contact',
-      label: 'Address & contact',
-      icon: Contact,
-      render: () => <AddressContactForm key={`a-${data._id}`} org={data} canEdit={canEdit} />,
-    },
-    {
-      id: 'structure',
-      label: 'Properties & locations',
-      icon: Network,
-      render: () => <TreeSection />,
-    },
-    {
-      id: 'members',
-      label: 'Members',
-      icon: Users,
-      render: () => <OrgMembersSection />,
     },
   ]
 

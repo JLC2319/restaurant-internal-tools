@@ -42,7 +42,7 @@ type Shelf = 'recipes' | 'training'
 const PAGE_SIZE = 24
 
 const gridClass =
-  'grid grid-cols-2 gap-3 tablet:grid-cols-3 tablet:gap-4 laptop:grid-cols-4 wide:grid-cols-5'
+  'grid grid-cols-1 gap-4 mobile:grid-cols-2 tablet:grid-cols-3 tablet:gap-5 laptop:grid-cols-4 wide:grid-cols-5'
 
 const tileDelay = (index: number) => ['', 'fade-delay-1', 'fade-delay-2', 'fade-delay-3'][index % 4]
 
@@ -70,9 +70,9 @@ function RecipeTile({ recipe, index }: { recipe: RecipeSummary; index: number })
     <li className={`animate-fade-up ${tileDelay(index)}`}>
       <a
         href={`/reader/recipes/${recipe._id}`}
-        className={`group flex h-full flex-col overflow-hidden ${cardClass} ${cardHoverClass}`}
+        className={`group relative flex h-full flex-col overflow-hidden ${cardClass} ${cardHoverClass} rounded-3xl`}
       >
-        <div className="relative aspect-4/3 w-full overflow-hidden bg-salt-100">
+        <div className="relative aspect-[5/4] w-full overflow-hidden bg-salt-100">
           {recipe.heroPhoto ? (
             <img
               src={recipe.heroPhoto.url}
@@ -80,21 +80,22 @@ function RecipeTile({ recipe, index }: { recipe: RecipeSummary; index: number })
               width={recipe.heroPhoto.width ?? undefined}
               height={recipe.heroPhoto.height ?? undefined}
               loading="lazy"
-              className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+              className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.06]"
             />
           ) : (
-            <div className="flex size-full items-center justify-center bg-linear-to-br from-steel-50 via-salt-100 to-ember-50">
+            <div className="flex size-full items-center justify-center bg-linear-to-br from-steel-100 via-salt-100 to-ember-100">
               <BookOpen
-                className="size-9 text-salt-400 transition-transform duration-300 group-hover:scale-110"
+                className="size-9 text-salt-500 transition-transform duration-300 group-hover:scale-110"
                 aria-hidden
               />
             </div>
           )}
+          <div className="absolute inset-x-0 bottom-0 h-24 bg-linear-to-t from-steel-900/75 via-steel-900/20 to-transparent" />
           <span className="absolute bottom-2 left-2 inline-flex items-center rounded-full bg-steel-900/80 px-2 py-0.5 font-mono text-2xs font-semibold text-white backdrop-blur-sm">
             v{recipe.activeVersion}
           </span>
         </div>
-        <div className="flex flex-1 flex-col gap-1.5 p-3">
+        <div className="flex flex-1 flex-col gap-2 p-4">
           <h2 className="line-clamp-2 text-sm font-semibold text-steel-900 transition-colors group-hover:text-ember-700 tablet:text-base">
             {recipe.name}
           </h2>
@@ -114,9 +115,9 @@ function TrainingTile({ training, index }: { training: TrainingSummary; index: n
     <li className={`animate-fade-up ${tileDelay(index)}`}>
       <a
         href={`/reader/training/${training._id}`}
-        className={`group flex h-full flex-col overflow-hidden ${cardClass} ${cardHoverClass}`}
+        className={`group relative flex h-full flex-col overflow-hidden ${cardClass} ${cardHoverClass} rounded-3xl`}
       >
-        <div className="relative aspect-4/3 w-full overflow-hidden bg-salt-100">
+        <div className="relative aspect-[5/4] w-full overflow-hidden bg-salt-100">
           {training.heroImage ? (
             <img
               src={training.heroImage.url}
@@ -124,16 +125,17 @@ function TrainingTile({ training, index }: { training: TrainingSummary; index: n
               width={training.heroImage.width ?? undefined}
               height={training.heroImage.height ?? undefined}
               loading="lazy"
-              className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+              className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.06]"
             />
           ) : (
-            <div className="flex size-full items-center justify-center bg-linear-to-br from-steel-50 via-salt-100 to-basil-50">
+            <div className="flex size-full items-center justify-center bg-linear-to-br from-steel-100 via-salt-100 to-basil-100">
               <GraduationCap
-                className="size-9 text-salt-400 transition-transform duration-300 group-hover:scale-110"
+                className="size-9 text-salt-500 transition-transform duration-300 group-hover:scale-110"
                 aria-hidden
               />
             </div>
           )}
+          <div className="absolute inset-x-0 bottom-0 h-24 bg-linear-to-t from-steel-900/75 via-steel-900/20 to-transparent" />
           {done && (
             <span className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-full bg-basil-500/95 px-2 py-0.5 text-2xs font-semibold tracking-wide text-white uppercase shadow-sm backdrop-blur-sm">
               <CheckCircle2 className="size-3.5" aria-hidden />
@@ -147,7 +149,7 @@ function TrainingTile({ training, index }: { training: TrainingSummary; index: n
             </span>
           )}
         </div>
-        <div className="flex flex-1 flex-col gap-1.5 p-3">
+        <div className="flex flex-1 flex-col gap-2 p-4">
           <h2 className="line-clamp-2 text-sm font-semibold text-steel-900 transition-colors group-hover:text-ember-700 tablet:text-base">
             {training.title}
           </h2>
@@ -244,108 +246,134 @@ function Browser() {
   if (active.error) return <ErrorNote>{active.error.message}</ErrorNote>
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-center gap-3">
-        <Segmented
-          ariaLabel="What to read"
-          value={shelf}
-          onChange={(next) => {
-            setShelf(next)
-            setPage(1)
-          }}
-          options={[
-            {
-              id: 'recipes',
-              label: (
-                <>
-                  <BookOpen className="size-3.5" aria-hidden /> Recipes
-                </>
-              ),
-            },
-            {
-              id: 'training',
-              label: (
-                <>
-                  <GraduationCap className="size-3.5" aria-hidden /> Training
-                </>
-              ),
-            },
-          ]}
+    <div className="space-y-6">
+      <section className="animate-fade-up relative overflow-hidden rounded-3xl border border-salt-200 bg-white/90 p-4 shadow-sm tablet:p-6">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -top-10 -right-12 size-44 rounded-full bg-ember-100/60 blur-2xl"
         />
-        <form
-          onSubmit={(e) => {
-            e.preventDefault()
-            setPage(1)
-            setQ(search)
-          }}
-          className="relative max-w-md min-w-56 flex-1"
-        >
-          <Search
-            className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-salt-500"
-            aria-hidden
-          />
-          <input
-            type="search"
-            aria-label={shelf === 'recipes' ? 'Search recipes' : 'Search trainings'}
-            placeholder={shelf === 'recipes' ? 'Search recipes…' : 'Search trainings…'}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className={`${inputClass} pl-10`}
-          />
-        </form>
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -bottom-12 -left-8 size-40 rounded-full bg-basil-100/60 blur-2xl"
+        />
+        <div className="relative space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.16em] text-steel-600 uppercase">
+              <Layers className="size-3.5" aria-hidden />
+              Reader shelf
+            </p>
+            {active.data && (
+              <p className="text-xs text-salt-600">
+                {active.data.total} total item{active.data.total === 1 ? '' : 's'}
+              </p>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <Segmented
+              ariaLabel="What to read"
+              value={shelf}
+              onChange={(next) => {
+                setShelf(next)
+                setPage(1)
+              }}
+              options={[
+                {
+                  id: 'recipes',
+                  label: (
+                    <>
+                      <BookOpen className="size-3.5" aria-hidden /> Recipes
+                    </>
+                  ),
+                },
+                {
+                  id: 'training',
+                  label: (
+                    <>
+                      <GraduationCap className="size-3.5" aria-hidden /> Training
+                    </>
+                  ),
+                },
+              ]}
+            />
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                setPage(1)
+                setQ(search)
+              }}
+              className="relative max-w-lg min-w-56 flex-1"
+            >
+              <Search
+                className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-salt-500"
+                aria-hidden
+              />
+              <input
+                type="search"
+                aria-label={shelf === 'recipes' ? 'Search recipes' : 'Search trainings'}
+                placeholder={shelf === 'recipes' ? 'Search recipes…' : 'Search trainings…'}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className={`${inputClass} pl-10`}
+              />
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <div className="space-y-5">
+        {active.isLoading && <SkeletonGrid />}
+
+        {shelf === 'recipes' && recipes.data && (
+          <>
+            {recipes.data.items.length === 0 ? (
+              <EmptyState
+                icon={BookOpen}
+                title={q ? `No recipes matching “${q}”` : 'Nothing live yet'}
+                hint={
+                  q
+                    ? 'Try a different search, or clear it to see everything in this scope.'
+                    : 'Recipes appear here once a chef sets a version live.'
+                }
+              />
+            ) : (
+              <ul className={gridClass}>
+                {recipes.data.items.map((recipe, index) => (
+                  <RecipeTile key={recipe._id} recipe={recipe} index={index} />
+                ))}
+              </ul>
+            )}
+            <Pager page={recipes.data.page} totalPages={recipes.data.totalPages} onPage={setPage} />
+          </>
+        )}
+
+        {shelf === 'training' && trainings.data && (
+          <>
+            {trainings.data.items.length === 0 ? (
+              <EmptyState
+                icon={GraduationCap}
+                title={q ? `No trainings matching “${q}”` : 'No trainings yet'}
+                hint={
+                  q
+                    ? 'Try a different search, or clear it to see everything in this scope.'
+                    : 'Training modules appear here the moment they are published.'
+                }
+              />
+            ) : (
+              <ul className={gridClass}>
+                {trainings.data.items.map((training, index) => (
+                  <TrainingTile key={training._id} training={training} index={index} />
+                ))}
+              </ul>
+            )}
+            <Pager
+              page={trainings.data.page}
+              totalPages={trainings.data.totalPages}
+              onPage={setPage}
+            />
+          </>
+        )}
       </div>
-
-      {active.isLoading && <SkeletonGrid />}
-
-      {shelf === 'recipes' && recipes.data && (
-        <>
-          {recipes.data.items.length === 0 ? (
-            <EmptyState
-              icon={BookOpen}
-              title={q ? `No recipes matching “${q}”` : 'Nothing live yet'}
-              hint={
-                q
-                  ? 'Try a different search, or clear it to see everything in this scope.'
-                  : 'Recipes appear here once a chef sets a version live.'
-              }
-            />
-          ) : (
-            <ul className={gridClass}>
-              {recipes.data.items.map((recipe, index) => (
-                <RecipeTile key={recipe._id} recipe={recipe} index={index} />
-              ))}
-            </ul>
-          )}
-          <Pager page={recipes.data.page} totalPages={recipes.data.totalPages} onPage={setPage} />
-        </>
-      )}
-
-      {shelf === 'training' && trainings.data && (
-        <>
-          {trainings.data.items.length === 0 ? (
-            <EmptyState
-              icon={GraduationCap}
-              title={q ? `No trainings matching “${q}”` : 'No trainings yet'}
-              hint={
-                q
-                  ? 'Try a different search, or clear it to see everything in this scope.'
-                  : 'Training modules appear here the moment they are published.'
-              }
-            />
-          ) : (
-            <ul className={gridClass}>
-              {trainings.data.items.map((training, index) => (
-                <TrainingTile key={training._id} training={training} index={index} />
-              ))}
-            </ul>
-          )}
-          <Pager
-            page={trainings.data.page}
-            totalPages={trainings.data.totalPages}
-            onPage={setPage}
-          />
-        </>
-      )}
     </div>
   )
 }
