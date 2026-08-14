@@ -20,6 +20,10 @@ out/
 !.vscode/settings.json
 .idea/
 
+# Claude Code: .claude/settings.json and .claude/commands/ are shared and
+# committed; per-machine permission grants are not.
+.claude/settings.local.json
+
 # OS
 .DS_Store
 Thumbs.db
