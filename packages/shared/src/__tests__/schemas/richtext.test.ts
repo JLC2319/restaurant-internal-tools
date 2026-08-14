@@ -130,6 +130,18 @@ describe('richTextDocSchema', () => {
     for (let i = 0; i < 30; i++) node = { type: 'blockquote', content: [node] };
     expect(richTextDocSchema.safeParse(doc([node])).success).toBe(false);
   });
+
+  // Regression pin for two past failure modes: exponential union validation
+  // (30 levels never finished) and a call-stack overflow escaping safeParse as
+  // RangeError (~2000 levels). Completing at all is the assertion that
+  // matters; the depth guard must fire before structural validation recurses.
+  it('rejects absurdly deep input before structural validation can walk it', () => {
+    let node: unknown = paragraph('deep');
+    for (let i = 0; i < 5000; i++) node = { type: 'blockquote', content: [node] };
+    const result = richTextDocSchema.safeParse(doc([node]));
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.message).toBe('This text section is nested too deeply');
+  });
 });
 
 describe('plain text helpers', () => {

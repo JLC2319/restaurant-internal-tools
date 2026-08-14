@@ -13,8 +13,16 @@ import { MAX_TRAINING_TEXT_CHARS } from '../types/domain.js';
  * viewer builds real React elements from it and never touches `innerHTML`, so
  * there is no stored-HTML surface anywhere in the pipeline.
  *
- * The `superRefine` on the document caps total size, node count and nesting
- * depth, so a hand-crafted payload cannot wedge the renderer or the database.
+ * Limits run in two stages, and the order is load-bearing. An iterative
+ * pre-parse guard caps nesting depth BEFORE the recursive schema ever runs —
+ * structural validation recurses per level, so depth must be bounded first or
+ * a hand-crafted payload can overflow the call stack (~2000 levels fits well
+ * inside the API's 1mb body cap). The `superRefine` after parsing then caps
+ * total text length and node count on the sanitised result. The node unions
+ * are discriminated on `type` on purpose: with a plain `z.union`, every
+ * nesting level re-validates its whole subtree once per non-matching branch,
+ * which is exponential in depth — 30 nested blockquotes took longer than the
+ * heat death of the universe before anyone noticed.
  */
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -100,12 +108,12 @@ const linkMarkSchema = z.object({
   }),
 });
 
-const markSchema: z.ZodType<RichTextMark> = z.union([
+const markSchema: z.ZodType<RichTextMark> = z.discriminatedUnion('type', [
   z.object({ type: z.enum(['bold', 'italic', 'underline', 'strike']) }),
   linkMarkSchema,
 ]);
 
-const textNodeSchema: z.ZodType<RichTextTextNode> = z.object({
+const textNodeSchema = z.object({
   type: z.literal('text'),
   text: z.string().min(1).max(MAX_TRAINING_TEXT_CHARS),
   marks: z.array(markSchema).max(8).optional(),
@@ -113,85 +121,121 @@ const textNodeSchema: z.ZodType<RichTextTextNode> = z.object({
 
 // A hard break may carry marks in ProseMirror; they mean nothing to us and
 // strip mode drops the key entirely.
-const hardBreakSchema: z.ZodType<RichTextHardBreak> = z.object({ type: z.literal('hardBreak') });
+const hardBreakSchema = z.object({ type: z.literal('hardBreak') });
 
-const inlineNodeSchema: z.ZodType<RichTextInlineNode> = z.union([
+const inlineNodeSchema: z.ZodType<RichTextInlineNode> = z.discriminatedUnion('type', [
   textNodeSchema,
   hardBreakSchema,
 ]);
 
 const inlineContentSchema = z.array(inlineNodeSchema).max(2000);
 
-const paragraphSchema: z.ZodType<RichTextParagraph> = z.object({
+const paragraphSchema = z.object({
   type: z.literal('paragraph'),
   content: inlineContentSchema.optional(),
 });
 
-const headingSchema: z.ZodType<RichTextHeading> = z.object({
+const headingSchema = z.object({
   type: z.literal('heading'),
   attrs: z.object({ level: z.union([z.literal(1), z.literal(2), z.literal(3)]) }),
   content: inlineContentSchema.optional(),
 });
 
-const listItemSchema: z.ZodType<RichTextListItem> = z.object({
+const listItemSchema = z.object({
   type: z.literal('listItem'),
   content: z.lazy(() => z.array(blockNodeSchema).min(1).max(200)),
 });
 
-const bulletListSchema: z.ZodType<RichTextBulletList> = z.object({
+const bulletListSchema = z.object({
   type: z.literal('bulletList'),
   content: z.array(listItemSchema).min(1).max(500),
 });
 
-const orderedListSchema: z.ZodType<RichTextOrderedList> = z.object({
+const orderedListSchema = z.object({
   type: z.literal('orderedList'),
   attrs: z.object({ start: z.number().int().min(1).max(1_000_000).optional() }).optional(),
   content: z.array(listItemSchema).min(1).max(500),
 });
 
-const blockquoteSchema: z.ZodType<RichTextBlockquote> = z.object({
+const blockquoteSchema = z.object({
   type: z.literal('blockquote'),
   content: z.lazy(() => z.array(blockNodeSchema).min(1).max(200)),
 });
 
+// Discriminated, not a plain union — this is what keeps parsing linear. With
+// z.union, a node is re-validated against every branch, and three branches
+// recurse into the subtree, so cost multiplied per nesting level.
 const blockNodeSchema: z.ZodType<RichTextBlockNode> = z.lazy(() =>
-  z.union([paragraphSchema, headingSchema, bulletListSchema, orderedListSchema, blockquoteSchema])
+  z.discriminatedUnion('type', [
+    paragraphSchema,
+    headingSchema,
+    bulletListSchema,
+    orderedListSchema,
+    blockquoteSchema,
+  ])
 );
 
-/** Walks a parsed document once, for the whole-document limits below. */
-function measure(
-  node: { text?: string; content?: unknown[] },
-  depth: number,
-  totals: { nodes: number; chars: number; maxDepth: number }
-): void {
-  totals.nodes += 1;
-  if (depth > totals.maxDepth) totals.maxDepth = depth;
-  if (typeof node.text === 'string') totals.chars += node.text.length;
-  if (Array.isArray(node.content)) {
-    for (const child of node.content) {
-      measure(child as { text?: string; content?: unknown[] }, depth + 1, totals);
+const MAX_NESTING_DEPTH = 20;
+
+/**
+ * Iterative depth cap on the RAW input, run via `.pipe` BEFORE the recursive
+ * structural schema. It must come first and it must not recurse: structural
+ * validation descends one call-stack level per nesting level, so an
+ * unguarded ~2000-deep payload (70KB of JSON) throws RangeError out of
+ * `safeParse` instead of failing cleanly. Only `content` arrays are walked —
+ * they are the sole recursive path in the model; junk under any other key is
+ * stripped by parse without traversal.
+ */
+function assertShallowEnough(value: unknown, ctx: z.RefinementCtx): void {
+  const stack: Array<{ node: unknown; depth: number }> = [{ node: value, depth: 0 }];
+  while (stack.length > 0) {
+    const { node, depth } = stack.pop()!;
+    if (typeof node !== 'object' || node === null) continue;
+    if (depth > MAX_NESTING_DEPTH) {
+      ctx.addIssue({ code: 'custom', message: 'This text section is nested too deeply' });
+      return;
+    }
+    const content = (node as { content?: unknown }).content;
+    if (Array.isArray(content)) {
+      for (const child of content) stack.push({ node: child, depth: depth + 1 });
     }
   }
 }
 
-export const richTextDocSchema: z.ZodType<RichTextDoc> = z
+/** Walks a parsed (so depth-capped) document once, for the limits below. */
+function measure(
+  node: { text?: string; content?: unknown[] },
+  totals: { nodes: number; chars: number }
+): void {
+  totals.nodes += 1;
+  if (typeof node.text === 'string') totals.chars += node.text.length;
+  if (Array.isArray(node.content)) {
+    for (const child of node.content) {
+      measure(child as { text?: string; content?: unknown[] }, totals);
+    }
+  }
+}
+
+const structuralDocSchema = z
   .object({
     type: z.literal('doc'),
     content: z.array(blockNodeSchema).max(1000),
   })
   .superRefine((doc, ctx) => {
-    const totals = { nodes: 0, chars: 0, maxDepth: 0 };
-    measure(doc, 0, totals);
+    const totals = { nodes: 0, chars: 0 };
+    measure(doc, totals);
     if (totals.chars > MAX_TRAINING_TEXT_CHARS) {
       ctx.addIssue({ code: 'custom', message: 'This text section is too long' });
     }
     if (totals.nodes > 5000) {
       ctx.addIssue({ code: 'custom', message: 'This text section has too many elements' });
     }
-    if (totals.maxDepth > 20) {
-      ctx.addIssue({ code: 'custom', message: 'This text section is nested too deeply' });
-    }
   });
+
+export const richTextDocSchema: z.ZodType<RichTextDoc> = z
+  .unknown()
+  .superRefine(assertShallowEnough)
+  .pipe(structuralDocSchema);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
