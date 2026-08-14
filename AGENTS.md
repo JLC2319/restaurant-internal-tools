@@ -3,6 +3,13 @@
 A reference for AI agents and human contributors working on this codebase. Read
 this before making any non-trivial change.
 
+**Every section here is a durable rule.** Anything that goes stale — feature
+status, library versions, env var lists, machine setup — lives in
+[`docs/`](docs/) and is linked from the section that used to hold it.
+
+**Before you call a change done, run `pnpm verify`** (format, typecheck, lint,
+test — the same gate CI runs). See §11.
+
 ---
 
 ## 1. Project Overview
@@ -12,16 +19,17 @@ replaces an isolated legacy recipe/training tool plus the spreadsheets and paper
 around it, and it deliberately does **not** compete with the POS, delivery, or
 reservation systems already in place.
 
-| Layer | URL (local) |
-|---|---|
-| API | http://localhost:9317 |
-| Web | http://localhost:6218 |
-| Admin | http://localhost:6219 |
+| Layer                    | URL (local)           |
+| ------------------------ | --------------------- |
+| API                      | http://localhost:9317 |
+| Web                      | http://localhost:6218 |
+| Admin                    | http://localhost:6219 |
 | Mobile (Expo dev server) | http://localhost:8081 |
 
-**This repository is currently a scaffold.** Sections 2–8 describe code that
-exists. Section 9 describes the features that do not — do not assume any of it
-is implemented.
+Phase 1 is built — recipes, training, translation with its review gate, AI
+drafting, media, and the reader all exist and have tests. Check
+[docs/ROADMAP.md](docs/ROADMAP.md) for what is still open, and trust the code
+over that table where they disagree.
 
 ---
 
@@ -41,68 +49,27 @@ packages/
 **Package manager:** pnpm 11 workspaces. **Node:** ≥ 22.
 
 `@rit/*` is a deliberately neutral scope — the product name is still open (see
-§10).
+"Naming" in the [README](README.md)). All user-facing strings live in
+`apps/web/src/assets/site-content/site-info.ts`, so a rename touches that file
+plus a scope-wide find/replace.
 
 ---
 
 ## 3. Full Stack
 
-### API (`apps/api`)
+Library-by-library tables for every app: [docs/STACK.md](docs/STACK.md).
 
-| Concern | Library |
-|---|---|
-| Framework | Express 5 |
-| Language | TypeScript (compiled by `tsc`, run via `tsx watch` in dev) |
-| Database | MongoDB via Mongoose 9 |
-| Validation | Zod 4 via `validate()` / `validateQuery()` middleware |
-| Auth | JWT (`jsonwebtoken`), bcrypt (`bcryptjs`, 12 rounds) |
-| File upload | Multer → Cloudflare R2 (photos buffer in memory; videos stream — see `media/videoStorage.ts`) |
-| Security | helmet, cors, express-rate-limit |
-| Logging | Morgan (`combined` in prod, `dev` in development) |
+The three stack facts that change how you write code:
 
-Express 5 forwards rejected promises from handlers to the error middleware, so
-async route handlers throw `AppError` directly — no `try/catch` wrapper needed.
-
-### Web (`apps/web`)
-
-| Concern | Library |
-|---|---|
-| Framework | Astro 7 (MPA) |
-| Islands | React 19 |
-| Styling | TailwindCSS 4 (custom tokens — see §7) |
-| Data fetching | TanStack Query 5 |
-| Icons | Lucide React |
-
-Every page is behind authentication, so there is no SEO surface: pages are
-`noindex`, there is no sitemap, and no page prerenders API data.
-
-### Mobile (`apps/mobile`)
-
-| Concern | Library |
-|---|---|
-| Framework | Expo SDK 57 (React Native), expo-router |
-| Styling | NativeWind 4 (Tailwind 3 syntax; same tokens as web via `src/theme/colors.js`) |
-| Data fetching | TanStack Query 5 |
-| Session | In-memory store backed by AsyncStorage (`src/api/client.ts`) |
-
-The mobile app is the reader only — approved content, nothing else — and it
-consumes the same API with the same scope headers. `EXPO_PUBLIC_API_BASE_URL`
-must be a LAN address for physical devices. Run with `pnpm dev:mobile` (or
-`pnpm dev:mobile:ios` to open the iOS simulator directly, or
-`pnpm dev:mobile:sims` to open an iPhone *and* an iPad simulator against one
-dev server — see `apps/mobile/scripts/dev-simulators.sh`) — root `pnpm dev`
-deliberately excludes this app; `pnpm dev:all` runs everything. Typecheck is
-part of root `pnpm typecheck`. Details and deliberate deviations from the web
-reader: `apps/mobile/README.md`.
-
-### Shared (`packages/shared`)
-
-- `schemas/*.ts` — Zod schemas, the single source of truth for validation.
-- `types/domain.ts` — const arrays (`allergenValues`, `tenantRoleValues`, …) and
-  the union types derived from them.
-- `types/api.ts` — `ApiResult<T>`, `PaginatedResponse<T>`, response shapes.
-- Always `import from '@rit/shared'`; never reach into `packages/shared/src`.
-- **Build order**: shared compiles first — `pnpm build:shared` or `pnpm build`.
+- **API** — Express 5 forwards rejected promises from handlers to the error
+  middleware, so async route handlers throw `AppError` directly; no `try/catch`
+  wrapper needed.
+- **Shared** — always `import from '@rit/shared'`; never reach into
+  `packages/shared/src`. It must compile before anything typechecks against it,
+  which `pnpm typecheck` and `pnpm test` now handle for you.
+- **Web & Admin** — Astro MPA with React islands. Every page sits behind auth,
+  so there is no SEO surface: pages are `noindex`, there is no sitemap, and no
+  page prerenders API data.
 
 ---
 
@@ -124,24 +91,24 @@ scope: { orgId, propertyId: ObjectId | null, locationId: ObjectId | null }
 `propertyId` and `locationId` are **explicit `null`**, never omitted, when the
 document lives higher up the tree. Visibility flows downward and only downward:
 
-| Content scoped at | Visible to |
-|---|---|
-| org | everyone in the org |
-| property | that property and its locations |
-| location | that location only |
+| Content scoped at | Visible to                      |
+| ----------------- | ------------------------------- |
+| org               | everyone in the org             |
+| property          | that property and its locations |
+| location          | that location only              |
 
 That is what makes a property's shared recipe book reach all its restaurants
 while one restaurant's local menu never leaks sideways to another.
 
 ### `lib/scope.ts` is the only place this is decided
 
-| Helper | Use |
-|---|---|
-| `scopeReadFilter(ctx)` | Compose into **every** find: `Recipe.find({ ...scopeReadFilter(ctx), status: 'approved' })` |
-| `scopeForWrite(ctx, target?)` | Produce the scope to stamp on an insert; defaults to the caller's own |
-| `assertCanWriteAt(ctx, target)` | Throws unless the caller may write at that scope |
-| `assertRole(ctx, minimum)` | Throws unless the caller holds at least `minimum` |
-| `tierOf(scope)` | `'org' \| 'property' \| 'location'` from which ids are present |
+| Helper                          | Use                                                                                         |
+| ------------------------------- | ------------------------------------------------------------------------------------------- |
+| `scopeReadFilter(ctx)`          | Compose into **every** find: `Recipe.find({ ...scopeReadFilter(ctx), status: 'approved' })` |
+| `scopeForWrite(ctx, target?)`   | Produce the scope to stamp on an insert; defaults to the caller's own                       |
+| `assertCanWriteAt(ctx, target)` | Throws unless the caller may write at that scope                                            |
+| `assertRole(ctx, minimum)`      | Throws unless the caller holds at least `minimum`                                           |
+| `tierOf(scope)`                 | `'org' \| 'property' \| 'location'` from which ids are present                              |
 
 **Never hand-roll a scope condition in a feature module.** A query that forgets
 `scopeReadFilter` returns every tenant's data, and it will look like it works.
@@ -151,37 +118,37 @@ while one restaurant's local menu never leaks sideways to another.
 A recipe or training module may carry `access: { userIds } | null` — an
 allow-list that narrows visibility **within** its scope; `null` (or absent, on
 pre-feature docs) means everyone in scope. It never widens scope:
-`features/tenancy/personAccess.ts` builds `personAccessFilter(ctx)`, which
-every gated read composes **beside** `scopeReadFilter` (the field contract:
-the model stores the list at `access` and its creator at `createdBy`). Fixed
-bypass set: the document's `createdBy`, roles admin-or-above at the scope
+`features/tenancy/personAccess.ts` builds `personAccessFilter(ctx)`, which every
+gated read composes **beside** `scopeReadFilter` (the field contract: the model
+stores the list at `access` and its creator at `createdBy`). Fixed bypass set:
+the document's `createdBy`, roles admin-or-above at the scope
 (directors/managers do **not** bypass), and platform staff. Out-of-list reads
 404 exactly like out-of-scope ones.
 
 Rules that keep it sound:
 
-- `RecipeVersion` deliberately does not denormalise `access` (it mutates
-  freely; the scope stamp changes only through `moveRecipe`, which rewrites
-  the denormalised copies — versions, translations — in the same act). Every
-  version read must load the head through the filter first; a standalone
-  RecipeVersion query is an ACL bypass by construction.
+- `RecipeVersion` deliberately does not denormalise `access` (it mutates freely;
+  the scope stamp changes only through `moveRecipe`, which rewrites the
+  denormalised copies — versions, translations — in the same act). Every version
+  read must load the head through the filter first; a standalone RecipeVersion
+  query is an ACL bypass by construction.
 - Translations gate in `translation.service.loadHead`; the list endpoint's one
   filter object also covers `total` and the `?q=` regex, so counts and name
   probes reveal nothing.
 - Deliberately ungated, each with a comment at the site: `subNamesFor` (a
-  restricted sub-recipe's **name** on a consuming recipe's ingredient line is
-  an accepted, product-approved leak), `assertNoCycle`, and the archive usage
+  restricted sub-recipe's **name** on a consuming recipe's ingredient line is an
+  accepted, product-approved leak), `assertNoCycle`, and the archive usage
   guards.
-- `validateSubRefs` checks access on **new** references only —
-  `accessExemptIds` grandfathers refs a document already carries, so
-  restricting a recipe never bricks resaves of its consumers.
+- `validateSubRefs` checks access on **new** references only — `accessExemptIds`
+  grandfathers refs a document already carries, so restricting a recipe never
+  bricks resaves of its consumers.
 - The allow-list may only name people whose membership can see the recipe's
-  scope (`assertAccessListValid`, using `membershipReadersFilter` — the
-  inverse of `scopeReadFilter`, in `lib/scope.ts`). Editing it requires
-  currently *reading* the recipe plus `canManage`; forks never copy it.
+  scope (`assertAccessListValid`, using `membershipReadersFilter` — the inverse
+  of `scopeReadFilter`, in `lib/scope.ts`). Editing it requires currently
+  _reading_ the recipe plus `canManage`; forks never copy it.
 - Known v1 limits: R2 photo URLs already handed out stay fetchable (unsigned,
-  immutable-cached), and auto-translation still sends restricted text to the
-  LLM (the stored translation is read-gated).
+  immutable-cached), and auto-translation still sends restricted text to the LLM
+  (the stored translation is read-gated).
 
 ### How a request gets its scope
 
@@ -199,7 +166,8 @@ tenant id lands in access logs or browser history. They are listed in the CORS
 strips it.
 
 `resolveTenant` (`middleware/resolveTenant.ts`) validates the headers against
-the caller's memberships and sets `req.tenant: TenantContext`. Rules it enforces:
+the caller's memberships and sets `req.tenant: TenantContext`. Rules it
+enforces:
 
 - A user may hold several memberships in one org. The **broadest** is their
   entitlement; the headers may narrow within it, never widen it.
@@ -235,14 +203,16 @@ Two settings live here today:
   resolved by `resolveTranslationPublishMode`.
 - `recipePublishMode` (`manual | publish_on_save | publish_on_save_verified`),
   resolved by `resolveRecipePublishMode`. How much ceremony stands between
-  writing a **brand-new** recipe and staff cooking from it — see §9.
+  writing a **brand-new** recipe and staff cooking from it. It is _not_ a second
+  exception to §10 — it changes how many clicks a chef spends, never who signs
+  off.
 
 Adding another means one field on each schema in `tenantSettings.model.ts`, one
 on `ITenantSettings` / `ITenantSettingsOverride`, one on the Zod schemas, and
 one entry in the web settings shell's section array. The two publishing cards
 share their picker, override rows and PATCH wiring via
-`features/settings/PublishModeSettings.tsx`; a third setting of this shape should use
-it rather than copy either card.
+`features/settings/PublishModeSettings.tsx`; a third setting of this shape
+should use it rather than copy either card.
 
 `recipePublishMode` has **two** defaults, and the split is load-bearing. The
 Mongoose default (`NEW_ORG_RECIPE_PUBLISH_MODE`, `publish_on_save`) stamps orgs
@@ -269,9 +239,9 @@ instead of `resolveTenant` — no scope headers, no `scopeReadFilter`. Rules:
   revoking a superAdmin takes effect immediately, not at token expiry.
 - A superAdmin cannot suspend or demote **their own** account (409) — any
   removal is done by another superAdmin, so one always remains.
-- Platform org creation names the owner by email; the account must already
-  exist (no email sending yet), and it reuses `tenancy.createOrganization` so
-  the org-always-has-an-owner invariant holds.
+- Platform org creation names the owner by email; the account must already exist
+  (no email sending yet), and it reuses `tenancy.createOrganization` so the
+  org-always-has-an-owner invariant holds.
 
 Invariants already enforced in `tenancy.service.ts`, worth preserving:
 
@@ -301,8 +271,8 @@ Every feature lives in `apps/api/src/features/{feature}/`:
 {feature}.schema.ts      — Zod schemas local to this feature (or import from @rit/shared)
 ```
 
-- **Router**: no logic. Middleware order matters:
-  `authenticate` → `resolveTenant` → `requireRole(...)` → `validate(schema)` → controller.
+- **Router**: no logic. Middleware order matters: `authenticate` →
+  `resolveTenant` → `requireRole(...)` → `validate(schema)` → controller.
 - **Controller**: never query the DB. One service call, one response. Cast
   `req.body` to the validated input type.
 - **Service**: throws `AppError(message, statusCode, errors?)`. Never sends HTTP
@@ -312,20 +282,20 @@ Every feature lives in `apps/api/src/features/{feature}/`:
 
 ### Web component decision
 
-| Situation | Use |
-|---|---|
-| Static content, no interactivity | `.astro` component |
+| Situation                          | Use                 |
+| ---------------------------------- | ------------------- |
+| Static content, no interactivity   | `.astro` component  |
 | Needs `onClick`, local state, refs | React `.tsx` island |
-| Needs TanStack Query | React `.tsx` island |
-| Page layout / head tags | `.astro` |
-| Interactive form | React `.tsx` island |
+| Needs TanStack Query               | React `.tsx` island |
+| Page layout / head tags            | `.astro`            |
+| Interactive form                   | React `.tsx` island |
 
 React islands hydrate with `client:load` unless deferred hydration is clearly
 better.
 
 **Settings pages use `SettingsShell`** (`components/ui/SettingsShell.tsx`): a
-sidebar on laptop and up, a tab strip below, one section rendered at a time,
-and the active section in the URL hash. Both `/organization` and `/profile` are
+sidebar on laptop and up, a tab strip below, one section rendered at a time, and
+the active section in the URL hash. Both `/organization` and `/profile` are
 built from it. Sections are a data array, so a new setting is one more entry
 rather than another card on a growing scroll.
 
@@ -347,7 +317,9 @@ Always throw `AppError`; `errorHandler` maps it to the response.
 
 ```ts
 throw new AppError('Recipe not found', 404);
-throw new AppError('Validation failed', 400, [{ field: 'email', message: 'Required' }]);
+throw new AppError('Validation failed', 400, [
+  { field: 'email', message: 'Required' },
+]);
 ```
 
 `errorHandler` already covers Mongoose `CastError` (→ 400), Multer limit errors
@@ -371,8 +343,8 @@ type and response.
 ### Authentication (API)
 
 - `authenticate` sets `req.userId` from the JWT `sub` claim.
-- `optionalAuthenticate` sets it only when a token is present — but a *present
-  but invalid* token is still a 401, never a silent downgrade to anonymous.
+- `optionalAuthenticate` sets it only when a token is present — but a _present
+  but invalid_ token is still a 401, never a silent downgrade to anonymous.
 - Suspension is checked against the database on **every** request
   (`assertAccountActive`), because a JWT stays valid for up to 7 days after it
   is minted. Login also refuses a suspended account so it cannot mint a fresh
@@ -384,15 +356,15 @@ type and response.
 All return `ApiResult<T>`:
 
 ```ts
-type ApiResult<T> = { data: T; error: null } | { data: null; error: ApiError }
+type ApiResult<T> = { data: T; error: null } | { data: null; error: ApiError };
 ```
 
 Callers check `result.error` first. Error and loading states render inline
 (early returns or ternaries in JSX) — no separate error-boundary components.
 
-Every request goes through `apiRequest` in `src/lib/api/client.ts`, which attaches
-the bearer token and the scope headers. Pass `scoped: false` for the few routes
-that run outside a tenant (login, register, create-organization).
+Every request goes through `apiRequest` in `src/lib/api/client.ts`, which
+attaches the bearer token and the scope headers. Pass `scoped: false` for the
+few routes that run outside a tenant (login, register, create-organization).
 
 ### Auth token (Web)
 
@@ -409,14 +381,14 @@ that run outside a tenant (login, register, create-organization).
 
 Custom tokens only:
 
-| Token | Character | Use |
-|---|---|---|
-| `steel` | Brushed stainless | Chrome, headings, body text |
-| `ember` | Flame orange | Primary CTA, active state |
-| `basil` | Fresh herb green | Success, verified, approved |
-| `citron` | Yellow | Warning, and **awaiting human review** |
-| `chili` | Red | **Allergen and danger only** |
-| `salt` | Near-white neutrals | Surfaces, borders, muted text |
+| Token    | Character           | Use                                    |
+| -------- | ------------------- | -------------------------------------- |
+| `steel`  | Brushed stainless   | Chrome, headings, body text            |
+| `ember`  | Flame orange        | Primary CTA, active state              |
+| `basil`  | Fresh herb green    | Success, verified, approved            |
+| `citron` | Yellow              | Warning, and **awaiting human review** |
+| `chili`  | Red                 | **Allergen and danger only**           |
+| `salt`   | Near-white neutrals | Surfaces, borders, muted text          |
 
 **`chili` is reserved.** On this product red must mean "someone could get hurt";
 using it as a generic accent trains staff to ignore it.
@@ -425,8 +397,8 @@ using it as a generic accent trains staff to ignore it.
 for quantities and codes.
 
 **Breakpoints** (mobile-first, named only — no `sm:`/`md:`/`lg:`/`xl:`):
-`mobile` (375) → `phablet` (480) → `tablet` (768) → `laptop` (1024) →
-`desktop` (1280) → `wide` (1536) → `ultra` (1920).
+`mobile` (375) → `phablet` (480) → `tablet` (768) → `laptop` (1024) → `desktop`
+(1280) → `wide` (1536) → `ultra` (1920).
 
 `tablet` is the important one: the reader app is iPad-first.
 
@@ -437,88 +409,18 @@ wearing gloves and moving fast.
 
 ## 8. Environment Variables
 
-### API (`apps/api/.env`)
-
-| Variable | Required | Default | Notes |
-|---|---|---|---|
-| `MONGODB_URI` | ✅ | — | MongoDB URI |
-| `JWT_SECRET` | ✅ | — | High-entropy random string |
-| `JWT_EXPIRES_IN` | | `7d` | Token lifetime |
-| `PORT` | | `9317` | Listen port |
-| `NODE_ENV` | | `development` | Affects morgan format; `test` skips rate limiters |
-| `CORS_ORIGIN` | | (empty) | Comma-separated allowed origins in production |
-| `TRUST_PROXY` | | `1` | Reverse-proxy hops. Drives `req.ip`, which every rate limiter keys on. Never `true` — clients could then forge `X-Forwarded-For` and pick their own bucket. |
-| `WEB_URL` | | `http://localhost:6218` | Used for links in outbound mail |
-| `ANTHROPIC_API_KEY` | | (empty) | Enables the LLM features (translation, recipe drafting). All off when unset. |
-| `LLM_MODEL` | | `claude-sonnet-5` | Model for every LLM call |
-| `TRANSLATION_ENABLED` | | `true` | Set `false` to disable machine translation without removing the key |
-| `AI_DRAFTING_ENABLED` | | `true` | Set `false` to disable AI recipe drafting without removing the key |
-| `CLOUDFLARE_ACCOUNT_ID`, `R2_*` | | (empty) | Media storage |
-
-### Web (`apps/web/.env`)
-
-| Variable | Default | Notes |
-|---|---|---|
-| `PUBLIC_API_BASE_URL` | `http://localhost:9317` | Must start with `PUBLIC_` |
-
-### Admin (`apps/admin/.env`)
-
-| Variable | Default | Notes |
-|---|---|---|
-| `PUBLIC_API_BASE_URL` | `http://localhost:9317` | Same API as the customer app |
-
-### Mobile (`apps/mobile/.env`)
-
-| Variable | Default | Notes |
-|---|---|---|
-| `EXPO_PUBLIC_API_BASE_URL` | `http://localhost:9317` | `localhost` works on a simulator; a physical device needs the machine's LAN IP |
+Every variable each app reads, with defaults:
+[docs/ENVIRONMENT.md](docs/ENVIRONMENT.md). Local machine setup — runtimes,
+database, simulators — is in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 ---
 
-## 9. Not Yet Built
+## 9. Feature Status & Roadmap
 
-Each folder under `apps/api/src/features/` holds a README with the files to
-create, the design decisions to settle, and the invariants to preserve. Read the
-relevant one before starting.
-
-### Phase 1 — the wedge (the demoable prototype)
-
-| Feature | Folder | Note |
-|---|---|---|
-| Recipe data model | `features/recipes` | **Done** — everything else reads from it. `POST /:id/publish` mints v1 and sets it live in one call for a lineage that has **never** been live, gated by per-scope `recipePublishMode` (§4); anything already live still goes save-version-then-activate |
-| LLM EN→ES translation + review gate | `features/translations` | **Done** — machine output lands `pending_review`; chef edits/approves; activating a different version (or renaming) makes approved text stale and staff-invisible; reader's Español toggle renders approved+current only. Per-scope `translationPublishMode` (§4) can fire the translation automatically on publish, and `auto_publish` can skip review entirely — the single exception in §10. An automatic run is claimed on `Recipe.autoTranslation` *before* the job detaches, so the recipe page polls (`autoTranslating`) instead of offering a button that would run it twice; a `running` marker older than three minutes reads as a failure, so a dead process can never leave a page polling forever |
-| AI recipe drafting | `features/drafting` | **Done** — photos → structured proposals (review-first; nothing persists until a chef creates each as an ordinary unpublished draft). Tags transcribed only, never inferred |
-| Training modules | `features/training` | **Done** — blocks + publish gate + completions, plus recipe-parity ownership (placement move + person-level access via `tenancy/personAccess`), the same EN→ES translation/review gate (`trainingTranslation.service`, hash-only staleness — no versions), and AI drafting from description/photos/PDFs (`drafting/trainingDraft.service`, review-first, files never stored) |
-| Media storage | `features/media` | **Photos & streamed video done**; transcoding still open |
-| Reader app | web only | **Done** — `/reader` browses live recipes + published training; detail views render only the live/published snapshot, even for chefs |
-
-### Phase 2 (post-commitment)
-
-Configurable line checks (`features/lineChecks`, stubbed), automated prep lists,
-batch traceability.
-
-### Phase 3
-
-Toast / Craftable integration for theoretical-vs-actual variance. Scoping is
-contingent on confirming API access and partner-program requirements.
-
-### Also missing
-
-- **Email sending.** `inviteMember` therefore returns 501 for an address with no
-  account rather than silently dropping the invite, and memberships are created
-  `active` instead of `invited`. When email lands: flip the status back to
-  `invited` and add an acceptance route.
-- Email verification and password reset (the `User` fields exist).
-- Offline capture (see the `lineChecks` README — it changes the id-generation
-  and idempotency story).
-- Native app store distribution. The Expo reader app (`apps/mobile`) exists
-  and covers the web reader's feature set, but it runs via Expo Go / dev
-  builds only — no EAS build pipeline, no store listings, no offline support.
-
-### Explicitly out of scope
-
-POS, payment processing, delivery routing, payroll, reservations, and hardware
-integrations (IoT sensors, Bluetooth thermometers, label printers).
+What exists, what is planned, and what is deliberately out of scope:
+[docs/ROADMAP.md](docs/ROADMAP.md). Each `apps/api/src/features/*` folder also
+holds a README with the design decisions and invariants for that feature — read
+the relevant one before starting.
 
 ---
 
@@ -547,19 +449,20 @@ convenience everywhere:
    feature that reuses it. Rule 2 below has no equivalent escape hatch.
 
    **`recipePublishMode` is not a second exception**, and the distinction is
-   worth holding onto. It changes how many clicks a chef spends publishing a
-   new recipe; it never changes who signs off. `publish_on_save` offers the
-   allergen tick beside the publish switch and `publish_on_save_verified`
-   insists on it, but in both cases the stamp records the human who ticked it —
-   there is no mode in which the server approves a tag on its own, and
-   `approveAllergens` defaults to `false` precisely so an omitted field can
-   never be read as a signature. A recipe published without the tick reaches
-   staff showing no allergen tags and the unverified warning, which is rule 2
-   working, not a gap in it.
+   worth holding onto. It changes how many clicks a chef spends publishing a new
+   recipe; it never changes who signs off. `publish_on_save` offers the allergen
+   tick beside the publish switch and `publish_on_save_verified` insists on it,
+   but in both cases the stamp records the human who ticked it — there is no
+   mode in which the server approves a tag on its own, and `approveAllergens`
+   defaults to `false` precisely so an omitted field can never be read as a
+   signature. A recipe published without the tick reaches staff showing no
+   allergen tags and the unverified warning, which is rule 2 working, not a gap
+   in it.
+
 2. **An absent allergen tag is not a claim of safety.** Only `approved` tags
    reach staff; an untagged or unreviewed dish must never read as safe.
    Allergens propagate upward through sub-recipes — a dish is only as safe as
-   its deepest component. The LLM may translate an allergen *label*; it must
+   its deepest component. The LLM may translate an allergen _label_; it must
    never decide which tags apply.
 
 Standard security notes:
@@ -577,15 +480,42 @@ Standard security notes:
 
 ---
 
-## 11. Testing
+## 11. Verifying & Testing
 
-**Framework:** Vitest everywhere. `vitest run` for CI, `vitest` for watch.
+### `pnpm verify` is the gate
 
-| Package | Path | What's tested |
-|---|---|---|
-| `@rit/shared` | `packages/shared/src/__tests__/` | Zod schema validation (pure unit) |
-| `@rit/api` | `apps/api/src/__tests__/unit/` | `AppError`, scope helpers, middleware, service logic (Mongoose mocked) |
-| `@rit/api` | `apps/api/src/__tests__/integration/` | Full HTTP round-trips via supertest + `mongodb-memory-server` |
+One command, and it is exactly what CI runs:
+
+```bash
+pnpm verify     # format:check → typecheck → lint → test
+```
+
+| Command          | Covers                                                                  |
+| ---------------- | ----------------------------------------------------------------------- |
+| `pnpm format`    | Prettier, write mode. `format:check` is the CI-safe variant             |
+| `pnpm typecheck` | `tsc --noEmit` in shared/api/mobile/scripts, `astro check` in web/admin |
+| `pnpm lint`      | ESLint via `expo lint` (mobile) — correctness rules Prettier can't see  |
+| `pnpm test`      | Vitest in shared + api                                                  |
+
+`typecheck` and `test` build `@rit/shared` first, because the other packages
+resolve it through its emitted `.d.ts` files. Each uses `pnpm -r`, so a new
+package with a `typecheck`/`test`/`lint` script is picked up with no wiring.
+
+**Integration tests share one mongod.** `src/__tests__/globalSetup.ts` boots it
+once; each file takes its own database via `connectToTestDb('<name>')` — a new
+file needs a name no other file uses. Residual flakiness is still possible, so
+re-run a failing file alone before believing it. See
+[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+
+### Framework
+
+**Vitest everywhere.** `vitest run` for CI, `vitest` for watch.
+
+| Package       | Path                                  | What's tested                                                          |
+| ------------- | ------------------------------------- | ---------------------------------------------------------------------- |
+| `@rit/shared` | `packages/shared/src/__tests__/`      | Zod schema validation (pure unit)                                      |
+| `@rit/api`    | `apps/api/src/__tests__/unit/`        | `AppError`, scope helpers, middleware, service logic (Mongoose mocked) |
+| `@rit/api`    | `apps/api/src/__tests__/integration/` | Full HTTP round-trips via supertest + `mongodb-memory-server`          |
 
 Writing tests:
 
@@ -594,8 +524,9 @@ Writing tests:
 - Use `vi.resetAllMocks()` — not `vi.clearAllMocks()` — in `beforeEach`;
   `clearAllMocks` leaves `mockReturnValueOnce` queues intact and contaminates
   later tests.
-- Integration tests spin up their own `MongoMemoryServer` in `beforeAll` and
-  wipe collections in `beforeEach`.
+- Integration tests connect in `beforeAll` with
+  `connectToTestDb('<unique-name>')` and tear down with `disconnectTestDb()`,
+  which drops that database. They do **not** boot their own server — see above.
 - `src/__tests__/setup.ts` sets the env vars `config/env.ts` requires at import
   time and forces `NODE_ENV=test`, which makes every rate limiter skip.
 
@@ -608,8 +539,8 @@ regression that would otherwise ship silently.
 ## 12. Adding a New API Feature
 
 1. Create `apps/api/src/features/{feature}/` with the five files from §5.
-2. Define Zod schemas in `{feature}.schema.ts`, or promote them to
-   `@rit/shared` if the web app needs them too.
+2. Define Zod schemas in `{feature}.schema.ts`, or promote them to `@rit/shared`
+   if the web app needs them too.
 3. Define the Mongoose model with the `modifiedAt` timestamp config **and an
    embedded `scope` sub-document**. Index `scope.orgId` alongside whatever the
    feature queries on.
@@ -620,7 +551,9 @@ regression that would otherwise ship silently.
    `validate` → controller. Mount it in `app.ts`.
 7. Add shared response types to `packages/shared/src/types/api.ts` and export
    them from the barrel.
-8. Test tenant isolation.
+8. Test tenant isolation (§11) — seed two orgs, query as one, assert the other's
+   documents are absent.
+9. Run `pnpm verify`.
 
 ## 13. Adding a New Web Page
 
@@ -629,9 +562,11 @@ regression that would otherwise ship silently.
    (`/login` is the only one today).
 3. Extract any interactive section to a React island in the owning
    `features/<feature>/` directory; shared atoms come from `components/ui`.
-   Internal imports use the `@/` alias (`@/components/ui`, `@/lib/QueryProvider`).
+   Internal imports use the `@/` alias (`@/components/ui`,
+   `@/lib/QueryProvider`).
 4. Wrap islands that use TanStack Query in `QueryProvider`.
 5. Add client fetch functions to that feature's `features/<feature>/api.ts`
    (cross-feature client, drafts and media modules live in `src/lib/api/`),
    returning `ApiResult<T>`, and handle both branches inline.
 6. Include the scope in query keys for anything tenant-scoped.
+7. Run `pnpm verify`.

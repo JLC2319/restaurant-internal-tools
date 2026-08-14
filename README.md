@@ -5,22 +5,23 @@ with human-verified allergen tags, training content, and LLM-assisted EN→ES
 translation behind a human review gate. Replaces the isolated legacy tool and
 the spreadsheets around it.
 
-**Status: scaffold.** Workspaces, configuration, authentication, multi-tenancy
-and error handling are implemented, along with the Phase 1 features listed
-under "What is built" below. See [AGENTS.md](AGENTS.md) for the full reference.
+**Status: Phase 1 built.** Auth, multi-tenancy, recipes, training, translation
+behind its review gate, AI drafting, media and the reader all exist and are
+tested — see "What is built" below. [AGENTS.md](AGENTS.md) is the engineering
+reference; [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) covers the sharp edges.
 
 ## Stack
 
 Mirrors the `meusmenu-monorepo` conventions.
 
-| Layer | Package | Stack |
-|---|---|---|
-| API | `@rit/api` | Express 5 · Mongoose 9 · Zod 4 · JWT |
-| Web | `@rit/web` | Astro 7 (MPA) · React 19 islands · Tailwind 4 · TanStack Query 5 |
-| Admin | `@rit/admin` | Same stack as web — superAdmin console on port 6219 |
-| Mobile | `@rit/mobile` | Expo SDK 57 (React Native) · expo-router · NativeWind 4 |
-| Shared | `@rit/shared` | Zod schemas + derived types, no framework deps |
-| Scripts | `@rit/scripts` | tsx, no build step |
+| Layer   | Package        | Stack                                                            |
+| ------- | -------------- | ---------------------------------------------------------------- |
+| API     | `@rit/api`     | Express 5 · Mongoose 9 · Zod 4 · JWT                             |
+| Web     | `@rit/web`     | Astro 7 (MPA) · React 19 islands · Tailwind 4 · TanStack Query 5 |
+| Admin   | `@rit/admin`   | Same stack as web — superAdmin console on port 6219              |
+| Mobile  | `@rit/mobile`  | Expo SDK 57 (React Native) · expo-router · NativeWind 4          |
+| Shared  | `@rit/shared`  | Zod schemas + derived types, no framework deps                   |
+| Scripts | `@rit/scripts` | tsx, no build step                                               |
 
 pnpm 11 workspaces, Node ≥ 22, Vitest throughout.
 
@@ -33,9 +34,9 @@ pnpm 11 workspaces, Node ≥ 22, Vitest throughout.
 - **MongoDB** — either local
   (`brew tap mongodb/brew && brew install mongodb-community && brew services start mongodb-community`)
   or a MongoDB Atlas cluster; the URI goes in `apps/api/.env`.
-- **iOS simulator only:** full Xcode, installed *and* selected —
-  `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`.
-  The standalone Command Line Tools cannot run the simulator.
+- **iOS simulator only:** full Xcode, installed _and_ selected —
+  `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`. The
+  standalone Command Line Tools cannot run the simulator.
 
 ### Setup
 
@@ -74,9 +75,11 @@ pnpm dev:mobile:sims  # …+ open it in an iPhone and an iPad simulator at once
 pnpm dev:mobile:android
 
 # Checks & builds
+pnpm verify           # format:check + typecheck + lint + test — the CI gate
 pnpm build            # build everything in dependency order
-pnpm typecheck        # shared + api + mobile
-pnpm lint             # web + admin (astro check)
+pnpm format           # Prettier, write mode (format:check to only report)
+pnpm typecheck        # tsc in shared/api/mobile/scripts, astro check in web/admin
+pnpm lint             # ESLint via expo lint (mobile)
 pnpm test             # shared + api
 pnpm test:coverage    # with V8 coverage
 
@@ -105,22 +108,22 @@ pnpm -F @rit/scripts verify-email <email>                   # flip emailVerified
   recipe can skip straight to staff with "Publish on save" where the scope's
   `recipePublishMode` allows it; anything already live still changes the
   deliberate way.
-- **Training** — modules built from rich text, photos and video behind a
-  publish gate, with per-person completions.
+- **Training** — modules built from rich text, photos and video behind a publish
+  gate, with per-person completions.
 - **Reader** — iPad-first `/reader` surface for the line: live recipes and
   published training only, even for chefs.
 - **Translations** — LLM EN→ES translation of live recipes behind a mandatory
-  human review gate. Chefs translate, review side by side, edit and approve;
-  the reader's Español toggle only ever shows approved, current text.
-- **AI drafting** — photos of recipe cards/pages in, structured recipe
-  proposals out. Review-first: nothing is saved until a chef creates each
-  proposal, and what that creates is an ordinary draft unless the chef turns on
-  "Publish on save" for it.
+  human review gate. Chefs translate, review side by side, edit and approve; the
+  reader's Español toggle only ever shows approved, current text.
+- **AI drafting** — photos of recipe cards/pages in, structured recipe proposals
+  out. Review-first: nothing is saved until a chef creates each proposal, and
+  what that creates is an ordinary draft unless the chef turns on "Publish on
+  save" for it.
 
 ## What is not
 
-Configurable line checks (`features/lineChecks`, Phase 2 — its README covers
-the files to create and the invariants to preserve) and video transcoding in
+Configurable line checks (`features/lineChecks`, Phase 2 — its README covers the
+files to create and the invariants to preserve) and video transcoding in
 `media`.
 
 Also unbuilt: email sending (so invites only work for users who already have an
