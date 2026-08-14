@@ -21,5 +21,12 @@ export default defineConfig({
     // Integration tests spin up mongodb-memory-server, which is slow to boot.
     testTimeout: 30000,
     hookTimeout: 30000,
+    // Every integration file boots its own mongodb-memory-server and drives
+    // the app through supertest's ephemeral listeners. With one fork per file
+    // all at once, that combination flakes under load — rotating single-file
+    // failures that never reproduce solo, including responses the failing
+    // file's own app never logged. Capping concurrent workers removes the
+    // stampede without serialising the suite.
+    maxWorkers: 4,
   },
 });
