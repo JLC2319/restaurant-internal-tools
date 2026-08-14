@@ -1,5 +1,5 @@
-import { AlertCircle } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { AlertCircle } from 'lucide-react';
+import type { ReactNode } from 'react';
 
 export function ErrorNote({ children }: { children: ReactNode }) {
   return (
@@ -10,5 +10,5 @@ export function ErrorNote({ children }: { children: ReactNode }) {
       <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
       <span>{children}</span>
     </p>
-  )
+  );
 }

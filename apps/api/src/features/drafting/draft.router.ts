@@ -38,7 +38,7 @@ draftRouter.post(
   llmRateLimiter,
   draftUpload.array('photos', MAX_DRAFT_PHOTOS),
   validate(draftRecipesSchema),
-  draftController.draftRecipes
+  draftController.draftRecipes,
 );
 
 /**
@@ -57,7 +57,7 @@ draftRouter.post(
   llmRateLimiter,
   trainingDraftUpload.array('files', MAX_DRAFT_FILES),
   validate(draftTrainingsSchema),
-  draftController.draftTrainings
+  draftController.draftTrainings,
 );
 
 export { draftRouter };

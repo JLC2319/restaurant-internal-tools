@@ -46,14 +46,14 @@ await run(async () => {
         preferredLocale: 'en',
       },
     },
-    { new: true, upsert: true }
+    { new: true, upsert: true },
   );
   console.log(`user       ${user.email} (${user._id})`);
 
   const org = await Organization.findOneAndUpdate(
     { slug: toSlug(ORG_NAME) },
     { $setOnInsert: { name: ORG_NAME, slug: toSlug(ORG_NAME), locales: ['en', 'es'] } },
-    { new: true, upsert: true }
+    { new: true, upsert: true },
   );
   console.log(`org        ${org.name} (${org._id})`);
 
@@ -70,7 +70,7 @@ await run(async () => {
         joinedAt: new Date(),
       },
     },
-    { new: true, upsert: true }
+    { new: true, upsert: true },
   );
   console.log('membership owner @ org scope');
 
@@ -78,7 +78,7 @@ await run(async () => {
     const property = await Property.findOneAndUpdate(
       { orgId: org._id, slug: toSlug(spec.name) },
       { $setOnInsert: { orgId: org._id, name: spec.name, slug: toSlug(spec.name) } },
-      { new: true, upsert: true }
+      { new: true, upsert: true },
     );
     console.log(`property   ${property.name} (${property._id})`);
 
@@ -94,7 +94,7 @@ await run(async () => {
             timezone: 'America/Chicago',
           },
         },
-        { new: true, upsert: true }
+        { new: true, upsert: true },
       );
       console.log(`location     ${location.name} (${location._id})`);
     }

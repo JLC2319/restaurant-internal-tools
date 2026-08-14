@@ -97,7 +97,7 @@ function arrange({
   afterLlm = undefined as Record<string, unknown> | undefined,
 } = {}) {
   vi.mocked(Organization.findById).mockReturnValue(
-    selectLean({ settings: { translationPublishMode: mode }, locales: ['en', 'es'] }) as never
+    selectLean({ settings: { translationPublishMode: mode }, locales: ['en', 'es'] }) as never,
   );
   vi.mocked(Property.findById).mockReturnValue(selectLean(null) as never);
   vi.mocked(Location.findById).mockReturnValue(selectLean(null) as never);
@@ -108,7 +108,7 @@ function arrange({
     .mockReturnValueOnce(selectLean(afterLlm ?? recipe) as never);
 
   vi.mocked(RecipeVersion.findById).mockReturnValue(
-    selectLean({ _id: VERSION, version: 3, content: CONTENT }) as never
+    selectLean({ _id: VERSION, version: 3, content: CONTENT }) as never,
   );
   vi.mocked(RecipeTranslation.findOne).mockReturnValue(selectLean(existingTranslation) as never);
   vi.mocked(RecipeTranslation.findOneAndUpdate).mockResolvedValue({} as never);
@@ -134,13 +134,16 @@ beforeEach(() => {
 describe('resolvePublishModeForScope', () => {
   it('prefers a location override over its property and org', async () => {
     vi.mocked(Organization.findById).mockReturnValue(
-      selectLean({ settings: { translationPublishMode: 'manual' }, locales: ['en', 'es'] }) as never
+      selectLean({
+        settings: { translationPublishMode: 'manual' },
+        locales: ['en', 'es'],
+      }) as never,
     );
     vi.mocked(Property.findById).mockReturnValue(
-      selectLean({ settings: { translationPublishMode: 'auto_review' } }) as never
+      selectLean({ settings: { translationPublishMode: 'auto_review' } }) as never,
     );
     vi.mocked(Location.findById).mockReturnValue(
-      selectLean({ settings: { translationPublishMode: 'auto_publish' } }) as never
+      selectLean({ settings: { translationPublishMode: 'auto_publish' } }) as never,
     );
 
     const mode = await resolvePublishModeForScope({
@@ -156,7 +159,7 @@ describe('resolvePublishModeForScope', () => {
       selectLean({
         settings: { translationPublishMode: 'auto_review' },
         locales: ['en', 'es'],
-      }) as never
+      }) as never,
     );
     vi.mocked(Property.findById).mockReturnValue(selectLean({ settings: {} }) as never);
     vi.mocked(Location.findById).mockReturnValue(selectLean(null) as never);
@@ -290,7 +293,10 @@ describe('autoTranslateOnPublish', () => {
   it('translates nothing when the org does not publish Spanish', async () => {
     arrange();
     vi.mocked(Organization.findById).mockReturnValue(
-      selectLean({ settings: { translationPublishMode: 'auto_publish' }, locales: ['en'] }) as never
+      selectLean({
+        settings: { translationPublishMode: 'auto_publish' },
+        locales: ['en'],
+      }) as never,
     );
 
     await autoTranslateOnPublish(RECIPE, ACTOR);

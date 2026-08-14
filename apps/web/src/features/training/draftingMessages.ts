@@ -7,4 +7,4 @@ export const TRAINING_DRAFTING_MESSAGES = [
   'Trimming the corporate speak…',
   'Double-checking the safety bits…',
   'Writing it up for the team…',
-] as const
+] as const;

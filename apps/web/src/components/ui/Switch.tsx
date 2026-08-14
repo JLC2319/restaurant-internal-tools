@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { ReactNode } from 'react';
 
 /**
  * An on/off switch for a setting that takes effect elsewhere — "publish this on
@@ -14,12 +14,12 @@ export function Switch({
   label,
   hint,
 }: {
-  id: string
-  checked: boolean
-  onChange: (next: boolean) => void
-  disabled?: boolean
-  label: ReactNode
-  hint?: ReactNode
+  id: string;
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  disabled?: boolean;
+  label: ReactNode;
+  hint?: ReactNode;
 }) {
   return (
     <label
@@ -48,5 +48,5 @@ export function Switch({
         {hint && <span className="mt-0.5 block text-xs text-salt-600">{hint}</span>}
       </span>
     </label>
-  )
+  );
 }

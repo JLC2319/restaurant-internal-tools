@@ -1,5 +1,5 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { subtleButtonClass } from './tokens'
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { subtleButtonClass } from './tokens';
 
 /**
  * The pagination row: previous/next around a "Page x of y" label. Renders
@@ -10,11 +10,11 @@ export function Pager({
   totalPages,
   onPage,
 }: {
-  page: number
-  totalPages: number
-  onPage: (next: number) => void
+  page: number;
+  totalPages: number;
+  onPage: (next: number) => void;
 }) {
-  if (totalPages <= 1) return null
+  if (totalPages <= 1) return null;
   return (
     <div className="flex items-center justify-center gap-3 pt-2">
       <button
@@ -39,5 +39,5 @@ export function Pager({
         <ChevronRight className="size-4" aria-hidden />
       </button>
     </div>
-  )
+  );
 }

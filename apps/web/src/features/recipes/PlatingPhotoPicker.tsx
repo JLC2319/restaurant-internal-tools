@@ -1,9 +1,9 @@
-import { useRef, useState } from 'react'
-import type { MediaAssetView } from '@rit/shared'
-import { MAX_PHOTO_BYTES, MAX_RECIPE_PHOTOS, imageMimeValues } from '@rit/shared'
-import { ArrowLeft, ArrowRight, ImagePlus, Images, Loader2, Star, Trash2 } from 'lucide-react'
-import { uploadPhoto } from '@/lib/api/media'
-import { ErrorNote, SectionCard, subtleButtonClass } from '@/components/ui'
+import { useRef, useState } from 'react';
+import type { MediaAssetView } from '@rit/shared';
+import { MAX_PHOTO_BYTES, MAX_RECIPE_PHOTOS, imageMimeValues } from '@rit/shared';
+import { ArrowLeft, ArrowRight, ImagePlus, Images, Loader2, Star, Trash2 } from 'lucide-react';
+import { uploadPhoto } from '@/lib/api/media';
+import { ErrorNote, SectionCard, subtleButtonClass } from '@/components/ui';
 
 /**
  * Plating photos for the recipe editor.
@@ -17,20 +17,20 @@ import { ErrorNote, SectionCard, subtleButtonClass } from '@/components/ui'
  * upload-time accident.
  */
 
-const ACCEPT = imageMimeValues.join(',')
-const MAX_MB = Math.round(MAX_PHOTO_BYTES / (1024 * 1024))
+const ACCEPT = imageMimeValues.join(',');
+const MAX_MB = Math.round(MAX_PHOTO_BYTES / (1024 * 1024));
 
 /** Client-side pre-check. The server re-decides from the bytes — this is only
  * so a chef learns about a 40MB RAW file before uploading it over kitchen wifi. */
 function rejectionReason(file: File): string | null {
   if (file.size > MAX_PHOTO_BYTES) {
-    return `“${file.name}” is larger than ${MAX_MB}MB.`
+    return `“${file.name}” is larger than ${MAX_MB}MB.`;
   }
   // An empty type is normal on some Android pickers — let the server decide.
   if (file.type && !imageMimeValues.includes(file.type as (typeof imageMimeValues)[number])) {
-    return `“${file.name}” is not a JPEG, PNG or WebP image.`
+    return `“${file.name}” is not a JPEG, PNG or WebP image.`;
   }
-  return null
+  return null;
 }
 
 export function PlatingPhotoPicker({
@@ -38,57 +38,57 @@ export function PlatingPhotoPicker({
   onChange,
   disabled = false,
 }: {
-  photos: MediaAssetView[]
-  onChange: (next: MediaAssetView[]) => void
-  disabled?: boolean
+  photos: MediaAssetView[];
+  onChange: (next: MediaAssetView[]) => void;
+  disabled?: boolean;
 }) {
-  const inputRef = useRef<HTMLInputElement>(null)
-  const [uploading, setUploading] = useState(0)
-  const [error, setError] = useState<string | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
-  const remaining = MAX_RECIPE_PHOTOS - photos.length
-  const full = remaining <= 0
+  const remaining = MAX_RECIPE_PHOTOS - photos.length;
+  const full = remaining <= 0;
 
   async function handleFiles(fileList: FileList | null) {
-    if (!fileList || fileList.length === 0) return
-    setError(null)
+    if (!fileList || fileList.length === 0) return;
+    setError(null);
 
-    const chosen = [...fileList]
+    const chosen = [...fileList];
     if (chosen.length > remaining) {
       setError(
-        `Only ${remaining} more photo${remaining === 1 ? '' : 's'} will fit on this recipe — the rest were skipped.`
-      )
+        `Only ${remaining} more photo${remaining === 1 ? '' : 's'} will fit on this recipe — the rest were skipped.`,
+      );
     }
 
     // Sequential rather than parallel: the upload limiter is per-IP and a whole
     // kitchen shares one, so a burst of eight is worth spending a second on.
-    const accepted: MediaAssetView[] = []
+    const accepted: MediaAssetView[] = [];
     for (const file of chosen.slice(0, Math.max(remaining, 0))) {
-      const reason = rejectionReason(file)
+      const reason = rejectionReason(file);
       if (reason) {
-        setError(reason)
-        continue
+        setError(reason);
+        continue;
       }
-      setUploading((n) => n + 1)
-      const result = await uploadPhoto(file)
-      setUploading((n) => n - 1)
+      setUploading((n) => n + 1);
+      const result = await uploadPhoto(file);
+      setUploading((n) => n - 1);
 
       if (result.error) {
-        setError(result.error.message)
-        break
+        setError(result.error.message);
+        break;
       }
-      accepted.push(result.data)
+      accepted.push(result.data);
     }
 
-    if (accepted.length > 0) onChange([...photos, ...accepted])
+    if (accepted.length > 0) onChange([...photos, ...accepted]);
   }
 
   function move(index: number, delta: number) {
-    const target = index + delta
-    if (target < 0 || target >= photos.length) return
-    const next = [...photos]
-    ;[next[index], next[target]] = [next[target], next[index]]
-    onChange(next)
+    const target = index + delta;
+    if (target < 0 || target >= photos.length) return;
+    const next = [...photos];
+    [next[index], next[target]] = [next[target], next[index]];
+    onChange(next);
   }
 
   return (
@@ -106,9 +106,9 @@ export function PlatingPhotoPicker({
             className="sr-only"
             disabled={disabled || full}
             onChange={(e) => {
-              void handleFiles(e.target.files)
+              void handleFiles(e.target.files);
               // Reset so re-picking the same file still fires a change event.
-              e.target.value = ''
+              e.target.value = '';
             }}
           />
           <button
@@ -213,5 +213,5 @@ export function PlatingPhotoPicker({
         {photos.length > 0 && ' Photos are saved with the recipe when you save changes.'}
       </p>
     </SectionCard>
-  )
+  );
 }

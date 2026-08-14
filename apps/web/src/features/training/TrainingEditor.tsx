@@ -1,14 +1,14 @@
-import { useEffect, useRef, useState } from 'react'
-import type { SubmitEvent } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { MediaAssetView, RichTextDoc, TrainingBlockInput } from '@rit/shared'
+import { useEffect, useRef, useState } from 'react';
+import type { SubmitEvent } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { MediaAssetView, RichTextDoc, TrainingBlockInput } from '@rit/shared';
 import {
   MAX_PHOTO_BYTES,
   MAX_VIDEO_BYTES,
   docToPlainText,
   imageMimeValues,
   parseVideoEmbed,
-} from '@rit/shared'
+} from '@rit/shared';
 import {
   ArrowDown,
   ArrowUp,
@@ -24,11 +24,11 @@ import {
   Trash2,
   Type,
   Upload,
-} from 'lucide-react'
-import { uploadPhoto, uploadVideo } from '@/lib/api/media'
-import { getTraining, trainingsScopeKey, updateTraining } from '@/features/training/api'
-import { QueryProvider } from '@/lib/QueryProvider'
-import { RichTextEditor } from '@/components/ui/RichTextEditor'
+} from 'lucide-react';
+import { uploadPhoto, uploadVideo } from '@/lib/api/media';
+import { getTraining, trainingsScopeKey, updateTraining } from '@/features/training/api';
+import { QueryProvider } from '@/lib/QueryProvider';
+import { RichTextEditor } from '@/components/ui/RichTextEditor';
 import {
   Badge,
   ErrorNote,
@@ -37,7 +37,7 @@ import {
   inputClass,
   primaryButtonClass,
   subtleButtonClass,
-} from '@/components/ui'
+} from '@/components/ui';
 
 /**
  * The training module editor: title + description, then an ordered list of
@@ -51,18 +51,18 @@ import {
 
 interface BlockRow {
   /** Stable identity across reorders — index keys would remount the editors and players. */
-  key: number
-  kind: 'text' | 'image' | 'video' | 'embed'
-  doc: RichTextDoc | null
-  caption: string
-  url: string
-  media: MediaAssetView | null
+  key: number;
+  kind: 'text' | 'image' | 'video' | 'embed';
+  doc: RichTextDoc | null;
+  caption: string;
+  url: string;
+  media: MediaAssetView | null;
 }
 
 interface FormState {
-  title: string
-  description: string
-  blocks: BlockRow[]
+  title: string;
+  description: string;
+  blocks: BlockRow[];
 }
 
 const BLOCK_LABEL: Record<BlockRow['kind'], string> = {
@@ -70,18 +70,18 @@ const BLOCK_LABEL: Record<BlockRow['kind'], string> = {
   image: 'Photo',
   video: 'Video',
   embed: 'YouTube / Vimeo',
-}
+};
 
 const BLOCK_ICON: Record<BlockRow['kind'], typeof Type> = {
   text: Type,
   image: ImagePlus,
   video: Film,
   embed: MonitorPlay,
-}
+};
 
-let nextKey = 1
+let nextKey = 1;
 function newRow(kind: BlockRow['kind']): BlockRow {
-  return { key: nextKey++, kind, doc: null, caption: '', url: '', media: null }
+  return { key: nextKey++, kind, doc: null, caption: '', url: '', media: null };
 }
 
 // ── Image block ───────────────────────────────────────────────────────────────
@@ -91,27 +91,27 @@ function ImageBlockEditor({
   onChange,
   onError,
 }: {
-  row: BlockRow
-  onChange: (update: Partial<BlockRow>) => void
-  onError: (message: string) => void
+  row: BlockRow;
+  onChange: (update: Partial<BlockRow>) => void;
+  onError: (message: string) => void;
 }) {
-  const inputRef = useRef<HTMLInputElement>(null)
-  const [uploading, setUploading] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
 
   async function handleFile(file: File | undefined) {
-    if (!file) return
+    if (!file) return;
     if (file.size > MAX_PHOTO_BYTES) {
-      onError(`“${file.name}” is larger than ${Math.round(MAX_PHOTO_BYTES / 1024 / 1024)}MB.`)
-      return
+      onError(`“${file.name}” is larger than ${Math.round(MAX_PHOTO_BYTES / 1024 / 1024)}MB.`);
+      return;
     }
-    setUploading(true)
-    const result = await uploadPhoto(file)
-    setUploading(false)
+    setUploading(true);
+    const result = await uploadPhoto(file);
+    setUploading(false);
     if (result.error) {
-      onError(result.error.message)
-      return
+      onError(result.error.message);
+      return;
     }
-    onChange({ media: result.data })
+    onChange({ media: result.data });
   }
 
   return (
@@ -122,8 +122,8 @@ function ImageBlockEditor({
         accept={imageMimeValues.join(',')}
         className="sr-only"
         onChange={(e) => {
-          void handleFile(e.target.files?.[0])
-          e.target.value = ''
+          void handleFile(e.target.files?.[0]);
+          e.target.value = '';
         }}
       />
 
@@ -176,45 +176,45 @@ function ImageBlockEditor({
         className={inputClass}
       />
     </div>
-  )
+  );
 }
 
 // ── Video block ───────────────────────────────────────────────────────────────
 
-const VIDEO_MAX_MB = Math.round(MAX_VIDEO_BYTES / 1024 / 1024)
+const VIDEO_MAX_MB = Math.round(MAX_VIDEO_BYTES / 1024 / 1024);
 
 function VideoBlockEditor({
   row,
   onChange,
   onError,
 }: {
-  row: BlockRow
-  onChange: (update: Partial<BlockRow>) => void
-  onError: (message: string) => void
+  row: BlockRow;
+  onChange: (update: Partial<BlockRow>) => void;
+  onError: (message: string) => void;
 }) {
-  const inputRef = useRef<HTMLInputElement>(null)
-  const [progress, setProgress] = useState<number | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [progress, setProgress] = useState<number | null>(null);
 
   async function handleFile(file: File | undefined) {
-    if (!file) return
+    if (!file) return;
     if (file.size > MAX_VIDEO_BYTES) {
-      onError(`“${file.name}” is larger than ${VIDEO_MAX_MB}MB.`)
-      return
+      onError(`“${file.name}” is larger than ${VIDEO_MAX_MB}MB.`);
+      return;
     }
     if (file.type === 'video/quicktime') {
       onError(
-        `“${file.name}” is a QuickTime (.mov) file, which many devices cannot play. Export it as MP4 and upload that.`
-      )
-      return
+        `“${file.name}” is a QuickTime (.mov) file, which many devices cannot play. Export it as MP4 and upload that.`,
+      );
+      return;
     }
-    setProgress(0)
-    const result = await uploadVideo(file, setProgress)
-    setProgress(null)
+    setProgress(0);
+    const result = await uploadVideo(file, setProgress);
+    setProgress(null);
     if (result.error) {
-      onError(result.error.message)
-      return
+      onError(result.error.message);
+      return;
     }
-    onChange({ media: result.data })
+    onChange({ media: result.data });
   }
 
   return (
@@ -225,8 +225,8 @@ function VideoBlockEditor({
         accept="video/mp4,video/webm"
         className="sr-only"
         onChange={(e) => {
-          void handleFile(e.target.files?.[0])
-          e.target.value = ''
+          void handleFile(e.target.files?.[0]);
+          e.target.value = '';
         }}
       />
 
@@ -241,7 +241,11 @@ function VideoBlockEditor({
             playsInline
             className="max-h-96 w-full rounded-xl bg-steel-900 ring-1 ring-salt-200"
           />
-          <button type="button" onClick={() => inputRef.current?.click()} className={subtleButtonClass}>
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            className={subtleButtonClass}
+          >
             <Upload className="size-4" aria-hidden />
             Replace video
           </button>
@@ -294,7 +298,7 @@ function VideoBlockEditor({
         className={inputClass}
       />
     </div>
-  )
+  );
 }
 
 // ── Embed block ───────────────────────────────────────────────────────────────
@@ -303,10 +307,10 @@ function EmbedBlockEditor({
   row,
   onChange,
 }: {
-  row: BlockRow
-  onChange: (update: Partial<BlockRow>) => void
+  row: BlockRow;
+  onChange: (update: Partial<BlockRow>) => void;
 }) {
-  const embed = row.url.trim() ? parseVideoEmbed(row.url) : null
+  const embed = row.url.trim() ? parseVideoEmbed(row.url) : null;
 
   return (
     <div className="space-y-3">
@@ -350,27 +354,27 @@ function EmbedBlockEditor({
         className={inputClass}
       />
     </div>
-  )
+  );
 }
 
 // ── The editor ────────────────────────────────────────────────────────────────
 
 function Editor({ trainingId }: { trainingId: string }) {
-  const queryClient = useQueryClient()
-  const [form, setForm] = useState<FormState | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState<FormState | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const { data: training, error: loadError } = useQuery({
     queryKey: ['trainings', ...trainingsScopeKey(), 'detail', trainingId],
     queryFn: async () => {
-      const result = await getTraining(trainingId)
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await getTraining(trainingId);
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
-  })
+  });
 
   useEffect(() => {
-    if (!training || form !== null) return
+    if (!training || form !== null) return;
     setForm({
       title: training.title,
       description: training.description,
@@ -384,8 +388,8 @@ function Editor({ trainingId }: { trainingId: string }) {
           url: block.kind === 'embed' ? block.url : '',
           media: block.kind === 'image' || block.kind === 'video' ? block.media : null,
         })),
-    })
-  }, [training, form])
+    });
+  }, [training, form]);
 
   const save = useMutation({
     mutationFn: async (state: FormState) => {
@@ -393,38 +397,38 @@ function Editor({ trainingId }: { trainingId: string }) {
         switch (row.kind) {
           case 'text':
             // Validated non-empty in handleSubmit before this runs.
-            return { kind: 'text', doc: row.doc! }
+            return { kind: 'text', doc: row.doc! };
           case 'image':
           case 'video':
             return {
               kind: row.kind,
               mediaId: row.media?._id ?? '',
               ...(row.caption.trim() ? { caption: row.caption } : {}),
-            }
+            };
           case 'embed':
             return {
               kind: 'embed',
               url: row.url,
               ...(row.caption.trim() ? { caption: row.caption } : {}),
-            }
+            };
         }
-      })
+      });
       const result = await updateTraining(trainingId, {
         title: state.title,
         description: state.description,
         blocks,
-      })
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      });
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['trainings'] })
-      window.location.href = `/training/${trainingId}`
+      queryClient.invalidateQueries({ queryKey: ['trainings'] });
+      window.location.href = `/training/${trainingId}`;
     },
     onError: (err: Error) => setError(err.message),
-  })
+  });
 
-  if (loadError) return <ErrorNote>{loadError.message}</ErrorNote>
+  if (loadError) return <ErrorNote>{loadError.message}</ErrorNote>;
   if (!training || !form)
     return (
       <div className="space-y-4">
@@ -432,43 +436,45 @@ function Editor({ trainingId }: { trainingId: string }) {
         <Skeleton className="h-40" />
         <Skeleton className="h-40" />
       </div>
-    )
+    );
   if (!training.canManage)
-    return <ErrorNote>You do not have access to edit this training.</ErrorNote>
+    return <ErrorNote>You do not have access to edit this training.</ErrorNote>;
 
-  const patch = (update: Partial<FormState>) => setForm({ ...form, ...update })
+  const patch = (update: Partial<FormState>) => setForm({ ...form, ...update });
   const patchRow = (key: number, update: Partial<BlockRow>) =>
-    patch({ blocks: form.blocks.map((row) => (row.key === key ? { ...row, ...update } : row)) })
+    patch({ blocks: form.blocks.map((row) => (row.key === key ? { ...row, ...update } : row)) });
   const moveRow = (index: number, delta: number) => {
-    const target = index + delta
-    if (target < 0 || target >= form.blocks.length) return
-    const blocks = [...form.blocks]
-    ;[blocks[index], blocks[target]] = [blocks[target], blocks[index]]
-    patch({ blocks })
-  }
-  const addRow = (kind: BlockRow['kind']) => patch({ blocks: [...form.blocks, newRow(kind)] })
+    const target = index + delta;
+    if (target < 0 || target >= form.blocks.length) return;
+    const blocks = [...form.blocks];
+    [blocks[index], blocks[target]] = [blocks[target], blocks[index]];
+    patch({ blocks });
+  };
+  const addRow = (kind: BlockRow['kind']) => patch({ blocks: [...form.blocks, newRow(kind)] });
 
   function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setError(null)
-    if (!form) return
+    event.preventDefault();
+    setError(null);
+    if (!form) return;
 
     for (const [index, row] of form.blocks.entries()) {
-      const label = `Section ${index + 1}`
+      const label = `Section ${index + 1}`;
       if (row.kind === 'text' && (!row.doc || docToPlainText(row.doc).trim() === '')) {
-        setError(`${label} is an empty text block — write something or remove it.`)
-        return
+        setError(`${label} is an empty text block — write something or remove it.`);
+        return;
       }
       if ((row.kind === 'image' || row.kind === 'video') && !row.media) {
-        setError(`${label} has no ${row.kind === 'image' ? 'photo' : 'video'} yet — upload one or remove it.`)
-        return
+        setError(
+          `${label} has no ${row.kind === 'image' ? 'photo' : 'video'} yet — upload one or remove it.`,
+        );
+        return;
       }
       if (row.kind === 'embed' && !parseVideoEmbed(row.url)) {
-        setError(`${label} needs a valid YouTube or Vimeo link.`)
-        return
+        setError(`${label} needs a valid YouTube or Vimeo link.`);
+        return;
       }
     }
-    save.mutate(form)
+    save.mutate(form);
   }
 
   const addButtons: { kind: BlockRow['kind']; icon: typeof Type; label: string }[] = [
@@ -476,7 +482,7 @@ function Editor({ trainingId }: { trainingId: string }) {
     { kind: 'image', icon: ImagePlus, label: 'Photo' },
     { kind: 'video', icon: Film, label: 'Video' },
     { kind: 'embed', icon: MonitorPlay, label: 'YouTube / Vimeo' },
-  ]
+  ];
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5 pb-24">
@@ -534,7 +540,7 @@ function Editor({ trainingId }: { trainingId: string }) {
 
       <ol className="space-y-5">
         {form.blocks.map((row, index) => {
-          const Icon = BLOCK_ICON[row.kind]
+          const Icon = BLOCK_ICON[row.kind];
           return (
             <li key={row.key} className="animate-fade-up">
               <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-salt-200 transition-shadow duration-200 focus-within:shadow-md hover:shadow-md tablet:p-6">
@@ -607,7 +613,7 @@ function Editor({ trainingId }: { trainingId: string }) {
                 )}
               </section>
             </li>
-          )
+          );
         })}
       </ol>
 
@@ -663,7 +669,7 @@ function Editor({ trainingId }: { trainingId: string }) {
         </div>
       </div>
     </form>
-  )
+  );
 }
 
 export function TrainingEditor({ trainingId }: { trainingId: string }) {
@@ -671,5 +677,5 @@ export function TrainingEditor({ trainingId }: { trainingId: string }) {
     <QueryProvider>
       <Editor trainingId={trainingId} />
     </QueryProvider>
-  )
+  );
 }

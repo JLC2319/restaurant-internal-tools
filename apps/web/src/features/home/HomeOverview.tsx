@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import type { LucideIcon } from 'lucide-react'
-import { roleAtLeast } from '@rit/shared'
+import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import type { LucideIcon } from 'lucide-react';
+import { roleAtLeast } from '@rit/shared';
 import {
   ArrowRight,
   BookOpen,
@@ -10,31 +10,37 @@ import {
   Sparkles,
   Tablet,
   UserRound,
-} from 'lucide-react'
-import { getMe } from '@/features/auth/api'
-import { listRecipes, recipesScopeKey } from '@/features/recipes/api'
-import { listTrainings, trainingsScopeKey } from '@/features/training/api'
-import { siteTagline } from '@/assets/site-content/site-info'
-import { QueryProvider } from '@/lib/QueryProvider'
-import { useActiveRole } from '@/features/auth/useActiveRole'
-import { Skeleton, cardClass, cardHoverClass, primaryButtonClass, subtleButtonClass } from '@/components/ui'
+} from 'lucide-react';
+import { getMe } from '@/features/auth/api';
+import { listRecipes, recipesScopeKey } from '@/features/recipes/api';
+import { listTrainings, trainingsScopeKey } from '@/features/training/api';
+import { siteTagline } from '@/assets/site-content/site-info';
+import { QueryProvider } from '@/lib/QueryProvider';
+import { useActiveRole } from '@/features/auth/useActiveRole';
+import {
+  Skeleton,
+  cardClass,
+  cardHoverClass,
+  primaryButtonClass,
+  subtleButtonClass,
+} from '@/components/ui';
 
 /** Icon-tile tints per surface. Chili stays reserved for allergens/danger. */
 const tints = {
   ember: 'bg-linear-to-br from-ember-400 to-ember-600 text-white shadow-md shadow-ember-600/25',
   basil: 'bg-linear-to-br from-basil-400 to-basil-600 text-white shadow-md shadow-basil-600/25',
   steel: 'bg-linear-to-br from-steel-500 to-steel-700 text-white shadow-md shadow-steel-700/25',
-} as const
+} as const;
 
 interface Surface {
-  title: string
-  href: string
-  icon: LucideIcon
-  tint: keyof typeof tints
-  blurb: string
+  title: string;
+  href: string;
+  icon: LucideIcon;
+  tint: keyof typeof tints;
+  blurb: string;
   /** Which live count this card carries, if any. */
-  stat?: 'recipes' | 'trainings'
-  statLabel?: string
+  stat?: 'recipes' | 'trainings';
+  statLabel?: string;
 }
 
 const surfaces: Surface[] = [
@@ -52,14 +58,16 @@ const surfaces: Surface[] = [
     href: '/recipes/draft',
     icon: Sparkles,
     tint: 'ember',
-    blurb: 'Photograph recipe cards or binder pages; review structured drafts before anything is saved.',
+    blurb:
+      'Photograph recipe cards or binder pages; review structured drafts before anything is saved.',
   },
   {
     title: 'Training',
     href: '/training',
     icon: GraduationCap,
     tint: 'basil',
-    blurb: 'Modules built from text, photos and video, published when ready, with completions tracked.',
+    blurb:
+      'Modules built from text, photos and video, published when ready, with completions tracked.',
     stat: 'trainings',
     statLabel: 'published modules',
   },
@@ -84,18 +92,18 @@ const surfaces: Surface[] = [
     tint: 'steel',
     blurb: 'Name, contact details, preferred language and password.',
   },
-]
+];
 
 function Stat({
   value,
   label,
   isLoading,
 }: {
-  value: number | undefined
-  label: string
-  isLoading: boolean
+  value: number | undefined;
+  label: string;
+  isLoading: boolean;
 }) {
-  if (!isLoading && value === undefined) return null
+  if (!isLoading && value === undefined) return null;
   return (
     <p className="mt-4 flex items-baseline gap-1.5">
       {isLoading ? (
@@ -105,54 +113,54 @@ function Stat({
       )}
       <span className="text-xs text-salt-600">{label}</span>
     </p>
-  )
+  );
 }
 
 function Overview() {
-  const { role } = useActiveRole()
+  const { role } = useActiveRole();
 
   // Computed after mount so the prerendered HTML never bakes in a build-time
   // clock; until then the copy falls back to the time-free greeting.
-  const [daypart, setDaypart] = useState<string | null>(null)
+  const [daypart, setDaypart] = useState<string | null>(null);
   useEffect(() => {
-    const hour = new Date().getHours()
-    setDaypart(hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening')
-  }, [])
+    const hour = new Date().getHours();
+    setDaypart(hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening');
+  }, []);
 
   const me = useQuery({
     queryKey: ['auth', 'me'],
     queryFn: async () => {
-      const result = await getMe()
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await getMe();
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
-  })
+  });
 
   const recipeCount = useQuery({
     queryKey: ['recipes', ...recipesScopeKey(), 'home-count'],
     queryFn: async () => {
-      const result = await listRecipes({ limit: 1, status: 'active' })
-      if (result.error) throw new Error(result.error.message)
-      return result.data.total
+      const result = await listRecipes({ limit: 1, status: 'active' });
+      if (result.error) throw new Error(result.error.message);
+      return result.data.total;
     },
-  })
+  });
 
   const trainingCount = useQuery({
     queryKey: ['trainings', ...trainingsScopeKey(), 'home-count'],
     queryFn: async () => {
-      const result = await listTrainings({ limit: 1, status: 'published' })
-      if (result.error) throw new Error(result.error.message)
-      return result.data.total
+      const result = await listTrainings({ limit: 1, status: 'published' });
+      if (result.error) throw new Error(result.error.message);
+      return result.data.total;
     },
-  })
+  });
 
   const counts = {
     recipes: recipeCount,
     trainings: trainingCount,
-  }
+  };
 
-  const firstName = me.data?.name.first
-  const canDraft = role !== null && roleAtLeast(role, 'chef')
+  const firstName = me.data?.name.first;
+  const canDraft = role !== null && roleAtLeast(role, 'chef');
 
   return (
     <>
@@ -190,13 +198,16 @@ function Overview() {
 
       <ul className="mt-8 grid gap-4 tablet:mt-10 tablet:grid-cols-2 desktop:grid-cols-3">
         {surfaces.map(({ title, href, icon: Icon, tint, blurb, stat, statLabel }, index) => {
-          const count = stat ? counts[stat] : null
+          const count = stat ? counts[stat] : null;
           return (
             <li
               key={href}
               className={`animate-fade-up ${index % 3 === 1 ? 'fade-delay-1' : index % 3 === 2 ? 'fade-delay-2' : ''}`}
             >
-              <a href={href} className={`group flex h-full flex-col p-5 ${cardClass} ${cardHoverClass}`}>
+              <a
+                href={href}
+                className={`group flex h-full flex-col p-5 ${cardClass} ${cardHoverClass}`}
+              >
                 <span
                   className={`flex size-11 items-center justify-center rounded-xl ${tints[tint]}`}
                 >
@@ -216,11 +227,11 @@ function Overview() {
                 </span>
               </a>
             </li>
-          )
+          );
         })}
       </ul>
     </>
-  )
+  );
 }
 
 export function HomeOverview() {
@@ -228,5 +239,5 @@ export function HomeOverview() {
     <QueryProvider>
       <Overview />
     </QueryProvider>
-  )
+  );
 }

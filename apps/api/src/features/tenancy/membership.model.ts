@@ -23,15 +23,12 @@ const membershipSchema = new Schema<IMembership>(
     invitedBy: { type: Schema.Types.ObjectId, ref: 'User' },
     joinedAt: { type: Date },
   },
-  { timestamps: { createdAt: 'createdAt', updatedAt: 'modifiedAt' } }
+  { timestamps: { createdAt: 'createdAt', updatedAt: 'modifiedAt' } },
 );
 
 // A user holds at most one membership per exact scope. Two rows for the same
 // scope would make `resolveTenant`'s "broadest wins" pick arbitrary.
-membershipSchema.index(
-  { userId: 1, orgId: 1, propertyId: 1, locationId: 1 },
-  { unique: true }
-);
+membershipSchema.index({ userId: 1, orgId: 1, propertyId: 1, locationId: 1 }, { unique: true });
 
 // Supports the per-org member list and the pending-invite count.
 membershipSchema.index({ orgId: 1, status: 1 });

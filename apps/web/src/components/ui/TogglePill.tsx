@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { ReactNode } from 'react';
 
 /**
  * Selectable pill for tag pickers (allergens, dietary). A checkbox in modern
@@ -11,10 +11,10 @@ export function TogglePill({
   selectedClass,
   children,
 }: {
-  selected: boolean
-  onToggle: () => void
-  selectedClass: string
-  children: ReactNode
+  selected: boolean;
+  onToggle: () => void;
+  selectedClass: string;
+  children: ReactNode;
 }) {
   return (
     <button
@@ -30,5 +30,5 @@ export function TogglePill({
     >
       {children}
     </button>
-  )
+  );
 }

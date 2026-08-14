@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
-import type { RecipePublishMode } from '@rit/shared'
-import { Rocket, ShieldCheck } from 'lucide-react'
-import { Switch } from '@/components/ui'
+import { useEffect, useState } from 'react';
+import type { RecipePublishMode } from '@rit/shared';
+import { Rocket, ShieldCheck } from 'lucide-react';
+import { Switch } from '@/components/ui';
 
 /**
  * The "Publish on save" control, shared by the editor and the AI draft review.
@@ -17,7 +17,7 @@ import { Switch } from '@/components/ui'
  * this tick is sent, exactly as the standalone Approve allergens button does.
  */
 
-const STORAGE_KEY = 'rit:publish-on-save'
+const STORAGE_KEY = 'rit:publish-on-save';
 
 /**
  * Remembers the publish switch across recipes, per browser.
@@ -31,38 +31,35 @@ const STORAGE_KEY = 'rit:publish-on-save'
  * islands, server-rendered before hydration, where `window` does not exist.
  */
 export function usePublishOnSave(available: boolean): [boolean, (next: boolean) => void] {
-  const [publish, setPublish] = useState(false)
+  const [publish, setPublish] = useState(false);
 
   useEffect(() => {
-    if (!available) return
+    if (!available) return;
     try {
-      setPublish(window.localStorage.getItem(STORAGE_KEY) === '1')
+      setPublish(window.localStorage.getItem(STORAGE_KEY) === '1');
     } catch {
       // Private browsing, storage disabled — the default (off) is the safe one.
     }
-  }, [available])
+  }, [available]);
 
   return [
     publish && available,
     (next: boolean) => {
-      setPublish(next)
+      setPublish(next);
       try {
-        window.localStorage.setItem(STORAGE_KEY, next ? '1' : '0')
+        window.localStorage.setItem(STORAGE_KEY, next ? '1' : '0');
       } catch {
         // Not remembering the choice is a papercut, not an error worth showing.
       }
     },
-  ]
+  ];
 }
 
 /** Whether this recipe can take the shortcut at all. */
-export function canPublishOnSave(
-  mode: RecipePublishMode,
-  activeVersionId: string | null
-): boolean {
+export function canPublishOnSave(mode: RecipePublishMode, activeVersionId: string | null): boolean {
   // A lineage staff already cook from changes the deliberate way, whatever the
   // setting says — the server enforces this too.
-  return mode !== 'manual' && activeVersionId == null
+  return mode !== 'manual' && activeVersionId == null;
 }
 
 export function PublishOnSaveControls({
@@ -75,18 +72,18 @@ export function PublishOnSaveControls({
   disabled = false,
   idPrefix,
 }: {
-  mode: RecipePublishMode
-  publish: boolean
-  onPublishChange: (next: boolean) => void
-  signOff: boolean
-  onSignOffChange: (next: boolean) => void
+  mode: RecipePublishMode;
+  publish: boolean;
+  onPublishChange: (next: boolean) => void;
+  signOff: boolean;
+  onSignOffChange: (next: boolean) => void;
   /** Tags currently on the recipe — the tick's wording depends on having any. */
-  allergenCount: number
-  disabled?: boolean
+  allergenCount: number;
+  disabled?: boolean;
   /** Both controls can appear several times on the drafting page. */
-  idPrefix: string
+  idPrefix: string;
 }) {
-  const signOffRequired = mode === 'publish_on_save_verified'
+  const signOffRequired = mode === 'publish_on_save_verified';
 
   return (
     <div className="space-y-3">
@@ -133,5 +130,5 @@ export function PublishOnSaveControls({
         </div>
       )}
     </div>
-  )
+  );
 }

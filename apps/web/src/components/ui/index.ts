@@ -15,15 +15,15 @@ export {
   cardHoverClass,
   thClass,
   tdClass,
-} from './tokens'
-export { Badge } from './Badge'
-export { EmptyState } from './EmptyState'
-export { ErrorNote } from './ErrorNote'
-export { Pager } from './Pager'
-export { SavedTick } from './SavedTick'
-export { SectionCard } from './SectionCard'
-export { Segmented } from './Segmented'
-export { Skeleton } from './Skeleton'
-export { Switch } from './Switch'
-export { TableShell } from './TableShell'
-export { TogglePill } from './TogglePill'
+} from './tokens';
+export { Badge } from './Badge';
+export { EmptyState } from './EmptyState';
+export { ErrorNote } from './ErrorNote';
+export { Pager } from './Pager';
+export { SavedTick } from './SavedTick';
+export { SectionCard } from './SectionCard';
+export { Segmented } from './Segmented';
+export { Skeleton } from './Skeleton';
+export { Switch } from './Switch';
+export { TableShell } from './TableShell';
+export { TogglePill } from './TogglePill';

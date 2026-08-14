@@ -53,7 +53,7 @@ describe('validation', () => {
     expect(response.status).toBe(400);
     expect(response.body.message).toBe('Validation failed');
     expect(response.body.errors).toEqual(
-      expect.arrayContaining([expect.objectContaining({ field: 'email' })])
+      expect.arrayContaining([expect.objectContaining({ field: 'email' })]),
     );
   });
 
@@ -68,7 +68,7 @@ describe('validation', () => {
 
     expect(response.status).toBe(400);
     expect(response.body.errors).toEqual(
-      expect.arrayContaining([expect.objectContaining({ field: 'password' })])
+      expect.arrayContaining([expect.objectContaining({ field: 'password' })]),
     );
   });
 });

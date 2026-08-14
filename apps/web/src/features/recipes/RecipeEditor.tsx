@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
-import type { SubmitEvent } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { Allergen, Dietary, IngredientLineInput, MediaAssetView, Unit } from '@rit/shared'
-import { allergenValues, dietaryValues } from '@rit/shared'
+import { useEffect, useState } from 'react';
+import type { SubmitEvent } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { Allergen, Dietary, IngredientLineInput, MediaAssetView, Unit } from '@rit/shared';
+import { allergenValues, dietaryValues } from '@rit/shared';
 import {
   ArrowDown,
   ArrowUp,
@@ -16,12 +16,22 @@ import {
   Save,
   ShieldAlert,
   Trash2,
-} from 'lucide-react'
-import { getRecipe, listRecipes, publishRecipe, recipesScopeKey, updateRecipe } from '@/features/recipes/api'
-import { PlatingPhotoPicker } from '@/features/recipes/PlatingPhotoPicker'
-import { QueryProvider } from '@/lib/QueryProvider'
-import { canPublishOnSave, PublishOnSaveControls, usePublishOnSave } from '@/features/recipes/PublishOnSave'
-import { UnitSelect } from '@/features/recipes/UnitSelect'
+} from 'lucide-react';
+import {
+  getRecipe,
+  listRecipes,
+  publishRecipe,
+  recipesScopeKey,
+  updateRecipe,
+} from '@/features/recipes/api';
+import { PlatingPhotoPicker } from '@/features/recipes/PlatingPhotoPicker';
+import { QueryProvider } from '@/lib/QueryProvider';
+import {
+  canPublishOnSave,
+  PublishOnSaveControls,
+  usePublishOnSave,
+} from '@/features/recipes/PublishOnSave';
+import { UnitSelect } from '@/features/recipes/UnitSelect';
 import {
   Badge,
   ErrorNote,
@@ -32,61 +42,61 @@ import {
   inputClass,
   primaryButtonClass,
   subtleButtonClass,
-} from '@/components/ui'
+} from '@/components/ui';
 
 interface IngredientRow {
-  kind: 'item' | 'recipe'
-  name: string
-  recipeId: string
-  amount: string
-  unit: Unit
-  note: string
+  kind: 'item' | 'recipe';
+  name: string;
+  recipeId: string;
+  amount: string;
+  unit: Unit;
+  note: string;
 }
 
 interface FormState {
-  name: string
-  description: string
-  yieldAmount: string
-  yieldUnit: Unit
-  ingredients: IngredientRow[]
-  steps: string[]
-  allergens: Allergen[]
-  dietary: Dietary[]
+  name: string;
+  description: string;
+  yieldAmount: string;
+  yieldUnit: Unit;
+  ingredients: IngredientRow[];
+  steps: string[];
+  allergens: Allergen[];
+  dietary: Dietary[];
   /** Full assets, not just ids, so the grid can render without a second fetch. */
-  photos: MediaAssetView[]
-  prepMinutes: string
-  cookMinutes: string
+  photos: MediaAssetView[];
+  prepMinutes: string;
+  cookMinutes: string;
 }
 
 function Editor({ recipeId }: { recipeId: string }) {
-  const queryClient = useQueryClient()
-  const [form, setForm] = useState<FormState | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState<FormState | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const { data: recipe, error: loadError } = useQuery({
     queryKey: ['recipes', ...recipesScopeKey(), 'detail', recipeId],
     queryFn: async () => {
-      const result = await getRecipe(recipeId)
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await getRecipe(recipeId);
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
-  })
+  });
 
   // Sub-recipe options for `recipe`-kind ingredient lines. A searchable
   // combobox is a v2 nicety; 100 covers a realistic org's recipe book.
   const { data: recipeOptions } = useQuery({
     queryKey: ['recipes', ...recipesScopeKey(), 'list', { forPicker: true }],
     queryFn: async () => {
-      const result = await listRecipes({ limit: 100 })
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await listRecipes({ limit: 100 });
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
-  })
+  });
 
   useEffect(() => {
-    if (!recipe || form !== null) return
-    const wc = recipe.workingCopy
-    if (!wc) return
+    if (!recipe || form !== null) return;
+    const wc = recipe.workingCopy;
+    if (!wc) return;
     setForm({
       name: recipe.name,
       description: wc.description,
@@ -110,8 +120,8 @@ function Editor({ recipeId }: { recipeId: string }) {
       photos: [...wc.photos],
       prepMinutes: wc.times?.prepMinutes != null ? String(wc.times.prepMinutes) : '',
       cookMinutes: wc.times?.cookMinutes != null ? String(wc.times.cookMinutes) : '',
-    })
-  }, [recipe, form])
+    });
+  }, [recipe, form]);
 
   /**
    * The one-save shortcut, offered only where the server would accept it: a
@@ -123,11 +133,11 @@ function Editor({ recipeId }: { recipeId: string }) {
     recipe != null &&
     recipe.canManage &&
     recipe.status !== 'archived' &&
-    canPublishOnSave(recipe.publishMode, recipe.activeVersionId)
-  const [publishOnSave, setPublishOnSave] = usePublishOnSave(shortcutAvailable)
+    canPublishOnSave(recipe.publishMode, recipe.activeVersionId);
+  const [publishOnSave, setPublishOnSave] = usePublishOnSave(shortcutAvailable);
   // Not remembered between recipes, unlike the switch above: this is a claim
   // about one dish's allergens, and it must be made again for the next one.
-  const [signOff, setSignOff] = useState(false)
+  const [signOff, setSignOff] = useState(false);
 
   const save = useMutation({
     mutationFn: async (state: FormState) => {
@@ -144,15 +154,15 @@ function Editor({ recipeId }: { recipeId: string }) {
               recipeId: row.recipeId,
               quantity: { amount: Number(row.amount), unit: row.unit },
               ...(row.note ? { note: row.note } : {}),
-            }
-      )
+            },
+      );
       const times =
         state.prepMinutes || state.cookMinutes
           ? {
               ...(state.prepMinutes ? { prepMinutes: Number(state.prepMinutes) } : {}),
               ...(state.cookMinutes ? { cookMinutes: Number(state.cookMinutes) } : {}),
             }
-          : undefined
+          : undefined;
       const result = await updateRecipe(recipeId, {
         name: state.name,
         content: {
@@ -165,28 +175,30 @@ function Editor({ recipeId }: { recipeId: string }) {
           photoIds: state.photos.map((photo) => photo._id),
           ...(times ? { times } : {}),
         },
-      })
-      if (result.error) throw new Error(result.error.message)
-      if (!publishOnSave) return result.data
+      });
+      if (result.error) throw new Error(result.error.message);
+      if (!publishOnSave) return result.data;
 
       // Two calls, deliberately in this order: the content is saved before
       // anything is published, so a failure here leaves a saved draft rather
       // than a live recipe missing the edit. The message says as much — the
       // chef's work is not lost and the recipe is simply not live yet.
-      const published = await publishRecipe(recipeId, { approveAllergens: signOff })
+      const published = await publishRecipe(recipeId, { approveAllergens: signOff });
       if (published.error) {
-        throw new Error(`Your changes were saved, but publishing failed: ${published.error.message}`)
+        throw new Error(
+          `Your changes were saved, but publishing failed: ${published.error.message}`,
+        );
       }
-      return published.data
+      return published.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['recipes'] })
-      window.location.href = `/recipes/${recipeId}`
+      queryClient.invalidateQueries({ queryKey: ['recipes'] });
+      window.location.href = `/recipes/${recipeId}`;
     },
     onError: (err: Error) => setError(err.message),
-  })
+  });
 
-  if (loadError) return <ErrorNote>{loadError.message}</ErrorNote>
+  if (loadError) return <ErrorNote>{loadError.message}</ErrorNote>;
   if (!recipe || !form)
     return (
       <div className="space-y-4">
@@ -194,52 +206,53 @@ function Editor({ recipeId }: { recipeId: string }) {
         <Skeleton className="h-48" />
         <Skeleton className="h-48" />
       </div>
-    )
-  if (!recipe.workingCopy) return <ErrorNote>You do not have access to edit this recipe.</ErrorNote>
+    );
+  if (!recipe.workingCopy)
+    return <ErrorNote>You do not have access to edit this recipe.</ErrorNote>;
 
-  const patch = (update: Partial<FormState>) => setForm({ ...form, ...update })
+  const patch = (update: Partial<FormState>) => setForm({ ...form, ...update });
   const patchRow = (index: number, update: Partial<IngredientRow>) =>
     patch({
       ingredients: form.ingredients.map((row, i) => (i === index ? { ...row, ...update } : row)),
-    })
+    });
   const moveStep = (index: number, delta: number) => {
-    const target = index + delta
-    if (target < 0 || target >= form.steps.length) return
-    const steps = [...form.steps]
-    ;[steps[index], steps[target]] = [steps[target], steps[index]]
-    patch({ steps })
-  }
+    const target = index + delta;
+    if (target < 0 || target >= form.steps.length) return;
+    const steps = [...form.steps];
+    [steps[index], steps[target]] = [steps[target], steps[index]];
+    patch({ steps });
+  };
   const toggle = <T,>(list: T[], value: T): T[] =>
-    list.includes(value) ? list.filter((v) => v !== value) : [...list, value]
+    list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
 
-  const priorTagStatus = new Map(recipe.workingCopy.allergens.map((t) => [t.allergen, t.status]))
+  const priorTagStatus = new Map(recipe.workingCopy.allergens.map((t) => [t.allergen, t.status]));
 
   function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setError(null)
-    if (!form) return
+    event.preventDefault();
+    setError(null);
+    if (!form) return;
     if (!(Number(form.yieldAmount) > 0)) {
-      setError('Yield must be a positive number')
-      return
+      setError('Yield must be a positive number');
+      return;
     }
     const badLine = form.ingredients.findIndex(
       (row) =>
         !(Number(row.amount) > 0) ||
-        (row.kind === 'item' ? row.name.trim().length === 0 : row.recipeId === '')
-    )
+        (row.kind === 'item' ? row.name.trim().length === 0 : row.recipeId === ''),
+    );
     if (badLine !== -1) {
       setError(
-        `Ingredient ${badLine + 1} needs a ${form.ingredients[badLine].kind === 'item' ? 'name' : 'recipe'} and a positive amount`
-      )
-      return
+        `Ingredient ${badLine + 1} needs a ${form.ingredients[badLine].kind === 'item' ? 'name' : 'recipe'} and a positive amount`,
+      );
+      return;
     }
     // The server refuses this too; catching it here keeps the chef's work on
     // screen instead of saving the content and failing on the publish call.
     if (publishOnSave && recipe?.publishMode === 'publish_on_save_verified' && !signOff) {
-      setError('Verify the allergen tags before publishing, or turn off “Publish on save”.')
-      return
+      setError('Verify the allergen tags before publishing, or turn off “Publish on save”.');
+      return;
     }
-    save.mutate(form)
+    save.mutate(form);
   }
 
   return (
@@ -406,10 +419,9 @@ function Editor({ recipeId }: { recipeId: string }) {
                         to specific people, or past the list cap) stays pinned
                         under its stored name — otherwise this row would blank
                         out and the reference be lost on the next change. */}
-                    {row.recipeId &&
-                      !recipeOptions?.items.some((r) => r._id === row.recipeId) && (
-                        <option value={row.recipeId}>{row.name || 'Current sub-recipe'}</option>
-                      )}
+                    {row.recipeId && !recipeOptions?.items.some((r) => r._id === row.recipeId) && (
+                      <option value={row.recipeId}>{row.name || 'Current sub-recipe'}</option>
+                    )}
                     {recipeOptions?.items
                       .filter((r) => r._id !== recipeId)
                       .map((r) => (
@@ -543,8 +555,8 @@ function Editor({ recipeId }: { recipeId: string }) {
       >
         <div className="flex flex-wrap gap-2">
           {allergenValues.map((allergen) => {
-            const selected = form.allergens.includes(allergen)
-            const status = priorTagStatus.get(allergen)
+            const selected = form.allergens.includes(allergen);
+            const status = priorTagStatus.get(allergen);
             return (
               <TogglePill
                 key={allergen}
@@ -564,7 +576,7 @@ function Editor({ recipeId }: { recipeId: string }) {
                   </span>
                 )}
               </TogglePill>
-            )
+            );
           })}
         </div>
       </SectionCard>
@@ -636,7 +648,7 @@ function Editor({ recipeId }: { recipeId: string }) {
         </div>
       </div>
     </form>
-  )
+  );
 }
 
 export function RecipeEditor({ recipeId }: { recipeId: string }) {
@@ -644,5 +656,5 @@ export function RecipeEditor({ recipeId }: { recipeId: string }) {
     <QueryProvider>
       <Editor recipeId={recipeId} />
     </QueryProvider>
-  )
+  );
 }

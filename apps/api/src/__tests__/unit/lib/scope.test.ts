@@ -52,9 +52,7 @@ describe('scopeReadFilter', () => {
   });
 
   it('confines a location member to their own location and everything above it', () => {
-    expect(
-      scopeReadFilter(ctx({ propertyId: PROP, locationId: LOC, tier: 'location' }))
-    ).toEqual({
+    expect(scopeReadFilter(ctx({ propertyId: PROP, locationId: LOC, tier: 'location' }))).toEqual({
       'scope.orgId': ORG,
       'scope.propertyId': { $in: [null, PROP] },
       'scope.locationId': { $in: [null, LOC] },
@@ -76,7 +74,7 @@ describe('assertCanWriteAt', () => {
       assertCanWriteAt(ctx({ propertyId: PROP, tier: 'property' }), {
         propertyId: OTHER_PROP,
         locationId: null,
-      })
+      }),
     ).toThrow(AppError);
   });
 
@@ -85,7 +83,7 @@ describe('assertCanWriteAt', () => {
       assertCanWriteAt(ctx({ propertyId: PROP, locationId: LOC, tier: 'location' }), {
         propertyId: PROP,
         locationId: OTHER_LOC,
-      })
+      }),
     ).toThrow(AppError);
   });
 
@@ -94,13 +92,13 @@ describe('assertCanWriteAt', () => {
       assertCanWriteAt(ctx({ propertyId: PROP, tier: 'property' }), {
         propertyId: PROP,
         locationId: LOC,
-      })
+      }),
     ).not.toThrow();
   });
 
   it('rejects a location without its parent property', () => {
     expect(() => assertCanWriteAt(ctx(), { propertyId: null, locationId: LOC })).toThrow(
-      /must also name its property/
+      /must also name its property/,
     );
   });
 });
@@ -120,10 +118,7 @@ describe('membershipReadersFilter', () => {
   // membership must not read this location's document.
   it('a location document additionally excludes sibling locations', () => {
     expect(membershipReadersFilter({ propertyId: PROP, locationId: LOC })).toEqual({
-      $or: [
-        { propertyId: null },
-        { propertyId: PROP, locationId: { $in: [null, LOC] } },
-      ],
+      $or: [{ propertyId: null }, { propertyId: PROP, locationId: { $in: [null, LOC] } }],
     });
   });
 });
@@ -153,7 +148,7 @@ describe('scopeForWrite', () => {
 
   it('refuses a target outside the caller’s subtree', () => {
     expect(() =>
-      scopeForWrite(ctx({ propertyId: PROP, tier: 'property' }), { propertyId: OTHER_PROP })
+      scopeForWrite(ctx({ propertyId: PROP, tier: 'property' }), { propertyId: OTHER_PROP }),
     ).toThrow(AppError);
   });
 });

@@ -26,7 +26,7 @@ tenancyRouter.post(
   '/organizations',
   authenticate,
   validate(createOrganizationSchema),
-  tenancyController.createOrganization
+  tenancyController.createOrganization,
 );
 
 // ── Everything below is scoped to the active org ──────────────────────────────
@@ -38,7 +38,7 @@ tenancyRouter.patch(
   '/organization',
   requireRole('admin'),
   validate(updateOrganizationSchema),
-  tenancyController.updateOrganization
+  tenancyController.updateOrganization,
 );
 
 /** The visible org → property → location tree. Feeds the scope switcher. */
@@ -49,13 +49,13 @@ tenancyRouter.post(
   '/properties',
   requireRole('admin'),
   validate(createPropertySchema),
-  tenancyController.createProperty
+  tenancyController.createProperty,
 );
 tenancyRouter.patch(
   '/properties/:id',
   requireRole('admin'),
   validate(updatePropertySchema),
-  tenancyController.updateProperty
+  tenancyController.updateProperty,
 );
 
 tenancyRouter.get('/locations', tenancyController.listLocations);
@@ -63,32 +63,32 @@ tenancyRouter.post(
   '/locations',
   requireRole('admin'),
   validate(createLocationSchema),
-  tenancyController.createLocation
+  tenancyController.createLocation,
 );
 tenancyRouter.patch(
   '/locations/:id',
   requireRole('manager'),
   validate(updateLocationSchema),
-  tenancyController.updateLocation
+  tenancyController.updateLocation,
 );
 
 tenancyRouter.get(
   '/members',
   requireRole('manager'),
   validateQuery(paginationSchema),
-  tenancyController.listMembers
+  tenancyController.listMembers,
 );
 tenancyRouter.post(
   '/members',
   requireRole('admin'),
   validate(inviteMemberSchema),
-  tenancyController.inviteMember
+  tenancyController.inviteMember,
 );
 tenancyRouter.patch(
   '/members/:id',
   requireRole('admin'),
   validate(updateMembershipSchema),
-  tenancyController.updateMembership
+  tenancyController.updateMembership,
 );
 tenancyRouter.delete('/members/:id', requireRole('admin'), tenancyController.revokeMembership);
 

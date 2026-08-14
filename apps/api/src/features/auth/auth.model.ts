@@ -36,7 +36,7 @@ const userSchema = new Schema<IUser>(
     jobTitle: { type: String, trim: true, maxlength: 80, default: null },
     lastLoginAt: { type: Date },
   },
-  { timestamps: { createdAt: 'createdAt', updatedAt: 'modifiedAt' } }
+  { timestamps: { createdAt: 'createdAt', updatedAt: 'modifiedAt' } },
 );
 
 export const User = model<IUser>('User', userSchema);

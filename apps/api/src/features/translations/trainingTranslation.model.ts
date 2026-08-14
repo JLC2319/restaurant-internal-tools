@@ -21,7 +21,7 @@ const scopeSchema = new Schema<IScope>(
     propertyId: { type: Schema.Types.ObjectId, ref: 'Property', default: null },
     locationId: { type: Schema.Types.ObjectId, ref: 'Location', default: null },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const payloadSchema = new Schema(
@@ -34,11 +34,11 @@ const payloadSchema = new Schema(
           text: { type: String, trim: true, maxlength: 25000, default: null },
           caption: { type: String, trim: true, maxlength: 400, default: null },
         },
-        { _id: false }
+        { _id: false },
       ),
     ],
   },
-  { _id: false }
+  { _id: false },
 );
 
 const trainingTranslationSchema = new Schema<ITrainingTranslation>(
@@ -59,7 +59,7 @@ const trainingTranslationSchema = new Schema<ITrainingTranslation>(
     // `auto_publish` setting. See RecipeTranslation for the full rationale.
     autoApproved: { type: Boolean, default: false },
   },
-  { timestamps: { createdAt: 'createdAt', updatedAt: 'modifiedAt' } }
+  { timestamps: { createdAt: 'createdAt', updatedAt: 'modifiedAt' } },
 );
 
 // One translation per module per locale — re-translating updates in place.
@@ -70,5 +70,5 @@ trainingTranslationSchema.index({ 'scope.orgId': 1, trainingId: 1 });
 
 export const TrainingTranslation = model<ITrainingTranslation>(
   'TrainingTranslation',
-  trainingTranslationSchema
+  trainingTranslationSchema,
 );

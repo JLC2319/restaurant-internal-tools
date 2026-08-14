@@ -1,10 +1,11 @@
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
-import {
-  MAX_DRAFT_TOTAL_BYTES,
-  MAX_TRAINING_BLOCKS,
-  MAX_TRAINING_TEXT_CHARS,
+import { MAX_DRAFT_TOTAL_BYTES, MAX_TRAINING_BLOCKS, MAX_TRAINING_TEXT_CHARS } from '@rit/shared';
+import type {
+  DraftTrainingsResponse,
+  ImageMime,
+  TenantContext,
+  TrainingDraftProposal,
 } from '@rit/shared';
-import type { DraftTrainingsResponse, ImageMime, TenantContext, TrainingDraftProposal } from '@rit/shared';
 import { z } from 'zod';
 import { env } from '../../config/env';
 import { anthropic } from '../../lib/anthropic';
@@ -67,7 +68,7 @@ const clamp = (value: string, max: number): string => value.trim().slice(0, max)
  * creatable as-is. Exported for unit tests.
  */
 export function shapeTrainingProposal(
-  raw: z.infer<typeof llmDraftTrainingSchema>
+  raw: z.infer<typeof llmDraftTrainingSchema>,
 ): TrainingDraftProposal {
   return {
     title: clamp(raw.title, 140) || 'Untitled training',
@@ -89,7 +90,7 @@ type SourceBlock =
 export async function draftTrainingsFromMaterials(
   ctx: TenantContext,
   files: UploadedFile[] | undefined,
-  description: string | undefined
+  description: string | undefined,
 ): Promise<DraftTrainingsResponse> {
   assertRole(ctx, 'chef');
   if (!env.aiDraftingEnabled) {

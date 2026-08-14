@@ -23,7 +23,7 @@ await run(async () => {
   const user = await User.findOneAndUpdate(
     { email: email.toLowerCase() },
     { platformRole: role },
-    { new: true }
+    { new: true },
   )
     .select('email platformRole')
     .lean();

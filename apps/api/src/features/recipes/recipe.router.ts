@@ -31,13 +31,13 @@ recipeRouter.post(
   '/',
   requireRole('chef'),
   validate(createRecipeSchema),
-  recipeController.createRecipe
+  recipeController.createRecipe,
 );
 recipeRouter.patch(
   '/:id',
   requireRole('chef'),
   validate(updateRecipeSchema),
-  recipeController.updateRecipe
+  recipeController.updateRecipe,
 );
 
 // Archival is a manager call — it takes a recipe away from every consumer.
@@ -51,7 +51,7 @@ recipeRouter.post(
   '/:id/versions',
   requireRole('chef'),
   validate(saveVersionSchema),
-  recipeController.saveVersion
+  recipeController.saveVersion,
 );
 // Mint v1 and set it live in one call, for a lineage that has never been live.
 // Gated by `recipePublishMode` on the recipe's scope — the service decides, not
@@ -60,19 +60,19 @@ recipeRouter.post(
   '/:id/publish',
   requireRole('chef'),
   validate(publishRecipeSchema),
-  recipeController.publishRecipe
+  recipeController.publishRecipe,
 );
 recipeRouter.get('/:id/versions/:versionId', requireRole('chef'), recipeController.getVersion);
 recipeRouter.post(
   '/:id/versions/:versionId/activate',
   requireRole('chef'),
-  recipeController.activateVersion
+  recipeController.activateVersion,
 );
 recipeRouter.post('/:id/deactivate', requireRole('chef'), recipeController.deactivateRecipe);
 recipeRouter.post(
   '/:id/versions/:versionId/restore',
   requireRole('chef'),
-  recipeController.restoreVersion
+  recipeController.restoreVersion,
 );
 
 // ── Placement ─────────────────────────────────────────────────────────────────
@@ -84,7 +84,7 @@ recipeRouter.put(
   '/:id/scope',
   requireRole('manager'),
   validate(moveRecipeSchema),
-  recipeController.moveRecipe
+  recipeController.moveRecipe,
 );
 
 // ── Person-level access ───────────────────────────────────────────────────────
@@ -96,12 +96,12 @@ recipeRouter.put(
   '/:id/access',
   requireRole('chef'),
   validate(updateRecipeAccessSchema),
-  recipeController.updateRecipeAccess
+  recipeController.updateRecipeAccess,
 );
 recipeRouter.get(
   '/:id/access/candidates',
   requireRole('chef'),
-  recipeController.listAccessCandidates
+  recipeController.listAccessCandidates,
 );
 
 // ── Forking & allergen sign-off ───────────────────────────────────────────────
@@ -110,13 +110,13 @@ recipeRouter.post(
   '/:id/fork',
   requireRole('chef'),
   validate(forkRecipeSchema),
-  recipeController.forkRecipe
+  recipeController.forkRecipe,
 );
 recipeRouter.post(
   '/:id/allergens/approve',
   requireRole('chef'),
   validate(approveAllergensSchema),
-  recipeController.approveAllergens
+  recipeController.approveAllergens,
 );
 
 export { recipeRouter };

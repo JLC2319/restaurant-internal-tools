@@ -13,7 +13,7 @@ import { User } from '../features/auth/auth.model';
 export async function requireSuperAdmin(
   req: Request,
   _res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> {
   const user = await User.findById(req.userId).select('platformRole').lean();
   if (user?.platformRole !== 'superAdmin') {

@@ -1,15 +1,15 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
-import { Image } from 'expo-image'
-import { Redirect, router, useLocalSearchParams } from 'expo-router'
-import { VideoView, useVideoPlayer } from 'expo-video'
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { Image } from 'expo-image';
+import { Redirect, router, useLocalSearchParams } from 'expo-router';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import type {
   MediaAssetView,
   RichTextDoc,
   TrainingBlockView,
   TrainingDetail,
   TrainingTranslationView,
-} from '@rit/shared'
-import { plainTextToDoc } from '@rit/shared'
+} from '@rit/shared';
+import { plainTextToDoc } from '@rit/shared';
 import {
   ArrowLeft,
   Bot,
@@ -21,8 +21,8 @@ import {
   Layers,
   RotateCcw,
   ShieldAlert,
-} from 'lucide-react-native'
-import { useState } from 'react'
+} from 'lucide-react-native';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -32,19 +32,31 @@ import {
   Text,
   View,
   useWindowDimensions,
-} from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { WebView } from 'react-native-webview'
-import { BASE_URL } from '../../api/client'
-import { completeTraining, getTraining, trainingsScopeKey, uncompleteTraining } from '../../api/trainings'
-import { getTrainingTranslation, machineTranslateTraining } from '../../api/translations'
-import { ScreenTransition } from '../../components/motion'
-import { RichText } from '../../components/RichText'
-import { EmptyState, ErrorNote, PrimaryButton, Skeleton, WarningBanner, cardClass } from '../../components/ui'
-import { readerEs } from '../../i18n/es'
-import { queryClient } from '../../lib/queryClient'
-import { useSession } from '../../lib/useSession'
-import colors from '../../theme/colors.js'
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { WebView } from 'react-native-webview';
+import { BASE_URL } from '../../api/client';
+import {
+  completeTraining,
+  getTraining,
+  trainingsScopeKey,
+  uncompleteTraining,
+} from '../../api/trainings';
+import { getTrainingTranslation, machineTranslateTraining } from '../../api/translations';
+import { ScreenTransition } from '../../components/motion';
+import { RichText } from '../../components/RichText';
+import {
+  EmptyState,
+  ErrorNote,
+  PrimaryButton,
+  Skeleton,
+  WarningBanner,
+  cardClass,
+} from '../../components/ui';
+import { readerEs } from '../../i18n/es';
+import { queryClient } from '../../lib/queryClient';
+import { useSession } from '../../lib/useSession';
+import colors from '../../theme/colors.js';
 
 /**
  * A training module as the line reads it. Same guarantee as the web reader:
@@ -62,74 +74,77 @@ import colors from '../../theme/colors.js'
  * from the raw stored link.
  */
 
-type Lang = 'en' | 'es'
+type Lang = 'en' | 'es';
 
 interface DisplayBlock {
-  block: TrainingBlockView
+  block: TrainingBlockView;
   /** Translated text-block content as a rich-text doc; null → the source doc. */
-  doc: RichTextDoc | null
-  caption: string | null
+  doc: RichTextDoc | null;
+  caption: string | null;
 }
 
 interface DisplayModel {
-  title: string
-  description: string
-  blocks: DisplayBlock[]
-  aiAssisted: boolean
+  title: string;
+  description: string;
+  blocks: DisplayBlock[];
+  aiAssisted: boolean;
   /** SAFETY: machine-written Spanish that nobody read — staff are told first. */
-  aiUnreviewed: boolean
+  aiUnreviewed: boolean;
 }
 
 function buildDisplay(
   training: TrainingDetail,
-  translation: TrainingTranslationView | null
+  translation: TrainingTranslationView | null,
 ): DisplayModel {
-  const es = translation != null
+  const es = translation != null;
   return {
     title: es ? translation.payload.title : training.title,
     description: es
       ? translation.payload.description || training.description
       : training.description,
     blocks: training.blocks.map((block, index) => {
-      const translated = es ? translation.payload.blocks[index] : null
-      const sourceCaption = block.kind === 'text' ? null : block.caption
+      const translated = es ? translation.payload.blocks[index] : null;
+      const sourceCaption = block.kind === 'text' ? null : block.caption;
       return {
         block,
         doc: translated?.text != null ? plainTextToDoc(translated.text) : null,
         caption: es ? (translated?.caption ?? sourceCaption) : sourceCaption,
-      }
+      };
     }),
     aiAssisted: es,
     aiUnreviewed: es && translation.autoApproved,
-  }
+  };
 }
 
 function Caption({ text }: { text: string | null }) {
-  if (!text) return null
-  return (
-    <Text className="px-4 text-center font-sans text-sm leading-5 text-salt-500">{text}</Text>
-  )
+  if (!text) return null;
+  return <Text className="px-4 text-center font-sans text-sm leading-5 text-salt-500">{text}</Text>;
 }
 
 function mediaAspect(media: MediaAssetView): number {
-  if (media.width && media.height) return media.width / media.height
-  return 4 / 3
+  if (media.width && media.height) return media.width / media.height;
+  return 4 / 3;
 }
 
 function VideoBlock({ media, caption }: { media: MediaAssetView; caption: string | null }) {
   // Streams via range requests as playback progresses — kitchen wifi never
   // downloads a video nobody pressed play on.
-  const player = useVideoPlayer(media.url)
+  const player = useVideoPlayer(media.url);
   return (
     <View className="gap-3">
       <VideoView
         player={player}
-        style={{ width: '100%', aspectRatio: 16 / 9, borderRadius: 16, backgroundColor: colors.steel[900] }}
+        style={{
+          width: '100%',
+          aspectRatio: 16 / 9,
+          borderRadius: 16,
+          backgroundColor: colors.steel[900],
+        }}
         contentFit="contain"
       />
       <Caption text={caption} />
     </View>
-  )
+  );
 }
 
 /**
@@ -144,7 +159,7 @@ function VideoBlock({ media, caption }: { media: MediaAssetView; caption: string
  * send a referrer for a site that isn't us. The framed src is still only ever
  * the server-derived `embedSrc`.
  */
-const EMBED_REFERRER = BASE_URL
+const EMBED_REFERRER = BASE_URL;
 
 function embedPage(src: string): string {
   return `<!doctype html>
@@ -158,7 +173,7 @@ function embedPage(src: string): string {
       allowfullscreen
     ></iframe>
   </body>
-</html>`
+</html>`;
 }
 
 function EmbedBlock({ src, caption }: { src: string; caption: string | null }) {
@@ -192,18 +207,18 @@ function EmbedBlock({ src, caption }: { src: string; caption: string | null }) {
       </View>
       <Caption text={caption} />
     </View>
-  )
+  );
 }
 
 function BlockView({ display, index }: { display: DisplayBlock; index: number }) {
-  const { block, doc, caption } = display
+  const { block, doc, caption } = display;
   switch (block.kind) {
     case 'text':
-      return <RichText doc={doc ?? block.doc} />
+      return <RichText doc={doc ?? block.doc} />;
 
     case 'image':
       // Asset deleted out from under the module — skip rather than render broken.
-      if (!block.media) return null
+      if (!block.media) return null;
       return (
         <View className="gap-3">
           <View
@@ -219,44 +234,44 @@ function BlockView({ display, index }: { display: DisplayBlock; index: number })
           </View>
           <Caption text={caption} />
         </View>
-      )
+      );
 
     case 'video':
-      if (!block.media) return null
-      return <VideoBlock media={block.media} caption={caption} />
+      if (!block.media) return null;
+      return <VideoBlock media={block.media} caption={caption} />;
 
     case 'embed':
-      return <EmbedBlock src={block.embedSrc} caption={caption} />
+      return <EmbedBlock src={block.embedSrc} caption={caption} />;
   }
 }
 
 function CompletionCard({ training }: { training: TrainingDetail }) {
-  const [error, setError] = useState<string | null>(null)
-  const done = training.myCompletion != null
+  const [error, setError] = useState<string | null>(null);
+  const done = training.myCompletion != null;
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['trainings'] })
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['trainings'] });
 
   const complete = useMutation({
     mutationFn: async () => {
-      const result = await completeTraining(training._id)
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await completeTraining(training._id);
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     onSuccess: invalidate,
     onError: (err: Error) => setError(err.message),
-  })
+  });
 
   const uncomplete = useMutation({
     mutationFn: async () => {
-      const result = await uncompleteTraining(training._id)
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await uncompleteTraining(training._id);
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     onSuccess: invalidate,
     onError: (err: Error) => setError(err.message),
-  })
+  });
 
-  if (training.status !== 'published') return null
+  if (training.status !== 'published') return null;
 
   return (
     <View
@@ -314,7 +329,7 @@ function CompletionCard({ training }: { training: TrainingDetail }) {
         </View>
       )}
     </View>
-  )
+  );
 }
 
 /**
@@ -327,41 +342,43 @@ function LanguageControl({
   lang,
   onLang,
 }: {
-  trainingId: string
-  lang: Lang
-  onLang: (next: Lang) => void
+  trainingId: string;
+  lang: Lang;
+  onLang: (next: Lang) => void;
 }) {
-  const [requestError, setRequestError] = useState<string | null>(null)
+  const [requestError, setRequestError] = useState<string | null>(null);
 
   const { data: state } = useQuery({
     queryKey: ['translations', ...trainingsScopeKey(), 'reader', trainingId, 'es'],
     queryFn: async () => {
-      const result = await getTrainingTranslation(trainingId, 'es')
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await getTrainingTranslation(trainingId, 'es');
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
-  })
+  });
 
   const request = useMutation({
     mutationFn: async () => {
-      const result = await machineTranslateTraining(trainingId, 'es')
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await machineTranslateTraining(trainingId, 'es');
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['translations'] }),
     onError: (err: Error) => setRequestError(err.message),
-  })
+  });
 
-  if (!state) return null
+  if (!state) return null;
 
   const approved =
-    state.translation != null && state.translation.status === 'approved' && !state.translation.stale
+    state.translation != null &&
+    state.translation.status === 'approved' &&
+    !state.translation.stale;
 
   if (approved) {
     return (
       <View className="flex-row items-center gap-1 rounded-xl border border-salt-200 bg-salt-100 p-1">
         {(['en', 'es'] as const).map((option) => {
-          const active = lang === option
+          const active = lang === option;
           return (
             <Pressable
               key={option}
@@ -383,10 +400,10 @@ function LanguageControl({
                 {option}
               </Text>
             </Pressable>
-          )
+          );
         })}
       </View>
-    )
+    );
   }
 
   // No approved Spanish yet. Reviewers can kick off a translation from here —
@@ -394,7 +411,9 @@ function LanguageControl({
   // screen.
   if (state.canManage) {
     const pending =
-      state.translation != null && state.translation.status !== 'rejected' && !state.translation.stale
+      state.translation != null &&
+      state.translation.status !== 'rejected' &&
+      !state.translation.stale;
     return (
       <View className="items-end gap-1">
         <Modal transparent visible={request.isPending} animationType="fade">
@@ -421,8 +440,8 @@ function LanguageControl({
           <Pressable
             accessibilityRole="button"
             onPress={() => {
-              setRequestError(null)
-              request.mutate()
+              setRequestError(null);
+              request.mutate();
             }}
             disabled={request.isPending}
             className="min-h-touch flex-row items-center gap-1.5 rounded-xl border border-salt-300 bg-white px-3.5 py-2 active:bg-salt-50"
@@ -433,7 +452,7 @@ function LanguageControl({
         ) : null}
         {requestError && <Text className="font-sans text-xs text-chili-600">{requestError}</Text>}
       </View>
-    )
+    );
   }
 
   return (
@@ -441,42 +460,46 @@ function LanguageControl({
       <Languages size={16} color={colors.salt[500]} />
       <Text className="font-sans-medium text-sm text-salt-500">ES no disponible</Text>
     </View>
-  )
+  );
 }
 
 export default function TrainingScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>()
-  const session = useSession()
-  const { width } = useWindowDimensions()
-  const [lang, setLang] = useState<Lang>('en')
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const session = useSession();
+  const { width } = useWindowDimensions();
+  const [lang, setLang] = useState<Lang>('en');
 
-  const { data: training, error, isLoading } = useQuery({
+  const {
+    data: training,
+    error,
+    isLoading,
+  } = useQuery({
     queryKey: ['trainings', ...trainingsScopeKey(), 'reader', 'detail', id],
     queryFn: async () => {
-      const result = await getTraining(id)
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await getTraining(id);
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     enabled: session.token != null && session.scope != null,
-  })
+  });
 
   const { data: translationState } = useQuery({
     queryKey: ['translations', ...trainingsScopeKey(), 'reader', id, 'es'],
     queryFn: async () => {
-      const result = await getTrainingTranslation(id, 'es')
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await getTrainingTranslation(id, 'es');
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     enabled: session.token != null && session.scope != null,
-  })
+  });
 
-  if (!session.token) return <Redirect href="/login" />
-  if (!session.scope) return <Redirect href="/scope" />
+  if (!session.token) return <Redirect href="/login" />;
+  if (!session.scope) return <Redirect href="/scope" />;
 
   // SAFETY: only an approved, current, correctly aligned translation may
   // render — for every role. The server already narrows what staff receive;
   // this repeats the check for reviewers, whose response carries drafts too.
-  const translation = translationState?.translation ?? null
+  const translation = translationState?.translation ?? null;
   const usableTranslation =
     training != null &&
     translation != null &&
@@ -484,143 +507,143 @@ export default function TrainingScreen() {
     !translation.stale &&
     translation.payload.blocks.length === training.blocks.length
       ? translation
-      : null
+      : null;
 
   const display = training
     ? buildDisplay(training, lang === 'es' && usableTranslation ? usableTranslation : null)
-    : null
+    : null;
 
   const visibleBlocks =
     display?.blocks.filter(
-      ({ block }) => block.kind === 'text' || block.kind === 'embed' || block.media != null
-    ) ?? []
+      ({ block }) => block.kind === 'text' || block.kind === 'embed' || block.media != null,
+    ) ?? [];
 
   return (
     <SafeAreaView className="flex-1 bg-salt-100" edges={['top', 'left', 'right']}>
       <ScreenTransition>
-      <ScrollView contentContainerClassName="px-4 pb-10 pt-2">
-        <View className="mx-auto w-full max-w-[720px] gap-5">
-          <View className="flex-row flex-wrap items-center justify-between gap-3">
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
-              className="min-h-touch flex-row items-center gap-1.5 self-start"
-            >
-              <ArrowLeft size={16} color={colors.salt[600]} />
-              <Text className="font-sans-semibold text-sm text-salt-600">Reader</Text>
-            </Pressable>
-            {training?.status === 'published' && (
-              <LanguageControl trainingId={training._id} lang={lang} onLang={setLang} />
-            )}
-          </View>
-
-          {error ? (
-            <ErrorNote>{(error as Error).message}</ErrorNote>
-          ) : isLoading || !training ? (
-            <View className="gap-4">
-              <Skeleton className="h-10 w-3/4" />
-              <Skeleton className="h-5 w-1/2" />
-              <Skeleton className="h-64" />
+        <ScrollView contentContainerClassName="px-4 pb-10 pt-2">
+          <View className="mx-auto w-full max-w-[720px] gap-5">
+            <View className="flex-row flex-wrap items-center justify-between gap-3">
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+                className="min-h-touch flex-row items-center gap-1.5 self-start"
+              >
+                <ArrowLeft size={16} color={colors.salt[600]} />
+                <Text className="font-sans-semibold text-sm text-salt-600">Reader</Text>
+              </Pressable>
+              {training?.status === 'published' && (
+                <LanguageControl trainingId={training._id} lang={lang} onLang={setLang} />
+              )}
             </View>
-          ) : training.status !== 'published' || !display ? (
-            <EmptyState
-              icon={GraduationCap}
-              title="Not available in the reader"
-              hint="This training is not published. It appears here the moment it is."
-            />
-          ) : (
-            <>
-              <View className="gap-3">
-                <View className="flex-row flex-wrap items-center gap-2.5">
-                  <Text className="font-sans-semibold text-xs uppercase tracking-widest text-ember-600">
-                    Training module
-                  </Text>
-                  {training.myCompletion != null && (
-                    <View className="flex-row items-center gap-1 rounded-full border border-basil-200 bg-basil-50 px-2.5 py-1">
-                      <CheckCircle2 size={12} color={colors.basil[700]} />
-                      <Text className="font-sans-semibold text-2xs uppercase tracking-wide text-basil-700">
-                        Completed
-                      </Text>
-                    </View>
-                  )}
-                  {display.aiAssisted && (
-                    <View
-                      className={`flex-row items-center gap-1.5 rounded-full border px-2.5 py-1 ${
-                        display.aiUnreviewed
-                          ? 'border-citron-200 bg-citron-50'
-                          : 'border-steel-200 bg-steel-50'
-                      }`}
-                    >
-                      <Bot
-                        size={12}
-                        color={display.aiUnreviewed ? colors.citron[700] : colors.steel[600]}
-                      />
-                      <Text
-                        className={`font-sans-semibold text-2xs ${
-                          display.aiUnreviewed ? 'text-citron-700' : 'text-steel-600'
+
+            {error ? (
+              <ErrorNote>{(error as Error).message}</ErrorNote>
+            ) : isLoading || !training ? (
+              <View className="gap-4">
+                <Skeleton className="h-10 w-3/4" />
+                <Skeleton className="h-5 w-1/2" />
+                <Skeleton className="h-64" />
+              </View>
+            ) : training.status !== 'published' || !display ? (
+              <EmptyState
+                icon={GraduationCap}
+                title="Not available in the reader"
+                hint="This training is not published. It appears here the moment it is."
+              />
+            ) : (
+              <>
+                <View className="gap-3">
+                  <View className="flex-row flex-wrap items-center gap-2.5">
+                    <Text className="font-sans-semibold text-xs uppercase tracking-widest text-ember-600">
+                      Training module
+                    </Text>
+                    {training.myCompletion != null && (
+                      <View className="flex-row items-center gap-1 rounded-full border border-basil-200 bg-basil-50 px-2.5 py-1">
+                        <CheckCircle2 size={12} color={colors.basil[700]} />
+                        <Text className="font-sans-semibold text-2xs uppercase tracking-wide text-basil-700">
+                          Completed
+                        </Text>
+                      </View>
+                    )}
+                    {display.aiAssisted && (
+                      <View
+                        className={`flex-row items-center gap-1.5 rounded-full border px-2.5 py-1 ${
+                          display.aiUnreviewed
+                            ? 'border-citron-200 bg-citron-50'
+                            : 'border-steel-200 bg-steel-50'
                         }`}
                       >
-                        {display.aiUnreviewed ? readerEs.aiUnreviewed : readerEs.aiAssisted}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-                <Text className="font-sans-bold text-3xl tracking-tight text-steel-900">
-                  {display.title}
-                </Text>
-                {display.description ? (
-                  <Text className="font-sans text-base leading-6 text-salt-600">
-                    {display.description}
-                  </Text>
-                ) : null}
-                <View className="flex-row flex-wrap items-center gap-x-4 gap-y-1">
-                  <View className="flex-row items-center gap-1.5">
-                    <Layers size={14} color={colors.salt[500]} />
-                    <Text className="font-sans text-xs text-salt-500">
-                      {visibleBlocks.length} {visibleBlocks.length === 1 ? 'section' : 'sections'}
-                    </Text>
+                        <Bot
+                          size={12}
+                          color={display.aiUnreviewed ? colors.citron[700] : colors.steel[600]}
+                        />
+                        <Text
+                          className={`font-sans-semibold text-2xs ${
+                            display.aiUnreviewed ? 'text-citron-700' : 'text-steel-600'
+                          }`}
+                        >
+                          {display.aiUnreviewed ? readerEs.aiUnreviewed : readerEs.aiAssisted}
+                        </Text>
+                      </View>
+                    )}
                   </View>
-                  {training.videoCount > 0 && (
+                  <Text className="font-sans-bold text-3xl tracking-tight text-steel-900">
+                    {display.title}
+                  </Text>
+                  {display.description ? (
+                    <Text className="font-sans text-base leading-6 text-salt-600">
+                      {display.description}
+                    </Text>
+                  ) : null}
+                  <View className="flex-row flex-wrap items-center gap-x-4 gap-y-1">
                     <View className="flex-row items-center gap-1.5">
-                      <Film size={14} color={colors.salt[500]} />
+                      <Layers size={14} color={colors.salt[500]} />
                       <Text className="font-sans text-xs text-salt-500">
-                        {training.videoCount} {training.videoCount === 1 ? 'video' : 'videos'}
+                        {visibleBlocks.length} {visibleBlocks.length === 1 ? 'section' : 'sections'}
                       </Text>
                     </View>
-                  )}
-                  <View className="flex-row items-center gap-1.5">
-                    <Clock size={14} color={colors.salt[500]} />
-                    <Text className="font-sans text-xs text-salt-500">
-                      Updated {new Date(training.modifiedAt).toLocaleDateString()}
-                    </Text>
+                    {training.videoCount > 0 && (
+                      <View className="flex-row items-center gap-1.5">
+                        <Film size={14} color={colors.salt[500]} />
+                        <Text className="font-sans text-xs text-salt-500">
+                          {training.videoCount} {training.videoCount === 1 ? 'video' : 'videos'}
+                        </Text>
+                      </View>
+                    )}
+                    <View className="flex-row items-center gap-1.5">
+                      <Clock size={14} color={colors.salt[500]} />
+                      <Text className="font-sans text-xs text-salt-500">
+                        Updated {new Date(training.modifiedAt).toLocaleDateString()}
+                      </Text>
+                    </View>
                   </View>
                 </View>
-              </View>
 
-              {display.aiUnreviewed && (
-                <WarningBanner icon={ShieldAlert}>{readerEs.unreviewedWarning}</WarningBanner>
-              )}
+                {display.aiUnreviewed && (
+                  <WarningBanner icon={ShieldAlert}>{readerEs.unreviewedWarning}</WarningBanner>
+                )}
 
-              {visibleBlocks.length === 0 ? (
-                <View className="rounded-2xl border border-salt-200 bg-salt-50 px-4 py-12">
-                  <Text className="text-center font-sans text-sm text-salt-500">
-                    This training has no content yet.
-                  </Text>
-                </View>
-              ) : (
-                <View className={`${cardClass} gap-8 ${width >= 768 ? 'p-8' : 'p-5'}`}>
-                  {visibleBlocks.map((item, index) => (
-                    <BlockView key={index} display={item} index={index} />
-                  ))}
-                </View>
-              )}
+                {visibleBlocks.length === 0 ? (
+                  <View className="rounded-2xl border border-salt-200 bg-salt-50 px-4 py-12">
+                    <Text className="text-center font-sans text-sm text-salt-500">
+                      This training has no content yet.
+                    </Text>
+                  </View>
+                ) : (
+                  <View className={`${cardClass} gap-8 ${width >= 768 ? 'p-8' : 'p-5'}`}>
+                    {visibleBlocks.map((item, index) => (
+                      <BlockView key={index} display={item} index={index} />
+                    ))}
+                  </View>
+                )}
 
-              <CompletionCard training={training} />
-            </>
-          )}
-        </View>
-      </ScrollView>
+                <CompletionCard training={training} />
+              </>
+            )}
+          </View>
+        </ScrollView>
       </ScreenTransition>
     </SafeAreaView>
-  )
+  );
 }

@@ -1,12 +1,12 @@
-import { useState } from 'react'
-import type { SubmitEvent } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { AuthUser, Locale, MembershipSummary } from '@rit/shared'
-import { BadgeCheck, Building2, KeyRound, MailWarning, UserRound } from 'lucide-react'
-import { changePassword, getMe, getMyMemberships, updateMe } from '@/features/auth/api'
-import { QueryProvider } from '@/lib/QueryProvider'
-import { SettingsShell } from '@/components/ui/SettingsShell'
-import type { SettingsSection } from '@/components/ui/SettingsShell'
+import { useState } from 'react';
+import type { SubmitEvent } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { AuthUser, Locale, MembershipSummary } from '@rit/shared';
+import { BadgeCheck, Building2, KeyRound, MailWarning, UserRound } from 'lucide-react';
+import { changePassword, getMe, getMyMemberships, updateMe } from '@/features/auth/api';
+import { QueryProvider } from '@/lib/QueryProvider';
+import { SettingsShell } from '@/components/ui/SettingsShell';
+import type { SettingsSection } from '@/components/ui/SettingsShell';
 import {
   Badge,
   ErrorNote,
@@ -16,16 +16,16 @@ import {
   Skeleton,
   inputClass,
   primaryButtonClass,
-} from '@/components/ui'
+} from '@/components/ui';
 
 /** '' → null so a cleared field clears the stored value instead of failing Zod. */
 function orNull(value: string): string | null {
-  const trimmed = value.trim()
-  return trimmed === '' ? null : trimmed
+  const trimmed = value.trim();
+  return trimmed === '' ? null : trimmed;
 }
 
 function initials(user: AuthUser): string {
-  return `${user.name.first[0] ?? ''}${user.name.last[0] ?? ''}`.toUpperCase()
+  return `${user.name.first[0] ?? ''}${user.name.last[0] ?? ''}`.toUpperCase();
 }
 
 function IdentityCard({ user }: { user: AuthUser }) {
@@ -56,18 +56,18 @@ function IdentityCard({ user }: { user: AuthUser }) {
         {user.platformRole === 'superAdmin' && <Badge value="fork" label="platform admin" />}
       </div>
     </div>
-  )
+  );
 }
 
 function DetailsForm({ user }: { user: AuthUser }) {
-  const queryClient = useQueryClient()
-  const [first, setFirst] = useState(user.name.first)
-  const [last, setLast] = useState(user.name.last)
-  const [jobTitle, setJobTitle] = useState(user.jobTitle ?? '')
-  const [phone, setPhone] = useState(user.phone ?? '')
-  const [locale, setLocale] = useState<Locale>(user.preferredLocale)
-  const [error, setError] = useState<string | null>(null)
-  const [saved, setSaved] = useState(false)
+  const queryClient = useQueryClient();
+  const [first, setFirst] = useState(user.name.first);
+  const [last, setLast] = useState(user.name.last);
+  const [jobTitle, setJobTitle] = useState(user.jobTitle ?? '');
+  const [phone, setPhone] = useState(user.phone ?? '');
+  const [locale, setLocale] = useState<Locale>(user.preferredLocale);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
 
   const save = useMutation({
     mutationFn: async () => {
@@ -76,22 +76,22 @@ function DetailsForm({ user }: { user: AuthUser }) {
         preferredLocale: locale,
         jobTitle: orNull(jobTitle),
         phone: orNull(phone),
-      })
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      });
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     onSuccess: (updated) => {
-      queryClient.setQueryData(['auth', 'me'], updated)
-      setSaved(true)
+      queryClient.setQueryData(['auth', 'me'], updated);
+      setSaved(true);
     },
     onError: (err: Error) => setError(err.message),
-  })
+  });
 
   function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setError(null)
-    setSaved(false)
-    save.mutate()
+    event.preventDefault();
+    setError(null);
+    setSaved(false);
+    save.mutate();
   }
 
   return (
@@ -105,7 +105,10 @@ function DetailsForm({ user }: { user: AuthUser }) {
 
         <div className="grid gap-4 tablet:grid-cols-2">
           <div>
-            <label htmlFor="profile-first" className="mb-1.5 block text-sm font-medium text-steel-700">
+            <label
+              htmlFor="profile-first"
+              className="mb-1.5 block text-sm font-medium text-steel-700"
+            >
               First name
             </label>
             <input
@@ -119,7 +122,10 @@ function DetailsForm({ user }: { user: AuthUser }) {
             />
           </div>
           <div>
-            <label htmlFor="profile-last" className="mb-1.5 block text-sm font-medium text-steel-700">
+            <label
+              htmlFor="profile-last"
+              className="mb-1.5 block text-sm font-medium text-steel-700"
+            >
               Last name
             </label>
             <input
@@ -133,7 +139,10 @@ function DetailsForm({ user }: { user: AuthUser }) {
             />
           </div>
           <div>
-            <label htmlFor="profile-title" className="mb-1.5 block text-sm font-medium text-steel-700">
+            <label
+              htmlFor="profile-title"
+              className="mb-1.5 block text-sm font-medium text-steel-700"
+            >
               Job title <span className="font-normal text-salt-500">(optional)</span>
             </label>
             <input
@@ -147,7 +156,10 @@ function DetailsForm({ user }: { user: AuthUser }) {
             />
           </div>
           <div>
-            <label htmlFor="profile-phone" className="mb-1.5 block text-sm font-medium text-steel-700">
+            <label
+              htmlFor="profile-phone"
+              className="mb-1.5 block text-sm font-medium text-steel-700"
+            >
               Phone <span className="font-normal text-salt-500">(optional)</span>
             </label>
             <input
@@ -163,7 +175,9 @@ function DetailsForm({ user }: { user: AuthUser }) {
         </div>
 
         <div>
-          <span className="mb-1.5 block text-sm font-medium text-steel-700">Preferred language</span>
+          <span className="mb-1.5 block text-sm font-medium text-steel-700">
+            Preferred language
+          </span>
           <Segmented
             ariaLabel="Preferred language"
             value={locale}
@@ -191,47 +205,51 @@ function DetailsForm({ user }: { user: AuthUser }) {
         </div>
       </form>
     </SectionCard>
-  )
+  );
 }
 
 function PasswordForm() {
-  const [current, setCurrent] = useState('')
-  const [next, setNext] = useState('')
-  const [confirm, setConfirm] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [saved, setSaved] = useState(false)
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
 
   const change = useMutation({
     mutationFn: async () => {
-      const result = await changePassword({ currentPassword: current, newPassword: next })
-      if (result.error) throw new Error(result.error.message)
+      const result = await changePassword({ currentPassword: current, newPassword: next });
+      if (result.error) throw new Error(result.error.message);
     },
     onSuccess: () => {
-      setSaved(true)
-      setCurrent('')
-      setNext('')
-      setConfirm('')
+      setSaved(true);
+      setCurrent('');
+      setNext('');
+      setConfirm('');
     },
     onError: (err: Error) => setError(err.message),
-  })
+  });
 
   function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setError(null)
-    setSaved(false)
+    event.preventDefault();
+    setError(null);
+    setSaved(false);
     if (next.length < 12) {
-      setError('New password must be at least 12 characters')
-      return
+      setError('New password must be at least 12 characters');
+      return;
     }
     if (next !== confirm) {
-      setError('New password and confirmation do not match')
-      return
+      setError('New password and confirmation do not match');
+      return;
     }
-    change.mutate()
+    change.mutate();
   }
 
   return (
-    <SectionCard icon={KeyRound} title="Password" hint="At least 12 characters — length beats complexity">
+    <SectionCard
+      icon={KeyRound}
+      title="Password"
+      hint="At least 12 characters — length beats complexity"
+    >
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && <ErrorNote>{error}</ErrorNote>}
 
@@ -290,24 +308,24 @@ function PasswordForm() {
         </div>
       </form>
     </SectionCard>
-  )
+  );
 }
 
 function membershipLabel(m: MembershipSummary): string {
-  if (m.location) return `${m.org.name} › ${m.property?.name} › ${m.location.name}`
-  if (m.property) return `${m.org.name} › ${m.property.name}`
-  return `${m.org.name} · entire organization`
+  if (m.location) return `${m.org.name} › ${m.property?.name} › ${m.location.name}`;
+  if (m.property) return `${m.org.name} › ${m.property.name}`;
+  return `${m.org.name} · entire organization`;
 }
 
 function AccessList() {
   const { data, isLoading } = useQuery({
     queryKey: ['auth', 'memberships'],
     queryFn: async () => {
-      const result = await getMyMemberships()
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await getMyMemberships();
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
-  })
+  });
 
   return (
     <SectionCard
@@ -338,20 +356,20 @@ function AccessList() {
         </ul>
       )}
     </SectionCard>
-  )
+  );
 }
 
 function Profile() {
   const { data, error, isLoading } = useQuery({
     queryKey: ['auth', 'me'],
     queryFn: async () => {
-      const result = await getMe()
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await getMe();
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
-  })
+  });
 
-  if (error) return <ErrorNote>{error.message}</ErrorNote>
+  if (error) return <ErrorNote>{error.message}</ErrorNote>;
 
   if (isLoading || !data) {
     return (
@@ -359,7 +377,7 @@ function Profile() {
         <Skeleton className="h-24 w-full rounded-2xl" />
         <Skeleton className="h-64 w-full rounded-2xl" />
       </div>
-    )
+    );
   }
 
   /**
@@ -385,7 +403,7 @@ function Profile() {
       icon: Building2,
       render: () => <AccessList />,
     },
-  ]
+  ];
 
   return (
     <SettingsShell
@@ -393,7 +411,7 @@ function Profile() {
       sections={sections}
       aside={<IdentityCard user={data} />}
     />
-  )
+  );
 }
 
 export function ProfileSettings() {
@@ -401,5 +419,5 @@ export function ProfileSettings() {
     <QueryProvider>
       <Profile />
     </QueryProvider>
-  )
+  );
 }

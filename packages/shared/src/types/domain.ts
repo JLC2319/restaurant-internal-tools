@@ -203,7 +203,7 @@ export interface TenantSettingsOverride {
 export function resolveTranslationPublishMode(
   org: TranslationPublishMode | null | undefined,
   property?: TranslationPublishMode | null,
-  location?: TranslationPublishMode | null
+  location?: TranslationPublishMode | null,
 ): TranslationPublishMode {
   return location ?? property ?? org ?? DEFAULT_TRANSLATION_PUBLISH_MODE;
 }
@@ -217,7 +217,7 @@ export function resolveTranslationPublishMode(
 export function resolveRecipePublishMode(
   org: RecipePublishMode | null | undefined,
   property?: RecipePublishMode | null,
-  location?: RecipePublishMode | null
+  location?: RecipePublishMode | null,
 ): RecipePublishMode {
   return location ?? property ?? org ?? DEFAULT_RECIPE_PUBLISH_MODE;
 }

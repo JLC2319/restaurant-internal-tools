@@ -1,13 +1,13 @@
-import { useRef, useState } from 'react'
-import { useMutation, useQuery } from '@tanstack/react-query'
-import type { DraftTrainingsResponse, TrainingDraftProposal } from '@rit/shared'
+import { useRef, useState } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import type { DraftTrainingsResponse, TrainingDraftProposal } from '@rit/shared';
 import {
   MAX_DRAFT_FILES,
   MAX_DRAFT_TOTAL_BYTES,
   MAX_PHOTO_BYTES,
   plainTextToDoc,
   roleAtLeast,
-} from '@rit/shared'
+} from '@rit/shared';
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -19,15 +19,15 @@ import {
   Info,
   Sparkles,
   X,
-} from 'lucide-react'
-import { getDraftConfig, draftTrainingsFromMaterials } from '@/lib/api/drafts'
-import { createTraining, trainingsScopeKey } from '@/features/training/api'
-import { TRAINING_DRAFTING_MESSAGES } from '@/features/training/draftingMessages'
-import { useActiveRole } from '@/features/auth/useActiveRole'
-import { ScopePicker, defaultScopeSelection } from '@/features/tenancy/ScopePicker'
-import type { ScopeSelection } from '@/features/tenancy/ScopePicker'
-import { QueryProvider } from '@/lib/QueryProvider'
-import { WorkingOverlay } from '@/components/ui/WorkingOverlay'
+} from 'lucide-react';
+import { getDraftConfig, draftTrainingsFromMaterials } from '@/lib/api/drafts';
+import { createTraining, trainingsScopeKey } from '@/features/training/api';
+import { TRAINING_DRAFTING_MESSAGES } from '@/features/training/draftingMessages';
+import { useActiveRole } from '@/features/auth/useActiveRole';
+import { ScopePicker, defaultScopeSelection } from '@/features/tenancy/ScopePicker';
+import type { ScopeSelection } from '@/features/tenancy/ScopePicker';
+import { QueryProvider } from '@/lib/QueryProvider';
+import { WorkingOverlay } from '@/components/ui/WorkingOverlay';
 import {
   EmptyState,
   ErrorNote,
@@ -36,7 +36,7 @@ import {
   inputClass,
   primaryButtonClass,
   subtleButtonClass,
-} from '@/components/ui'
+} from '@/components/ui';
 
 /**
  * AI training drafting — review-first, like recipe drafting. A description
@@ -48,34 +48,34 @@ import {
  * text sections and media is added later in the editor.
  */
 
-const MAX_DESCRIPTION_CHARS = 5000
+const MAX_DESCRIPTION_CHARS = 5000;
 
 function formatMB(bytes: number): string {
-  return (bytes / (1024 * 1024)).toFixed(1)
+  return (bytes / (1024 * 1024)).toFixed(1);
 }
 
 function kindLabel(file: File): string {
   switch (file.type) {
     case 'application/pdf':
-      return 'PDF'
+      return 'PDF';
     case 'image/jpeg':
-      return 'JPEG'
+      return 'JPEG';
     case 'image/png':
-      return 'PNG'
+      return 'PNG';
     case 'image/webp':
-      return 'WebP'
+      return 'WebP';
     default:
-      return file.type || 'File'
+      return file.type || 'File';
   }
 }
 
 function ProposalCard({ proposal, index }: { proposal: TrainingDraftProposal; index: number }) {
-  const [error, setError] = useState<string | null>(null)
-  const [createdId, setCreatedId] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null);
+  const [createdId, setCreatedId] = useState<string | null>(null);
   // Per proposal, not per batch: a handbook often splits into modules that
   // belong to different tiers (an org-wide policy next to one site's opening
   // checklist), so each card picks its own home.
-  const [scope, setScope] = useState<ScopeSelection>(defaultScopeSelection)
+  const [scope, setScope] = useState<ScopeSelection>(defaultScopeSelection);
 
   const create = useMutation({
     mutationFn: async () => {
@@ -88,13 +88,13 @@ function ProposalCard({ proposal, index }: { proposal: TrainingDraftProposal; in
         })),
         propertyId: scope.propertyId || null,
         locationId: scope.locationId || null,
-      })
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      });
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     onSuccess: (training) => setCreatedId(training._id),
     onError: (err: Error) => setError(err.message),
-  })
+  });
 
   return (
     <article
@@ -117,8 +117,8 @@ function ProposalCard({ proposal, index }: { proposal: TrainingDraftProposal; in
           <button
             type="button"
             onClick={() => {
-              setError(null)
-              create.mutate()
+              setError(null);
+              create.mutate();
             }}
             disabled={create.isPending}
             className={primaryButtonClass}
@@ -171,51 +171,51 @@ function ProposalCard({ proposal, index }: { proposal: TrainingDraftProposal; in
         <div className="grid gap-4 rounded-xl bg-salt-50 p-4 ring-1 ring-salt-200 ring-inset tablet:grid-cols-3">
           <ScopePicker idPrefix={`training-proposal-${index}`} value={scope} onChange={setScope} />
           <p className="self-end pb-1 text-xs leading-relaxed text-salt-500">
-            Where this module lives decides who sees it once published — the whole organization,
-            one property, or a single location.
+            Where this module lives decides who sees it once published — the whole organization, one
+            property, or a single location.
           </p>
         </div>
       )}
     </article>
-  )
+  );
 }
 
 function Drafter() {
-  const { role } = useActiveRole()
-  const canDraft = role != null && roleAtLeast(role, 'chef')
-  const inputRef = useRef<HTMLInputElement>(null)
-  const [files, setFiles] = useState<File[]>([])
-  const [description, setDescription] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [result, setResult] = useState<DraftTrainingsResponse | null>(null)
+  const { role } = useActiveRole();
+  const canDraft = role != null && roleAtLeast(role, 'chef');
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  const [description, setDescription] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<DraftTrainingsResponse | null>(null);
 
   const { data: config, isLoading: configLoading } = useQuery({
     queryKey: ['drafts', ...trainingsScopeKey(), 'config'],
     queryFn: async () => {
-      const res = await getDraftConfig()
-      if (res.error) throw new Error(res.error.message)
-      return res.data
+      const res = await getDraftConfig();
+      if (res.error) throw new Error(res.error.message);
+      return res.data;
     },
-  })
+  });
 
   const draft = useMutation({
     mutationFn: async () => {
-      const res = await draftTrainingsFromMaterials(files, description.trim() || undefined)
-      if (res.error) throw new Error(res.error.message)
-      return res.data
+      const res = await draftTrainingsFromMaterials(files, description.trim() || undefined);
+      if (res.error) throw new Error(res.error.message);
+      return res.data;
     },
     onSuccess: (data) => setResult(data),
     onError: (err: Error) => setError(err.message),
-  })
+  });
 
   function addFiles(list: FileList | null) {
-    if (!list) return
-    setError(null)
-    setFiles((prev) => [...prev, ...list].slice(0, MAX_DRAFT_FILES))
+    if (!list) return;
+    setError(null);
+    setFiles((prev) => [...prev, ...list].slice(0, MAX_DRAFT_FILES));
   }
 
   function removeAt(index: number) {
-    setFiles((prev) => prev.filter((_, i) => i !== index))
+    setFiles((prev) => prev.filter((_, i) => i !== index));
   }
 
   if (configLoading) {
@@ -224,7 +224,7 @@ function Drafter() {
         <Skeleton className="h-40" />
         <Skeleton className="h-12 w-64" />
       </div>
-    )
+    );
   }
 
   if (!canDraft) {
@@ -234,7 +234,7 @@ function Drafter() {
         title="Chefs draft trainings"
         hint="Drafting from source material creates training modules, which needs a chef role or above in this scope."
       />
-    )
+    );
   }
 
   if (config && !config.enabled) {
@@ -244,7 +244,7 @@ function Drafter() {
         title="AI drafting is not configured"
         hint="This server has no Anthropic API key set (or AI_DRAFTING_ENABLED is off). Add one to turn handbooks and outlines into draft training modules."
       />
-    )
+    );
   }
 
   if (result) {
@@ -262,9 +262,9 @@ function Drafter() {
           <button
             type="button"
             onClick={() => {
-              setResult(null)
-              setFiles([])
-              setDescription('')
+              setResult(null);
+              setFiles([]);
+              setDescription('');
             }}
             className={subtleButtonClass}
           >
@@ -294,13 +294,13 @@ function Drafter() {
           ))}
         </div>
       </div>
-    )
+    );
   }
 
-  const bytes = files.reduce((sum, file) => sum + file.size, 0)
-  const overBudget = bytes > MAX_DRAFT_TOTAL_BYTES
-  const anyFileTooBig = files.some((file) => file.size > MAX_PHOTO_BYTES)
-  const hasInput = description.trim().length > 0 || files.length > 0
+  const bytes = files.reduce((sum, file) => sum + file.size, 0);
+  const overBudget = bytes > MAX_DRAFT_TOTAL_BYTES;
+  const anyFileTooBig = files.some((file) => file.size > MAX_PHOTO_BYTES);
+  const hasInput = description.trim().length > 0 || files.length > 0;
 
   return (
     <div className="space-y-5">
@@ -309,7 +309,10 @@ function Drafter() {
       <div className={`${cardClass} space-y-4 p-5 tablet:p-6`}>
         <div>
           <div className="mb-1.5 flex items-baseline justify-between gap-3">
-            <label htmlFor="training-draft-description" className="block text-sm font-medium text-steel-700">
+            <label
+              htmlFor="training-draft-description"
+              className="block text-sm font-medium text-steel-700"
+            >
               What should this training cover?{' '}
               <span className="font-normal text-salt-500">(optional if you attach files)</span>
             </label>
@@ -337,8 +340,8 @@ function Drafter() {
           multiple
           className="hidden"
           onChange={(e) => {
-            addFiles(e.target.files)
-            e.target.value = ''
+            addFiles(e.target.files);
+            e.target.value = '';
           }}
         />
 
@@ -361,8 +364,8 @@ function Drafter() {
           <div className="space-y-3">
             <ul className="divide-y divide-salt-100 overflow-hidden rounded-xl ring-1 ring-salt-200">
               {files.map((file, index) => {
-                const isPdf = file.type === 'application/pdf'
-                const tooBig = file.size > MAX_PHOTO_BYTES
+                const isPdf = file.type === 'application/pdf';
+                const tooBig = file.size > MAX_PHOTO_BYTES;
                 return (
                   <li key={index} className="flex items-center gap-3 bg-white px-3 py-2">
                     <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-salt-100 text-steel-700">
@@ -392,15 +395,14 @@ function Drafter() {
                       <X className="size-4" aria-hidden />
                     </button>
                   </li>
-                )
+                );
               })}
             </ul>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p
                 className={`text-xs ${overBudget ? 'font-semibold text-chili-600' : 'text-salt-500'}`}
               >
-                {files.length} {files.length === 1 ? 'file' : 'files'} · {formatMB(bytes)}MB of
-                20MB
+                {files.length} {files.length === 1 ? 'file' : 'files'} · {formatMB(bytes)}MB of 20MB
                 {overBudget && ' — remove a file or two'}
               </p>
               {files.length < MAX_DRAFT_FILES && (
@@ -421,8 +423,8 @@ function Drafter() {
           <button
             type="button"
             onClick={() => {
-              setError(null)
-              draft.mutate()
+              setError(null);
+              draft.mutate();
             }}
             disabled={!hasInput || overBudget || anyFileTooBig || draft.isPending}
             className={primaryButtonClass}
@@ -431,7 +433,9 @@ function Drafter() {
             {draft.isPending ? 'Reading the material…' : 'Draft trainings'}
           </button>
           {!hasInput && (
-            <p className="text-xs text-salt-500">Write a description or attach at least one file.</p>
+            <p className="text-xs text-salt-500">
+              Write a description or attach at least one file.
+            </p>
           )}
         </div>
       </div>
@@ -445,13 +449,13 @@ function Drafter() {
       <p className="flex items-start gap-2.5 rounded-xl bg-salt-50 px-4 py-3 text-sm text-salt-600 ring-1 ring-salt-200 ring-inset">
         <Info className="mt-0.5 size-4 shrink-0 text-citron-600" aria-hidden />
         <span>
-          Proposals are suggestions, not modules. Nothing is saved until you create it, and what
-          you create is an unpublished draft staff cannot see — review it and add media before
+          Proposals are suggestions, not modules. Nothing is saved until you create it, and what you
+          create is an unpublished draft staff cannot see — review it and add media before
           publishing.
         </span>
       </p>
     </div>
-  )
+  );
 }
 
 export function TrainingDraft() {
@@ -459,5 +463,5 @@ export function TrainingDraft() {
     <QueryProvider>
       <Drafter />
     </QueryProvider>
-  )
+  );
 }

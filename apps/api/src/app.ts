@@ -35,7 +35,7 @@ app.use(
     },
     // The tenant scope travels in headers, so they must survive preflight.
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Org-Id', 'X-Property-Id', 'X-Location-Id'],
-  })
+  }),
 );
 app.use(morgan(env.nodeEnv === 'production' ? 'combined' : 'dev'));
 app.use(express.json({ limit: '1mb' }));

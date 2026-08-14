@@ -7,4 +7,4 @@ export const DRAFTING_MESSAGES = [
   'Counting the cloves twice…',
   'Cross-checking page two against page one…',
   'Writing it all up, chef…',
-] as const
+] as const;

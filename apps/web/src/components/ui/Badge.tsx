@@ -10,10 +10,10 @@ const badgeTones: Record<string, { chip: string; dot: string }> = {
   rejected: { chip: 'bg-salt-100 text-salt-700 ring-salt-300', dot: 'bg-salt-400' },
   archived: { chip: 'bg-salt-100 text-salt-700 ring-salt-300', dot: 'bg-salt-400' },
   fork: { chip: 'bg-steel-50 text-steel-700 ring-steel-200', dot: 'bg-steel-400' },
-}
+};
 
 export function Badge({ value, label }: { value: string; label?: string }) {
-  const tone = badgeTones[value] ?? badgeTones.draft
+  const tone = badgeTones[value] ?? badgeTones.draft;
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-2xs font-semibold tracking-wide uppercase ring-1 ring-inset ${tone.chip}`}
@@ -21,5 +21,5 @@ export function Badge({ value, label }: { value: string; label?: string }) {
       <span className={`size-1.5 rounded-full ${tone.dot}`} aria-hidden />
       {label ?? value.replace('_', ' ')}
     </span>
-  )
+  );
 }

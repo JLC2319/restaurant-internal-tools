@@ -71,7 +71,7 @@ export function scopeReadFilter(ctx: TenantContext, path = 'scope'): Record<stri
  * document additionally never by a sibling location's members.
  */
 export function membershipReadersFilter(
-  scope: Pick<TenantScope, 'propertyId' | 'locationId'>
+  scope: Pick<TenantScope, 'propertyId' | 'locationId'>,
 ): Record<string, unknown> {
   if (!scope.propertyId) return {};
   if (!scope.locationId) {
@@ -92,7 +92,7 @@ export function membershipReadersFilter(
  */
 export function scopeForWrite(
   ctx: TenantContext,
-  target?: Partial<Pick<TenantScope, 'propertyId' | 'locationId'>>
+  target?: Partial<Pick<TenantScope, 'propertyId' | 'locationId'>>,
 ): TenantScope {
   const propertyId = target?.propertyId ?? ctx.propertyId;
   const locationId = target?.locationId ?? ctx.locationId;
@@ -112,7 +112,7 @@ export function scopeForWrite(
  */
 export function assertCanWriteAt(
   ctx: TenantContext,
-  target: Pick<TenantScope, 'propertyId' | 'locationId'>
+  target: Pick<TenantScope, 'propertyId' | 'locationId'>,
 ): void {
   if (target.locationId && !target.propertyId) {
     throw new AppError('A location-scoped document must also name its property', 400);

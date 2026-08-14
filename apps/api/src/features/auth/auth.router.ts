@@ -21,7 +21,7 @@ authRouter.post(
   authenticate,
   authRateLimiter,
   validate(changePasswordSchema),
-  authController.changePassword
+  authController.changePassword,
 );
 
 export { authRouter };

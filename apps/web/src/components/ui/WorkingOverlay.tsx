@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
-import { createPortal } from 'react-dom'
-import { Loader2, TriangleAlert } from 'lucide-react'
-import { cardClass } from './tokens'
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Loader2, TriangleAlert } from 'lucide-react';
+import { cardClass } from './tokens';
 
 /**
  * The "the AI is cooking" modal. LLM calls run tens of seconds — long enough
@@ -20,36 +20,36 @@ import { cardClass } from './tokens'
  * screen" looks broken, so it does not rely on its ancestors behaving.
  */
 
-const ROTATE_MS = 2600
+const ROTATE_MS = 2600;
 
 export function WorkingOverlay({
   active,
   title,
   messages,
 }: {
-  active: boolean
-  title: string
-  messages: readonly string[]
+  active: boolean;
+  title: string;
+  messages: readonly string[];
 }) {
-  const [index, setIndex] = useState(0)
+  const [index, setIndex] = useState(0);
   // These are Astro islands: the first render happens on the server, where
   // there is no `document` to portal into.
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => setMounted(true), [])
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     if (!active) {
-      setIndex(0)
-      return
+      setIndex(0);
+      return;
     }
     const timer = window.setInterval(
       () => setIndex((previous) => (previous + 1) % messages.length),
-      ROTATE_MS
-    )
-    return () => window.clearInterval(timer)
-  }, [active, messages.length])
+      ROTATE_MS,
+    );
+    return () => window.clearInterval(timer);
+  }, [active, messages.length]);
 
-  if (!active || !mounted) return null
+  if (!active || !mounted) return null;
 
   return createPortal(
     <div
@@ -75,6 +75,6 @@ export function WorkingOverlay({
         </p>
       </div>
     </div>,
-    document.body
-  )
+    document.body,
+  );
 }

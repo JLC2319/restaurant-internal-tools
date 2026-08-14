@@ -100,7 +100,7 @@ async function withOrgCounts(orgs: LeanOrg[]): Promise<PlatformOrganizationRow[]
     ]),
   ]);
   const [propertyCounts, locationCounts, memberCounts] = [properties, locations, members].map(
-    toCountMap
+    toCountMap,
   );
 
   return orgs.map((org) => {
@@ -122,7 +122,7 @@ async function withOrgCounts(orgs: LeanOrg[]): Promise<PlatformOrganizationRow[]
 }
 
 export async function listOrganizations(
-  query: PlatformListQuery
+  query: PlatformListQuery,
 ): Promise<PaginatedResponse<PlatformOrganizationRow>> {
   const filter: Record<string, unknown> = {};
   if (query.q) {
@@ -146,7 +146,7 @@ export async function listOrganizations(
 }
 
 export async function createOrganizationForOwner(
-  input: PlatformCreateOrganizationInput
+  input: PlatformCreateOrganizationInput,
 ): Promise<OrganizationSummary> {
   const owner = await User.findOne({ email: input.ownerEmail }).select('_id status').lean();
   if (!owner) {
@@ -199,7 +199,7 @@ export async function getOrganizationDetail(orgId: string): Promise<PlatformOrga
 
 export async function updateOrganization(
   orgId: string,
-  input: PlatformUpdateOrganizationInput
+  input: PlatformUpdateOrganizationInput,
 ): Promise<OrganizationSummary> {
   // `en` is the authoring locale and always present — same rule as org creation.
   const patch =
@@ -228,7 +228,7 @@ async function membershipCountByUser(userIds: unknown[]): Promise<Map<string, nu
 }
 
 export async function listUsers(
-  query: PlatformListQuery
+  query: PlatformListQuery,
 ): Promise<PaginatedResponse<PlatformUserRow>> {
   const filter: Record<string, unknown> = {};
   if (query.q) {
@@ -261,7 +261,7 @@ export async function listUsers(
 export async function updateUser(
   actorId: string,
   userId: string,
-  input: PlatformUpdateUserInput
+  input: PlatformUpdateUserInput,
 ): Promise<PlatformUserRow> {
   // A superAdmin must not be able to lock themselves out: any suspension or
   // demotion is done by *another* superAdmin, so one always remains standing.

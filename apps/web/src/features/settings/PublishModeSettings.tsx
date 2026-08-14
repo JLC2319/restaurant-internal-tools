@@ -1,16 +1,16 @@
-import { useState } from 'react'
-import type { ReactNode } from 'react'
-import type { LocationSummary, PropertySummary, TenantSettingsOverride } from '@rit/shared'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Building2, Check, MapPin } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
+import { useState } from 'react';
+import type { ReactNode } from 'react';
+import type { LocationSummary, PropertySummary, TenantSettingsOverride } from '@rit/shared';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Building2, Check, MapPin } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import {
   getTenantTree,
   tenancyScopeKey,
   updateLocation,
   updateProperty,
-} from '@/features/tenancy/api'
-import { ErrorNote, Skeleton, inputClass } from '@/components/ui'
+} from '@/features/tenancy/api';
+import { ErrorNote, Skeleton, inputClass } from '@/components/ui';
 
 /**
  * The shared machinery behind every "how does publishing behave here" setting.
@@ -26,17 +26,17 @@ import { ErrorNote, Skeleton, inputClass } from '@/components/ui'
  */
 
 export interface ModeMeta {
-  label: string
-  icon: LucideIcon
-  summary: string
-  detail: string
+  label: string;
+  icon: LucideIcon;
+  summary: string;
+  detail: string;
 }
 
 /** Keys of the settings sub-document these controls can write. */
-export type PublishModeKey = keyof TenantSettingsOverride
+export type PublishModeKey = keyof TenantSettingsOverride;
 
 /** The mode union belonging to one settings key — `'manual' | …` for that key. */
-export type ModeOf<K extends PublishModeKey> = NonNullable<TenantSettingsOverride[K]>
+export type ModeOf<K extends PublishModeKey> = NonNullable<TenantSettingsOverride[K]>;
 
 /**
  * The org-level picker: one card per mode, radio semantics.
@@ -56,22 +56,22 @@ export function ModeRadioGroup<M extends string>({
   selectedTone,
   iconTone,
 }: {
-  ariaLabel: string
-  modes: readonly M[]
-  meta: Record<M, ModeMeta>
-  value: M
-  disabled: boolean
-  onSelect: (mode: M) => void
-  tone?: (mode: M) => string
-  selectedTone?: (mode: M) => string
-  iconTone?: (mode: M) => string
+  ariaLabel: string;
+  modes: readonly M[];
+  meta: Record<M, ModeMeta>;
+  value: M;
+  disabled: boolean;
+  onSelect: (mode: M) => void;
+  tone?: (mode: M) => string;
+  selectedTone?: (mode: M) => string;
+  iconTone?: (mode: M) => string;
 }) {
   return (
     <div role="radiogroup" aria-label={ariaLabel} className="space-y-2.5">
       {modes.map((mode) => {
-        const entry = meta[mode]
-        const Icon = entry.icon
-        const isSelected = value === mode
+        const entry = meta[mode];
+        const Icon = entry.icon;
+        const isSelected = value === mode;
         return (
           <button
             key={mode}
@@ -80,7 +80,7 @@ export function ModeRadioGroup<M extends string>({
             aria-checked={isSelected}
             disabled={disabled}
             onClick={() => {
-              if (!isSelected) onSelect(mode)
+              if (!isSelected) onSelect(mode);
             }}
             className={`flex w-full cursor-pointer items-start gap-3 rounded-xl p-4 text-left ring-1 transition-all duration-150 ring-inset hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:shadow-none ${
               isSelected
@@ -106,10 +106,10 @@ export function ModeRadioGroup<M extends string>({
             </span>
             {isSelected && <Check className="mt-1 size-4 shrink-0 text-ember-600" aria-hidden />}
           </button>
-        )
+        );
       })}
     </div>
-  )
+  );
 }
 
 /** `null` is a real choice here — "stop overriding, follow the parent again". */
@@ -124,15 +124,15 @@ function OverrideSelect<M extends string>({
   pending,
   onChange,
 }: {
-  id: string
-  label: string
-  value: M | null
-  inherited: M
-  modes: readonly M[]
-  meta: Record<M, ModeMeta>
-  disabled: boolean
-  pending: boolean
-  onChange: (next: M | null) => void
+  id: string;
+  label: string;
+  value: M | null;
+  inherited: M;
+  modes: readonly M[];
+  meta: Record<M, ModeMeta>;
+  disabled: boolean;
+  pending: boolean;
+  onChange: (next: M | null) => void;
 }) {
   return (
     <select
@@ -141,8 +141,8 @@ function OverrideSelect<M extends string>({
       value={value ?? 'inherit'}
       disabled={disabled || pending}
       onChange={(e) => {
-        const next = e.target.value
-        onChange(next === 'inherit' ? null : (next as M))
+        const next = e.target.value;
+        onChange(next === 'inherit' ? null : (next as M));
       }}
       className={`${inputClass} w-auto min-w-[15rem] py-2 text-sm ${disabled ? 'opacity-60' : ''}`}
     >
@@ -153,7 +153,7 @@ function OverrideSelect<M extends string>({
         </option>
       ))}
     </select>
-  )
+  );
 }
 
 /**
@@ -172,64 +172,64 @@ export function OverrideRows<K extends PublishModeKey>({
   canEdit,
   labelFor,
 }: {
-  settingsKey: K
-  modes: readonly ModeOf<K>[]
-  meta: Record<ModeOf<K>, ModeMeta>
-  orgMode: ModeOf<K>
+  settingsKey: K;
+  modes: readonly ModeOf<K>[];
+  meta: Record<ModeOf<K>, ModeMeta>;
+  orgMode: ModeOf<K>;
   /** The card's own narrowest-first resolver, shared with the server. */
-  resolve: (org: ModeOf<K>, property?: ModeOf<K> | null) => ModeOf<K>
-  canEdit: boolean
+  resolve: (org: ModeOf<K>, property?: ModeOf<K> | null) => ModeOf<K>;
+  canEdit: boolean;
   /** e.g. `(name) => \`Recipe publishing for ${name}\`` — the select's a11y label. */
-  labelFor: (tenantName: string) => string
+  labelFor: (tenantName: string) => string;
 }) {
-  const queryClient = useQueryClient()
-  const [error, setError] = useState<string | null>(null)
-  const [pendingId, setPendingId] = useState<string | null>(null)
+  const queryClient = useQueryClient();
+  const [error, setError] = useState<string | null>(null);
+  const [pendingId, setPendingId] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['tenancy', 'tree', ...tenancyScopeKey()],
     queryFn: async () => {
-      const result = await getTenantTree()
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await getTenantTree();
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
-  })
+  });
 
   const save = useMutation({
     mutationFn: async (change: {
-      tier: 'property' | 'location'
-      id: string
-      mode: ModeOf<K> | null
+      tier: 'property' | 'location';
+      id: string;
+      mode: ModeOf<K> | null;
     }) => {
-      const body = { settings: { [settingsKey]: change.mode } }
+      const body = { settings: { [settingsKey]: change.mode } };
       const result =
         change.tier === 'property'
           ? await updateProperty(change.id, body)
-          : await updateLocation(change.id, body)
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+          : await updateLocation(change.id, body);
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     onSettled: () => {
-      setPendingId(null)
-      queryClient.invalidateQueries({ queryKey: ['tenancy', 'tree'] })
+      setPendingId(null);
+      queryClient.invalidateQueries({ queryKey: ['tenancy', 'tree'] });
     },
     onError: (err: Error) => setError(err.message),
-  })
+  });
 
   function change(tier: 'property' | 'location', id: string, mode: ModeOf<K> | null) {
-    setError(null)
-    setPendingId(id)
-    save.mutate({ tier, id, mode })
+    setError(null);
+    setPendingId(id);
+    save.mutate({ tier, id, mode });
   }
 
-  if (isLoading) return <Skeleton className="h-32 w-full rounded-xl" />
+  if (isLoading) return <Skeleton className="h-32 w-full rounded-xl" />;
   if (!data || data.properties.length === 0) {
     return (
       <p className="text-sm text-salt-600">
         No properties yet. Once you add properties and locations, each can override the
         organization&rsquo;s setting here.
       </p>
-    )
+    );
   }
 
   return (
@@ -237,8 +237,8 @@ export function OverrideRows<K extends PublishModeKey>({
       {error && <ErrorNote>{error}</ErrorNote>}
 
       {data.properties.map((property: PropertySummary & { locations: LocationSummary[] }) => {
-        const propertyOverride = property.settings[settingsKey] as ModeOf<K> | null
-        const propertyEffective = resolve(orgMode, propertyOverride)
+        const propertyOverride = property.settings[settingsKey] as ModeOf<K> | null;
+        const propertyEffective = resolve(orgMode, propertyOverride);
         return (
           <div
             key={property._id}
@@ -289,10 +289,10 @@ export function OverrideRows<K extends PublishModeKey>({
               </ul>
             )}
           </div>
-        )
+        );
       })}
     </div>
-  )
+  );
 }
 
 /**
@@ -306,10 +306,10 @@ export function PublishModeBody({
   warning,
   overrides,
 }: {
-  notice?: ReactNode
-  picker: ReactNode
-  warning?: ReactNode
-  overrides: ReactNode
+  notice?: ReactNode;
+  picker: ReactNode;
+  warning?: ReactNode;
+  overrides: ReactNode;
 }) {
   return (
     <div className="space-y-6">
@@ -332,5 +332,5 @@ export function PublishModeBody({
         {overrides}
       </div>
     </div>
-  )
+  );
 }

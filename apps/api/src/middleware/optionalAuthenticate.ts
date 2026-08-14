@@ -15,7 +15,7 @@ import { assertAccountActive, type JwtPayload } from './authenticate';
 export async function optionalAuthenticate(
   req: Request,
   _res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> {
   const authHeader = req.headers.authorization;
 

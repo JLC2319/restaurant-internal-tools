@@ -9,9 +9,7 @@ describe('AppError', () => {
   });
 
   it('carries field-level validation errors', () => {
-    const error = new AppError('Validation failed', 400, [
-      { field: 'email', message: 'Required' },
-    ]);
+    const error = new AppError('Validation failed', 400, [{ field: 'email', message: 'Required' }]);
     expect(error.statusCode).toBe(400);
     expect(error.errors).toEqual([{ field: 'email', message: 'Required' }]);
   });

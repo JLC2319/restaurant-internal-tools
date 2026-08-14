@@ -42,14 +42,14 @@ describe('shapeTrainingProposal', () => {
 
   it('caps the section count at the block ceiling', () => {
     const proposal = shapeTrainingProposal(
-      raw({ sections: Array.from({ length: 60 }, (_, i) => `Section ${i}`) })
+      raw({ sections: Array.from({ length: 60 }, (_, i) => `Section ${i}`) }),
     );
     expect(proposal.sections).toHaveLength(50);
   });
 
   it('clamps description and notes', () => {
     const proposal = shapeTrainingProposal(
-      raw({ description: 'y'.repeat(1000), notes: 'z'.repeat(5000) })
+      raw({ description: 'y'.repeat(1000), notes: 'z'.repeat(5000) }),
     );
     expect(proposal.description).toHaveLength(500);
     expect(proposal.notes).toHaveLength(2000);

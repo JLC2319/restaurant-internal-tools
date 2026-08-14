@@ -11,10 +11,7 @@ const nameSchema = z.object({
  * gauntlet — back-of-house staff type these on a shared iPad, and complexity
  * rules there produce sticky notes on the pass, not stronger passwords.
  */
-const passwordSchema = z
-  .string()
-  .min(12, 'Password must be at least 12 characters')
-  .max(128);
+const passwordSchema = z.string().min(12, 'Password must be at least 12 characters').max(128);
 
 export const registerSchema = z.object({
   name: nameSchema,

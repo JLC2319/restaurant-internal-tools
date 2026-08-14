@@ -24,13 +24,13 @@ trainingRouter.post(
   '/',
   requireRole('chef'),
   validate(createTrainingSchema),
-  trainingController.createTraining
+  trainingController.createTraining,
 );
 trainingRouter.patch(
   '/:id',
   requireRole('chef'),
   validate(updateTrainingSchema),
-  trainingController.updateTraining
+  trainingController.updateTraining,
 );
 
 // ── Placement ─────────────────────────────────────────────────────────────────
@@ -41,7 +41,7 @@ trainingRouter.put(
   '/:id/scope',
   requireRole('manager'),
   validate(moveTrainingSchema),
-  trainingController.moveTraining
+  trainingController.moveTraining,
 );
 
 // ── Person-level access ───────────────────────────────────────────────────────
@@ -53,12 +53,12 @@ trainingRouter.put(
   '/:id/access',
   requireRole('chef'),
   validate(updateTrainingAccessSchema),
-  trainingController.updateTrainingAccess
+  trainingController.updateTrainingAccess,
 );
 trainingRouter.get(
   '/:id/access/candidates',
   requireRole('chef'),
-  trainingController.listAccessCandidates
+  trainingController.listAccessCandidates,
 );
 
 // ── Publish gate ──────────────────────────────────────────────────────────────

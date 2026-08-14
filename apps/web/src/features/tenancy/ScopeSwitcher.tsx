@@ -1,63 +1,63 @@
-import { useEffect, useRef, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import type { MembershipSummary } from '@rit/shared'
-import { Building2, Check, Settings, UserRound } from 'lucide-react'
-import { getMyMemberships } from '@/features/auth/api'
-import { getScope, setScope, clearAuth } from '@/lib/api/client'
-import { QueryProvider } from '@/lib/QueryProvider'
-import { cardClass } from '@/components/ui'
+import { useEffect, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import type { MembershipSummary } from '@rit/shared';
+import { Building2, Check, Settings, UserRound } from 'lucide-react';
+import { getMyMemberships } from '@/features/auth/api';
+import { getScope, setScope, clearAuth } from '@/lib/api/client';
+import { QueryProvider } from '@/lib/QueryProvider';
+import { cardClass } from '@/components/ui';
 
 function label(m: MembershipSummary): string {
-  if (m.location) return `${m.org.name} › ${m.property?.name} › ${m.location.name}`
-  if (m.property) return `${m.org.name} › ${m.property.name}`
-  return m.org.name
+  if (m.location) return `${m.org.name} › ${m.property?.name} › ${m.location.name}`;
+  if (m.property) return `${m.org.name} › ${m.property.name}`;
+  return m.org.name;
 }
 
 function matchesActive(m: MembershipSummary): boolean {
-  const active = getScope()
-  if (!active) return false
+  const active = getScope();
+  if (!active) return false;
   return (
     active.orgId === m.org._id &&
     (active.propertyId ?? null) === (m.property?._id ?? null) &&
     (active.locationId ?? null) === (m.location?._id ?? null)
-  )
+  );
 }
 
 const iconButtonClass =
-  'flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-salt-600 transition-all duration-150 hover:bg-salt-100 hover:text-steel-900'
+  'flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-salt-600 transition-all duration-150 hover:bg-salt-100 hover:text-steel-900';
 
 /** The org menu: switch scope (when there is more than one) + org settings. */
 function OrgMenu() {
-  const [open, setOpen] = useState(false)
-  const containerRef = useRef<HTMLDivElement>(null)
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['auth', 'memberships'],
     queryFn: async () => {
-      const result = await getMyMemberships()
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await getMyMemberships();
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
-  })
+  });
 
   // Close on outside click or Escape — the standard popover contract.
   useEffect(() => {
-    if (!open) return
+    if (!open) return;
     const onPointerDown = (e: PointerEvent) => {
-      if (!containerRef.current?.contains(e.target as Node)) setOpen(false)
-    }
+      if (!containerRef.current?.contains(e.target as Node)) setOpen(false);
+    };
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false)
-    }
-    document.addEventListener('pointerdown', onPointerDown)
-    document.addEventListener('keydown', onKeyDown)
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
     return () => {
-      document.removeEventListener('pointerdown', onPointerDown)
-      document.removeEventListener('keydown', onKeyDown)
-    }
-  }, [open])
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open]);
 
-  const memberships = data ?? []
+  const memberships = data ?? [];
 
   return (
     <div ref={containerRef} className="relative">
@@ -87,7 +87,7 @@ function OrgMenu() {
                   Workspace
                 </p>
                 {memberships.map((m) => {
-                  const active = matchesActive(m)
+                  const active = matchesActive(m);
                   return (
                     <button
                       key={m._id}
@@ -99,12 +99,12 @@ function OrgMenu() {
                           orgId: m.org._id,
                           propertyId: m.property?._id ?? null,
                           locationId: m.location?._id ?? null,
-                        })
+                        });
                         // A full reload is the honest move here: every cached
                         // query in the app is scoped, so keeping any of it
                         // across a scope change would show one tenant's data
                         // under another's header.
-                        window.location.reload()
+                        window.location.reload();
                       }}
                       className={`flex w-full cursor-pointer items-center gap-2.5 px-4 py-2.5 text-left text-sm transition-colors duration-150 ${
                         active
@@ -115,7 +115,7 @@ function OrgMenu() {
                       <span className="min-w-0 flex-1 truncate">{label(m)}</span>
                       {active && <Check className="size-4 shrink-0 text-ember-600" aria-hidden />}
                     </button>
-                  )
+                  );
                 })}
                 <div className="my-1.5 border-t border-salt-200" aria-hidden />
               </>
@@ -132,7 +132,7 @@ function OrgMenu() {
         </div>
       )}
     </div>
-  )
+  );
 }
 
 function Switcher() {
@@ -147,15 +147,15 @@ function Switcher() {
       <button
         type="button"
         onClick={() => {
-          clearAuth()
-          window.location.href = '/login'
+          clearAuth();
+          window.location.href = '/login';
         }}
         className="min-h-touch cursor-pointer rounded-full px-3.5 py-1.5 text-sm font-medium text-salt-600 transition-all duration-150 hover:bg-salt-100 hover:text-steel-900"
       >
         Sign out
       </button>
     </div>
-  )
+  );
 }
 
 export function ScopeSwitcher() {
@@ -163,5 +163,5 @@ export function ScopeSwitcher() {
     <QueryProvider>
       <Switcher />
     </QueryProvider>
-  )
+  );
 }

@@ -1,6 +1,6 @@
-import { useId, useState } from 'react'
-import type { MediaAssetView } from '@rit/shared'
-import { ChevronDown, Images } from 'lucide-react'
+import { useId, useState } from 'react';
+import type { MediaAssetView } from '@rit/shared';
+import { ChevronDown, Images } from 'lucide-react';
 
 /**
  * Plating photos on a recipe: one large reference shot, with a thumbnail rail
@@ -20,17 +20,17 @@ export function PlatingGallery({
   photos,
   recipeName,
 }: {
-  photos: MediaAssetView[]
-  recipeName: string
+  photos: MediaAssetView[];
+  recipeName: string;
 }) {
-  const [open, setOpen] = useState(false)
-  const [active, setActive] = useState(0)
-  const panelId = useId()
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const panelId = useId();
 
-  if (photos.length === 0) return null
+  if (photos.length === 0) return null;
 
   // A photo removed while this was open would leave the index dangling.
-  const current = photos[Math.min(active, photos.length - 1)]
+  const current = photos[Math.min(active, photos.length - 1)];
 
   return (
     <section className="overflow-hidden rounded-xl ring-1 ring-salt-200 ring-inset">
@@ -74,7 +74,7 @@ export function PlatingGallery({
           {photos.length > 1 && (
             <ul className="flex flex-wrap gap-2">
               {photos.map((photo, index) => {
-                const selected = photo._id === current._id
+                const selected = photo._id === current._id;
                 return (
                   <li key={photo._id}>
                     <button
@@ -94,12 +94,12 @@ export function PlatingGallery({
                       />
                     </button>
                   </li>
-                )
+                );
               })}
             </ul>
           )}
         </div>
       )}
     </section>
-  )
+  );
 }

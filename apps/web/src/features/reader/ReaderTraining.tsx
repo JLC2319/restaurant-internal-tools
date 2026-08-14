@@ -1,7 +1,7 @@
-import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { TrainingBlockView } from '@rit/shared'
-import { plainTextToDoc } from '@rit/shared'
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { TrainingBlockView } from '@rit/shared';
+import { plainTextToDoc } from '@rit/shared';
 import {
   ArrowLeft,
   Bot,
@@ -12,15 +12,15 @@ import {
   Languages,
   Layers,
   ShieldAlert,
-} from 'lucide-react'
-import { getTraining, trainingsScopeKey } from '@/features/training/api'
-import { getTrainingTranslation, machineTranslateTraining } from '@/features/translations/api'
-import { TRANSLATING_MESSAGES } from '@/features/translations/messages'
-import { readerEs } from '@/features/reader/es'
-import { BlockView, CompletionCard } from '@/features/training/TrainingContent'
-import { QueryProvider } from '@/lib/QueryProvider'
-import { WorkingOverlay } from '@/components/ui/WorkingOverlay'
-import { EmptyState, ErrorNote, Skeleton, cardClass } from '@/components/ui'
+} from 'lucide-react';
+import { getTraining, trainingsScopeKey } from '@/features/training/api';
+import { getTrainingTranslation, machineTranslateTraining } from '@/features/translations/api';
+import { TRANSLATING_MESSAGES } from '@/features/translations/messages';
+import { readerEs } from '@/features/reader/es';
+import { BlockView, CompletionCard } from '@/features/training/TrainingContent';
+import { QueryProvider } from '@/lib/QueryProvider';
+import { WorkingOverlay } from '@/components/ui/WorkingOverlay';
+import { EmptyState, ErrorNote, Skeleton, cardClass } from '@/components/ui';
 
 /**
  * A training module as the line reads it. Same block renderer as the main
@@ -37,7 +37,7 @@ import { EmptyState, ErrorNote, Skeleton, cardClass } from '@/components/ui'
  * embeds always render from the source module, with only captions swapped.
  */
 
-type Lang = 'en' | 'es'
+type Lang = 'en' | 'es';
 
 /**
  * The EN/ES switch, plus what stands in for it when Spanish is not available:
@@ -49,38 +49,38 @@ function LanguageControl({
   lang,
   onLang,
 }: {
-  trainingId: string
-  lang: Lang
-  onLang: (next: Lang) => void
+  trainingId: string;
+  lang: Lang;
+  onLang: (next: Lang) => void;
 }) {
-  const queryClient = useQueryClient()
-  const [requestError, setRequestError] = useState<string | null>(null)
+  const queryClient = useQueryClient();
+  const [requestError, setRequestError] = useState<string | null>(null);
 
   const { data: state } = useQuery({
     queryKey: ['translations', ...trainingsScopeKey(), 'reader', trainingId, 'es'],
     queryFn: async () => {
-      const result = await getTrainingTranslation(trainingId, 'es')
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await getTrainingTranslation(trainingId, 'es');
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
-  })
+  });
 
   const request = useMutation({
     mutationFn: async () => {
-      const result = await machineTranslateTraining(trainingId, 'es')
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await machineTranslateTraining(trainingId, 'es');
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['translations'] }),
     onError: (err: Error) => setRequestError(err.message),
-  })
+  });
 
-  if (!state) return null
+  if (!state) return null;
 
   const approved =
     state.translation != null &&
     state.translation.status === 'approved' &&
-    !state.translation.stale
+    !state.translation.stale;
 
   if (approved) {
     return (
@@ -106,7 +106,7 @@ function LanguageControl({
           </button>
         ))}
       </div>
-    )
+    );
   }
 
   // No approved Spanish yet. Reviewers can kick off a translation from here —
@@ -115,7 +115,7 @@ function LanguageControl({
     const pending =
       state.translation != null &&
       state.translation.status !== 'rejected' &&
-      !state.translation.stale
+      !state.translation.stale;
     return (
       <div className="flex flex-col items-end gap-1">
         <WorkingOverlay
@@ -135,8 +135,8 @@ function LanguageControl({
           <button
             type="button"
             onClick={() => {
-              setRequestError(null)
-              request.mutate()
+              setRequestError(null);
+              request.mutate();
             }}
             disabled={request.isPending}
             className="inline-flex min-h-touch cursor-pointer items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-sm font-semibold text-steel-700 ring-1 ring-salt-300 transition-all hover:bg-salt-50 disabled:opacity-60"
@@ -147,7 +147,7 @@ function LanguageControl({
         ) : null}
         {requestError && <p className="text-xs text-chili-600">{requestError}</p>}
       </div>
-    )
+    );
   }
 
   return (
@@ -158,31 +158,35 @@ function LanguageControl({
       <Languages className="size-4" aria-hidden />
       ES no disponible
     </span>
-  )
+  );
 }
 
 function Reader({ trainingId }: { trainingId: string }) {
-  const [lang, setLang] = useState<Lang>('en')
+  const [lang, setLang] = useState<Lang>('en');
 
-  const { data: training, error, isLoading } = useQuery({
+  const {
+    data: training,
+    error,
+    isLoading,
+  } = useQuery({
     queryKey: ['trainings', ...trainingsScopeKey(), 'reader', 'detail', trainingId],
     queryFn: async () => {
-      const result = await getTraining(trainingId)
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await getTraining(trainingId);
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
-  })
+  });
 
   const { data: translationState } = useQuery({
     queryKey: ['translations', ...trainingsScopeKey(), 'reader', trainingId, 'es'],
     queryFn: async () => {
-      const result = await getTrainingTranslation(trainingId, 'es')
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await getTrainingTranslation(trainingId, 'es');
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
-  })
+  });
 
-  if (error) return <ErrorNote>{error.message}</ErrorNote>
+  if (error) return <ErrorNote>{error.message}</ErrorNote>;
   if (isLoading || !training)
     return (
       <div className="mx-auto max-w-3xl space-y-4">
@@ -190,7 +194,7 @@ function Reader({ trainingId }: { trainingId: string }) {
         <Skeleton className="h-5 w-1/2" />
         <Skeleton className="h-64" />
       </div>
-    )
+    );
 
   if (training.status !== 'published') {
     return (
@@ -210,50 +214,50 @@ function Reader({ trainingId }: { trainingId: string }) {
           }
         />
       </div>
-    )
+    );
   }
 
   // SAFETY: only an approved, current, correctly aligned translation may
   // render — for every role. The server already narrows what staff receive;
   // this repeats the check for reviewers, whose response carries drafts too.
   // The payload aligns with the *full* block list, deleted media included.
-  const translation = translationState?.translation ?? null
+  const translation = translationState?.translation ?? null;
   const usableTranslation =
     translation != null &&
     translation.status === 'approved' &&
     !translation.stale &&
     translation.payload.blocks.length === training.blocks.length
       ? translation
-      : null
+      : null;
 
-  const esTranslation = lang === 'es' ? usableTranslation : null
+  const esTranslation = lang === 'es' ? usableTranslation : null;
   // SAFETY: the Spanish on screen was machine-written and auto-published —
   // nobody read it. Staff are told, in Spanish, before they act on it.
-  const aiUnreviewed = esTranslation != null && esTranslation.autoApproved
+  const aiUnreviewed = esTranslation != null && esTranslation.autoApproved;
 
-  const title = esTranslation ? esTranslation.payload.title : training.title
+  const title = esTranslation ? esTranslation.payload.title : training.title;
   const description = esTranslation
     ? esTranslation.payload.description || training.description
-    : training.description
-  const heroImage = training.heroImage?.url ?? null
+    : training.description;
+  const heroImage = training.heroImage?.url ?? null;
 
   // Substitute translated text and captions by original index *before*
   // filtering out blocks whose media has been deleted — the payload aligns
   // with the source list, not the visible one. Media and embeds themselves
   // always render from the source block.
   const displayBlocks: TrainingBlockView[] = training.blocks.map((block, index) => {
-    const translated = esTranslation?.payload.blocks[index] ?? null
-    if (!translated) return block
+    const translated = esTranslation?.payload.blocks[index] ?? null;
+    if (!translated) return block;
     if (block.kind === 'text') {
       return translated.text != null
         ? { kind: 'text' as const, doc: plainTextToDoc(translated.text) }
-        : block
+        : block;
     }
-    return translated.caption != null ? { ...block, caption: translated.caption } : block
-  })
+    return translated.caption != null ? { ...block, caption: translated.caption } : block;
+  });
   const visibleBlocks = displayBlocks.filter(
-    (block) => block.kind === 'text' || block.kind === 'embed' || block.media != null
-  )
+    (block) => block.kind === 'text' || block.kind === 'embed' || block.media != null,
+  );
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 tablet:space-y-8">
@@ -277,15 +281,15 @@ function Reader({ trainingId }: { trainingId: string }) {
         />
         <div className="relative space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-          <a
-            href="/reader"
-            className="inline-flex min-h-touch items-center gap-1.5 text-sm font-semibold text-salt-600 transition-colors hover:text-steel-900"
-          >
-            <ArrowLeft className="size-4" aria-hidden />
-            Reader
-          </a>
-          <LanguageControl trainingId={trainingId} lang={lang} onLang={setLang} />
-        </div>
+            <a
+              href="/reader"
+              className="inline-flex min-h-touch items-center gap-1.5 text-sm font-semibold text-salt-600 transition-colors hover:text-steel-900"
+            >
+              <ArrowLeft className="size-4" aria-hidden />
+              Reader
+            </a>
+            <LanguageControl trainingId={trainingId} lang={lang} onLang={setLang} />
+          </div>
           <div className="flex flex-wrap items-center gap-2.5">
             <p className="text-xs font-semibold tracking-[0.18em] text-ember-700 uppercase">
               Training module
@@ -309,7 +313,9 @@ function Reader({ trainingId }: { trainingId: string }) {
               </span>
             )}
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-steel-900 tablet:text-5xl">{title}</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-steel-900 tablet:text-5xl">
+            {title}
+          </h1>
           {description && (
             <p className="max-w-3xl text-sm leading-relaxed text-salt-700 tablet:text-base">
               {description}
@@ -357,7 +363,7 @@ function Reader({ trainingId }: { trainingId: string }) {
 
       <CompletionCard training={training} />
     </div>
-  )
+  );
 }
 
 export function ReaderTraining({ trainingId }: { trainingId: string }) {
@@ -365,5 +371,5 @@ export function ReaderTraining({ trainingId }: { trainingId: string }) {
     <QueryProvider>
       <Reader trainingId={trainingId} />
     </QueryProvider>
-  )
+  );
 }

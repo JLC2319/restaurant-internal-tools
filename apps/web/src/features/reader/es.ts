@@ -1,4 +1,4 @@
-import type { Allergen, Dietary, Unit } from '@rit/shared'
+import type { Allergen, Dietary, Unit } from '@rit/shared';
 
 /**
  * Static Spanish for everything that is an *enum* in the domain: allergen and
@@ -28,7 +28,7 @@ export const allergenEs: Record<Allergen, string> = {
   molluscs: 'moluscos',
   alcohol: 'alcohol',
   pork: 'cerdo',
-}
+};
 
 export const dietaryEs: Record<Dietary, string> = {
   vegetarian: 'vegetariano',
@@ -41,7 +41,7 @@ export const dietaryEs: Record<Dietary, string> = {
   kosher: 'kosher',
   keto: 'keto',
   low_sodium: 'bajo en sodio',
-}
+};
 
 /** Kitchen-standard unit abbreviations. Metric symbols stay as-is. */
 export const unitEs: Record<Unit, string> = {
@@ -64,7 +64,7 @@ export const unitEs: Record<Unit, string> = {
   clove: 'diente',
   can: 'lata',
   pkg: 'paq',
-}
+};
 
 /** The reader's own chrome, in Spanish. */
 export const readerEs = {
@@ -91,4 +91,4 @@ export const readerEs = {
     'Esta traducción la hizo una máquina y nadie la ha revisado. Si algo no cuadra con el original en inglés, confía en el inglés y pregunta a un chef.',
   allergenWarning:
     'La información de alérgenos de esta receta no está completamente verificada. No respondas preguntas de alérgenos con ella — pregunta a un chef.',
-} as const
+} as const;

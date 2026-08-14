@@ -13,13 +13,17 @@ export async function listTrainings(req: Request, res: Response): Promise<void> 
   const trainings = await trainingService.listTrainings(
     req.tenant!,
     req.userId!,
-    req.validatedQuery as ListTrainingsQuery
+    req.validatedQuery as ListTrainingsQuery,
   );
   res.status(200).json(trainings);
 }
 
 export async function getTraining(req: Request, res: Response): Promise<void> {
-  const training = await trainingService.getTraining(req.tenant!, req.userId!, pathParam(req, 'id'));
+  const training = await trainingService.getTraining(
+    req.tenant!,
+    req.userId!,
+    pathParam(req, 'id'),
+  );
   res.status(200).json(training);
 }
 
@@ -27,7 +31,7 @@ export async function createTraining(req: Request, res: Response): Promise<void>
   const training = await trainingService.createTraining(
     req.tenant!,
     req.userId!,
-    req.body as CreateTrainingInput
+    req.body as CreateTrainingInput,
   );
   res.status(201).json(training);
 }
@@ -37,7 +41,7 @@ export async function updateTraining(req: Request, res: Response): Promise<void>
     req.tenant!,
     req.userId!,
     pathParam(req, 'id'),
-    req.body as UpdateTrainingInput
+    req.body as UpdateTrainingInput,
   );
   res.status(200).json(training);
 }
@@ -47,7 +51,7 @@ export async function moveTraining(req: Request, res: Response): Promise<void> {
     req.tenant!,
     req.userId!,
     pathParam(req, 'id'),
-    req.body as MoveTrainingInput
+    req.body as MoveTrainingInput,
   );
   res.status(200).json(training);
 }
@@ -57,7 +61,7 @@ export async function updateTrainingAccess(req: Request, res: Response): Promise
     req.tenant!,
     req.userId!,
     pathParam(req, 'id'),
-    req.body as UpdateTrainingAccessInput
+    req.body as UpdateTrainingAccessInput,
   );
   res.status(200).json(training);
 }
@@ -71,7 +75,7 @@ export async function publishTraining(req: Request, res: Response): Promise<void
   const training = await trainingService.publishTraining(
     req.tenant!,
     req.userId!,
-    pathParam(req, 'id')
+    pathParam(req, 'id'),
   );
   res.status(200).json(training);
 }
@@ -80,7 +84,7 @@ export async function unpublishTraining(req: Request, res: Response): Promise<vo
   const training = await trainingService.unpublishTraining(
     req.tenant!,
     req.userId!,
-    pathParam(req, 'id')
+    pathParam(req, 'id'),
   );
   res.status(200).json(training);
 }
@@ -94,7 +98,7 @@ export async function unarchiveTraining(req: Request, res: Response): Promise<vo
   const training = await trainingService.unarchiveTraining(
     req.tenant!,
     req.userId!,
-    pathParam(req, 'id')
+    pathParam(req, 'id'),
   );
   res.status(200).json(training);
 }
@@ -103,7 +107,7 @@ export async function completeTraining(req: Request, res: Response): Promise<voi
   const state = await trainingService.completeTraining(
     req.tenant!,
     req.userId!,
-    pathParam(req, 'id')
+    pathParam(req, 'id'),
   );
   res.status(200).json(state);
 }
@@ -112,7 +116,7 @@ export async function uncompleteTraining(req: Request, res: Response): Promise<v
   const state = await trainingService.uncompleteTraining(
     req.tenant!,
     req.userId!,
-    pathParam(req, 'id')
+    pathParam(req, 'id'),
   );
   res.status(200).json(state);
 }

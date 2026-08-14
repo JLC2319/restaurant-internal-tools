@@ -1,6 +1,6 @@
-import type { Unit } from '@rit/shared'
-import { unitValues, unitFamily } from '@rit/shared'
-import { inputClass } from '@/components/ui'
+import type { Unit } from '@rit/shared';
+import { unitValues, unitFamily } from '@rit/shared';
+import { inputClass } from '@/components/ui';
 
 /** Unit select grouped by family, so "qt" is never a scroll past "kg". */
 export function UnitSelect({
@@ -9,13 +9,13 @@ export function UnitSelect({
   onChange,
   ariaLabel,
 }: {
-  id?: string
-  value: Unit
-  onChange: (unit: Unit) => void
-  ariaLabel?: string
+  id?: string;
+  value: Unit;
+  onChange: (unit: Unit) => void;
+  ariaLabel?: string;
 }) {
-  const families: Record<string, Unit[]> = { weight: [], volume: [], count: [] }
-  for (const unit of unitValues) families[unitFamily[unit]].push(unit)
+  const families: Record<string, Unit[]> = { weight: [], volume: [], count: [] };
+  for (const unit of unitValues) families[unitFamily[unit]].push(unit);
   return (
     <select
       id={id}
@@ -34,5 +34,5 @@ export function UnitSelect({
         </optgroup>
       ))}
     </select>
-  )
+  );
 }

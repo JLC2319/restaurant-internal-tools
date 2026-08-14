@@ -165,7 +165,7 @@ function mediaIdsOf(blocks: ITrainingBlock[], kind: 'image' | 'video'): string[]
 async function assertBlockMediaAttachable(
   ctx: TenantContext,
   targetScope: TenantScope,
-  blocks: ITrainingBlock[]
+  blocks: ITrainingBlock[],
 ): Promise<void> {
   await assertAssetsAttachable(ctx, targetScope, mediaIdsOf(blocks, 'image'), 'photo');
   await assertAssetsAttachable(ctx, targetScope, mediaIdsOf(blocks, 'video'), 'video');
@@ -219,7 +219,7 @@ async function blockMediaFor(blocks: ITrainingBlock[]): Promise<Map<string, Medi
  */
 function shapeBlocks(
   blocks: ITrainingBlock[],
-  media: Map<string, MediaAssetView>
+  media: Map<string, MediaAssetView>,
 ): TrainingBlockView[] {
   const views: TrainingBlockView[] = [];
   for (const block of blocks) {
@@ -258,7 +258,10 @@ function shapeBlocks(
 // ── Shaping ───────────────────────────────────────────────────────────────────
 
 /** First image block that still resolves — the card art. */
-function heroOf(blocks: ITrainingBlock[], media: Map<string, MediaAssetView>): MediaAssetView | null {
+function heroOf(
+  blocks: ITrainingBlock[],
+  media: Map<string, MediaAssetView>,
+): MediaAssetView | null {
   for (const block of blocks) {
     if (block.kind !== 'image' || !block.mediaId) continue;
     const asset = media.get(String(block.mediaId));
@@ -270,7 +273,7 @@ function heroOf(blocks: ITrainingBlock[], media: Map<string, MediaAssetView>): M
 function shapeSummary(
   head: LeanTraining,
   media: Map<string, MediaAssetView>,
-  myCompletionAt: Date | null
+  myCompletionAt: Date | null,
 ): TrainingSummary {
   return {
     _id: String(head._id),
@@ -292,7 +295,7 @@ function shapeSummary(
 async function shapeDetail(
   ctx: TenantContext,
   userId: string,
-  head: LeanTraining
+  head: LeanTraining,
 ): Promise<TrainingDetail> {
   const headId = String(head._id);
   const manage = canManage(ctx, shapeScope(head.scope));
@@ -339,7 +342,7 @@ async function shapeDetail(
 export async function listTrainings(
   ctx: TenantContext,
   userId: string,
-  query: ListTrainingsQuery
+  query: ListTrainingsQuery,
 ): Promise<PaginatedResponse<TrainingSummary>> {
   const filter: Record<string, unknown> = {
     ...scopeReadFilter(ctx),
@@ -377,15 +380,21 @@ export async function listTrainings(
   }
 
   const items = rows.map((row) =>
-    shapeSummary(row, media, completedAt.get(String(row._id)) ?? null)
+    shapeSummary(row, media, completedAt.get(String(row._id)) ?? null),
   );
-  return { items, total, page: query.page, limit: query.limit, totalPages: Math.ceil(total / query.limit) };
+  return {
+    items,
+    total,
+    page: query.page,
+    limit: query.limit,
+    totalPages: Math.ceil(total / query.limit),
+  };
 }
 
 export async function getTraining(
   ctx: TenantContext,
   userId: string,
-  id: string
+  id: string,
 ): Promise<TrainingDetail> {
   const head = await TrainingModule.findOne({
     _id: id,
@@ -404,7 +413,7 @@ export async function getTraining(
 export async function createTraining(
   ctx: TenantContext,
   userId: string,
-  input: CreateTrainingInput
+  input: CreateTrainingInput,
 ): Promise<TrainingDetail> {
   assertRole(ctx, 'chef');
   const scope = scopeForWrite(ctx, {
@@ -444,7 +453,7 @@ export async function createTraining(
 async function loadForWrite(
   ctx: TenantContext,
   id: string,
-  allowArchived = false
+  allowArchived = false,
 ): Promise<ITrainingModule> {
   const head = await TrainingModule.findOne({
     _id: id,
@@ -464,7 +473,7 @@ export async function updateTraining(
   ctx: TenantContext,
   userId: string,
   id: string,
-  input: UpdateTrainingInput
+  input: UpdateTrainingInput,
 ): Promise<TrainingDetail> {
   assertRole(ctx, 'chef');
   const head = await loadForWrite(ctx, id);
@@ -506,7 +515,7 @@ export async function moveTraining(
   ctx: TenantContext,
   userId: string,
   id: string,
-  input: MoveTrainingInput
+  input: MoveTrainingInput,
 ): Promise<TrainingDetail> {
   assertRole(ctx, 'manager');
   const head = await loadForWrite(ctx, id, true);
@@ -523,10 +532,7 @@ export async function moveTraining(
   await assertScopeExists(newScope);
 
   const oldScope = shapeScope(head.scope);
-  if (
-    oldScope.propertyId === newScope.propertyId &&
-    oldScope.locationId === newScope.locationId
-  ) {
+  if (oldScope.propertyId === newScope.propertyId && oldScope.locationId === newScope.locationId) {
     return getTraining(ctx, userId, id);
   }
 
@@ -539,7 +545,7 @@ export async function moveTraining(
   // new audience (never narrows; see widenAssetsToCover).
   await widenAssetsToCover(
     newScope,
-    head.blocks.filter((block) => block.mediaId).map((block) => String(block.mediaId))
+    head.blocks.filter((block) => block.mediaId).map((block) => String(block.mediaId)),
   );
 
   const scopeDoc = {
@@ -571,7 +577,7 @@ export async function updateTrainingAccess(
   ctx: TenantContext,
   userId: string,
   id: string,
-  input: UpdateTrainingAccessInput
+  input: UpdateTrainingAccessInput,
 ): Promise<TrainingDetail> {
   assertRole(ctx, 'chef');
   const head = await loadForWrite(ctx, id);
@@ -597,7 +603,7 @@ export async function updateTrainingAccess(
  */
 export async function listAccessCandidates(
   ctx: TenantContext,
-  id: string
+  id: string,
 ): Promise<AccessCandidate[]> {
   assertRole(ctx, 'chef');
   // Archived allowed: this read only supports the panel, it mutates nothing.
@@ -626,7 +632,7 @@ export async function listAccessCandidates(
     });
   }
   return [...byUser.values()].sort((a, b) =>
-    `${a.name.last} ${a.name.first}`.localeCompare(`${b.name.last} ${b.name.first}`)
+    `${a.name.last} ${a.name.first}`.localeCompare(`${b.name.last} ${b.name.first}`),
   );
 }
 
@@ -636,7 +642,7 @@ export async function listAccessCandidates(
 export async function publishTraining(
   ctx: TenantContext,
   userId: string,
-  id: string
+  id: string,
 ): Promise<TrainingDetail> {
   assertRole(ctx, 'chef');
   const head = await loadForWrite(ctx, id);
@@ -657,7 +663,7 @@ export async function publishTraining(
 export async function unpublishTraining(
   ctx: TenantContext,
   userId: string,
-  id: string
+  id: string,
 ): Promise<TrainingDetail> {
   assertRole(ctx, 'chef');
   const head = await loadForWrite(ctx, id);
@@ -683,7 +689,7 @@ export async function archiveTraining(ctx: TenantContext, id: string): Promise<v
 export async function unarchiveTraining(
   ctx: TenantContext,
   userId: string,
-  id: string
+  id: string,
 ): Promise<TrainingDetail> {
   assertRole(ctx, 'manager');
   const head = await loadForWrite(ctx, id, true);
@@ -703,7 +709,7 @@ export async function unarchiveTraining(
 export async function completeTraining(
   ctx: TenantContext,
   userId: string,
-  id: string
+  id: string,
 ): Promise<TrainingCompletionState> {
   const head = await TrainingModule.findOne({
     _id: id,
@@ -728,7 +734,7 @@ export async function completeTraining(
         completedAt: new Date(),
       },
     },
-    { new: true, upsert: true }
+    { new: true, upsert: true },
   ).lean();
 
   return { completed: true, completedAt: completion!.completedAt.toISOString() };
@@ -738,7 +744,7 @@ export async function completeTraining(
 export async function uncompleteTraining(
   ctx: TenantContext,
   userId: string,
-  id: string
+  id: string,
 ): Promise<TrainingCompletionState> {
   const head = await TrainingModule.findOne({
     _id: id,
@@ -760,7 +766,7 @@ export async function uncompleteTraining(
  */
 export async function listCompletions(
   ctx: TenantContext,
-  id: string
+  id: string,
 ): Promise<TrainingCompletionRow[]> {
   assertRole(ctx, 'chef');
   const head = await TrainingModule.findOne({

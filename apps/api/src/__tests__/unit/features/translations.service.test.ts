@@ -61,7 +61,7 @@ describe('sourceHashOf', () => {
   it('changes when a step changes', () => {
     const a = sourceHashOf(translatableProjection('R', content()));
     const b = sourceHashOf(
-      translatableProjection('R', content({ steps: ['Whisk everything.', 'Chill overnight.'] }))
+      translatableProjection('R', content({ steps: ['Whisk everything.', 'Chill overnight.'] })),
     );
     expect(a).not.toBe(b);
   });
@@ -116,7 +116,7 @@ describe('sanitizePayload', () => {
   it('rejects an empty translated name or step', () => {
     expect(() => sanitizePayload({ ...goodRaw, name: '   ' }, projection)).toThrowError(AppError);
     expect(() =>
-      sanitizePayload({ ...goodRaw, steps: ['Bate todo.', '   '] }, projection)
+      sanitizePayload({ ...goodRaw, steps: ['Bate todo.', '   '] }, projection),
     ).toThrowError(AppError);
   });
 
@@ -124,7 +124,10 @@ describe('sanitizePayload', () => {
     const raw = {
       ...goodRaw,
       name: 'x'.repeat(500),
-      ingredients: [{ name: 'y'.repeat(500), note: 'z'.repeat(900) }, { name: null, note: null }],
+      ingredients: [
+        { name: 'y'.repeat(500), note: 'z'.repeat(900) },
+        { name: null, note: null },
+      ],
     };
     const payload = sanitizePayload(raw, projection);
     expect(payload.name).toHaveLength(160);

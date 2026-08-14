@@ -96,7 +96,7 @@ function blockPlainText(block: ITrainingBlock): string {
  * the projection and correctly invalidates the translation.
  */
 export function trainingTranslatableProjection(
-  head: Pick<ITrainingModule, 'title' | 'description' | 'blocks'>
+  head: Pick<ITrainingModule, 'title' | 'description' | 'blocks'>,
 ): TrainingTranslatableProjection {
   return {
     title: head.title,
@@ -152,7 +152,7 @@ Rules:
  */
 export function sanitizeTrainingPayload(
   raw: z.infer<typeof llmTrainingTranslationSchema>,
-  projection: TrainingTranslatableProjection
+  projection: TrainingTranslatableProjection,
 ): ITrainingTranslationPayload {
   const misaligned = () =>
     new AppError('The translation did not line up with the training. Please try again.', 502);
@@ -185,7 +185,7 @@ export function sanitizeTrainingPayload(
 
 /** One whole-document call — block-by-block calls lose context and multiply cost. */
 async function machineTranslate(
-  projection: TrainingTranslatableProjection
+  projection: TrainingTranslatableProjection,
 ): Promise<ITrainingTranslationPayload> {
   let response;
   try {
@@ -275,7 +275,7 @@ async function loadHeadForManage(ctx: TenantContext, trainingId: string): Promis
 export async function getTrainingTranslationState(
   ctx: TenantContext,
   trainingId: string,
-  locale: TargetLocale
+  locale: TargetLocale,
 ): Promise<TrainingTranslationState> {
   const head = await loadHead(ctx, trainingId);
   // Unpublished or archived work is invisible to readers — existence hiding,
@@ -320,7 +320,7 @@ export async function requestTrainingTranslation(
   ctx: TenantContext,
   userId: string,
   trainingId: string,
-  locale: TargetLocale
+  locale: TargetLocale,
 ): Promise<TrainingTranslationView> {
   if (!env.translationEnabled) {
     throw new AppError('Machine translation is not configured on this server', 503);
@@ -329,7 +329,7 @@ export async function requestTrainingTranslation(
   if (head.status !== 'published') {
     throw new AppError(
       'This training is not published. Translation follows what staff read — publish it first.',
-      409
+      409,
     );
   }
 
@@ -354,7 +354,7 @@ export async function requestTrainingTranslation(
         autoApproved: false,
       },
     },
-    { returnDocument: 'after', upsert: true }
+    { returnDocument: 'after', upsert: true },
   ).lean();
 
   // A chef translating by hand settles whatever the last automatic attempt did
@@ -373,7 +373,7 @@ export async function updateTrainingTranslation(
   ctx: TenantContext,
   trainingId: string,
   locale: TargetLocale,
-  payload: TrainingTranslationPayloadInput
+  payload: TrainingTranslationPayloadInput,
 ): Promise<TrainingTranslationView> {
   const head = await loadHeadForManage(ctx, trainingId);
 
@@ -390,7 +390,7 @@ export async function updateTrainingTranslation(
   if (payload.blocks.length !== doc.payload.blocks.length) {
     throw new AppError(
       'The edited translation does not line up with the training. Reload and try again.',
-      409
+      409,
     );
   }
 
@@ -429,7 +429,7 @@ export async function approveTrainingTranslation(
   ctx: TenantContext,
   userId: string,
   trainingId: string,
-  locale: TargetLocale
+  locale: TargetLocale,
 ): Promise<TrainingTranslationView> {
   const head = await loadHeadForManage(ctx, trainingId);
 
@@ -443,7 +443,7 @@ export async function approveTrainingTranslation(
   if (isStale(head, doc.toObject())) {
     throw new AppError(
       'The training has changed since this translation was made. Re-translate before approving.',
-      409
+      409,
     );
   }
 
@@ -462,7 +462,7 @@ export async function approveTrainingTranslation(
 export async function rejectTrainingTranslation(
   ctx: TenantContext,
   trainingId: string,
-  locale: TargetLocale
+  locale: TargetLocale,
 ): Promise<TrainingTranslationView> {
   const head = await loadHeadForManage(ctx, trainingId);
 
@@ -494,7 +494,7 @@ async function runAutoTranslation(
   head: LeanTraining,
   locale: TargetLocale,
   mode: TranslationPublishMode,
-  actorUserId: string
+  actorUserId: string,
 ): Promise<'written' | 'skipped'> {
   const projection = trainingTranslatableProjection(head);
   const sourceHash = trainingSourceHashOf(projection);
@@ -548,7 +548,7 @@ async function runAutoTranslation(
         autoApproved: autoPublish,
       },
     },
-    { upsert: true }
+    { upsert: true },
   );
 
   return 'written';
@@ -564,7 +564,7 @@ const AUTO_TRANSLATION_TIMEOUT_MS = 3 * 60_000;
  * actually happen, so the caller only detaches the job when there is one.
  */
 export async function beginAutoTrainingTranslation(
-  trainingId: Types.ObjectId | string
+  trainingId: Types.ObjectId | string,
 ): Promise<boolean> {
   try {
     if (!env.translationEnabled) return false;
@@ -577,7 +577,7 @@ export async function beginAutoTrainingTranslation(
 
     await TrainingModule.updateOne(
       { _id: head._id },
-      { $set: { autoTranslation: { status: 'running', startedAt: new Date() } } }
+      { $set: { autoTranslation: { status: 'running', startedAt: new Date() } } },
     );
     return true;
   } catch (err) {
@@ -594,7 +594,7 @@ export async function beginAutoTrainingTranslation(
 /** Clears the marker, or leaves `failed` behind for the UI to explain. */
 async function endAutoTranslation(
   trainingId: Types.ObjectId | string,
-  outcome: 'done' | 'failed'
+  outcome: 'done' | 'failed',
 ): Promise<void> {
   try {
     const head = await TrainingModule.findById(trainingId).select('autoTranslation').lean();
@@ -609,7 +609,7 @@ async function endAutoTranslation(
           autoTranslation:
             outcome === 'done' ? null : { ...head.autoTranslation, status: 'failed' as const },
         },
-      }
+      },
     );
   } catch (err) {
     console.error('Could not clear the automatic training translation marker', {
@@ -650,7 +650,7 @@ function autoTranslationFlags(head: LeanTraining): {
  */
 export async function autoTranslateTrainingOnPublish(
   trainingId: Types.ObjectId | string,
-  actorUserId: string
+  actorUserId: string,
 ): Promise<void> {
   try {
     if (!env.translationEnabled) return;

@@ -151,7 +151,7 @@ function canonicalIngredients(
     name?: string | null;
     recipeId?: unknown;
     quantity: { amount: number; unit: string };
-  }>
+  }>,
 ): string {
   return JSON.stringify(
     lines.map((l) => ({
@@ -160,7 +160,7 @@ function canonicalIngredients(
       recipeId: l.recipeId ? String(l.recipeId) : null,
       amount: l.quantity.amount,
       unit: l.quantity.unit,
-    }))
+    })),
   );
 }
 
@@ -176,7 +176,7 @@ function canonicalIngredients(
 export function mergeAllergenTags(
   existing: IAllergenTag[],
   requested: Allergen[],
-  ingredientsChanged: boolean
+  ingredientsChanged: boolean,
 ): IAllergenTag[] {
   const prior = new Map(existing.map((t) => [t.allergen, t]));
   return requested.map((allergen) => {
@@ -209,13 +209,19 @@ function buildContent(input: RecipeContentInput, allergens: IAllergenTag[]): IRe
     yield: input.yield,
     ingredients: input.ingredients.map((line) =>
       line.kind === 'item'
-        ? { kind: 'item' as const, name: line.name, recipeId: null, quantity: line.quantity, note: line.note }
+        ? {
+            kind: 'item' as const,
+            name: line.name,
+            recipeId: null,
+            quantity: line.quantity,
+            note: line.note,
+          }
         : {
             kind: 'recipe' as const,
             recipeId: new Types.ObjectId(line.recipeId),
             quantity: line.quantity,
             note: line.note,
-          }
+          },
     ),
     steps: input.steps,
     allergens,
@@ -247,7 +253,7 @@ async function validateSubRefs(
   ctx: TenantContext,
   targetScope: TenantScope,
   lines: Array<{ kind: string; recipeId?: unknown }>,
-  accessExemptIds?: Set<string>
+  accessExemptIds?: Set<string>,
 ): Promise<void> {
   const refIds = refIdsOf(lines);
   if (refIds.length === 0) return;
@@ -291,12 +297,15 @@ async function validateSubRefs(
   });
 
   if (archivedLines.length > 0) {
-    throw new AppError(`Ingredient line ${archivedLines.join(', ')} references an archived recipe`, 400);
+    throw new AppError(
+      `Ingredient line ${archivedLines.join(', ')} references an archived recipe`,
+      400,
+    );
   }
   if (badLines.length > 0) {
     throw new AppError(
       `Ingredient line ${badLines.join(', ')} references a recipe scoped below this one — it would be unreadable for part of this recipe's audience`,
-      400
+      400,
     );
   }
 }
@@ -316,7 +325,7 @@ async function validateSubRefs(
 export async function assertNoCycle(
   ctx: TenantContext,
   rootId: string,
-  lines: Array<{ kind: string; recipeId?: unknown }>
+  lines: Array<{ kind: string; recipeId?: unknown }>,
 ): Promise<void> {
   const cycle = () => new AppError('This change would create a circular sub-recipe reference', 409);
 
@@ -378,7 +387,7 @@ function shapeContent(
   content: IRecipeContent,
   subNames: Map<string, string>,
   photos: Map<string, MediaAssetView>,
-  staffView: boolean
+  staffView: boolean,
 ): RecipeContentView {
   const tags = staffView
     ? content.allergens.filter((t) => t.status === PUBLISHABLE_STATUS)
@@ -439,7 +448,7 @@ function heroOf(source: SummarySource, photos: Map<string, MediaAssetView>): Med
 function shapeSummary(
   head: LeanRecipe,
   source: SummarySource,
-  photos: Map<string, MediaAssetView>
+  photos: Map<string, MediaAssetView>,
 ): RecipeSummary {
   return {
     _id: String(head._id),
@@ -478,7 +487,9 @@ function shapeVersionSummary(v: LeanVersion, activeVersionId: unknown): RecipeVe
  * personAccess.ts) — the restricted recipe's content stays unreachable, and
  * clicking through to it 404s.
  */
-async function subNamesFor(contents: Array<IRecipeContent | null | undefined>): Promise<Map<string, string>> {
+async function subNamesFor(
+  contents: Array<IRecipeContent | null | undefined>,
+): Promise<Map<string, string>> {
   const ids = new Set<string>();
   for (const content of contents) {
     if (!content) continue;
@@ -493,7 +504,7 @@ async function subNamesFor(contents: Array<IRecipeContent | null | undefined>): 
 
 /** Batch-resolves every plating photo referenced by `contents`, keyed by id. */
 async function photosFor(
-  contents: Array<PhotoSource | null | undefined>
+  contents: Array<PhotoSource | null | undefined>,
 ): Promise<Map<string, MediaAssetView>> {
   const ids = new Set<string>();
   for (const content of contents) {
@@ -575,7 +586,7 @@ async function shapeDetail(ctx: TenantContext, head: LeanRecipe): Promise<Recipe
 
 export async function listRecipes(
   ctx: TenantContext,
-  query: ListRecipesQuery
+  query: ListRecipesQuery,
 ): Promise<PaginatedResponse<RecipeSummary>> {
   const reader = isReader(ctx);
 
@@ -615,14 +626,20 @@ export async function listRecipes(
       ? (contentByVersion.get(String(row.activeVersionId)) ?? null)
       : reader
         ? null
-        : row.workingCopy
+        : row.workingCopy,
   );
 
   // One media round-trip for the whole page rather than one per row.
   const photos = await photosFor(sources);
   const items = rows.map((row, index) => shapeSummary(row, sources[index], photos));
 
-  return { items, total, page: query.page, limit: query.limit, totalPages: Math.ceil(total / query.limit) };
+  return {
+    items,
+    total,
+    page: query.page,
+    limit: query.limit,
+    totalPages: Math.ceil(total / query.limit),
+  };
 }
 
 /**
@@ -659,7 +676,7 @@ export async function getRecipe(ctx: TenantContext, id: string): Promise<RecipeD
 export async function createRecipe(
   ctx: TenantContext,
   userId: string,
-  input: CreateRecipeInput
+  input: CreateRecipeInput,
 ): Promise<RecipeDetail> {
   assertRole(ctx, 'chef');
   const scope = scopeForWrite(ctx, {
@@ -698,7 +715,11 @@ export async function createRecipe(
 }
 
 /** Loads a head for mutation: scoped + person-ACL-gated (404), write-tier checked (403), not archived (409). */
-async function loadForWrite(ctx: TenantContext, id: string, allowArchived = false): Promise<IRecipe> {
+async function loadForWrite(
+  ctx: TenantContext,
+  id: string,
+  allowArchived = false,
+): Promise<IRecipe> {
   const head = await Recipe.findOne({
     _id: id,
     ...scopeReadFilter(ctx),
@@ -717,7 +738,7 @@ export async function updateRecipe(
   ctx: TenantContext,
   userId: string,
   id: string,
-  input: UpdateRecipeInput
+  input: UpdateRecipeInput,
 ): Promise<RecipeDetail> {
   assertRole(ctx, 'chef');
   const head = await loadForWrite(ctx, id);
@@ -740,7 +761,7 @@ export async function updateRecipe(
       ctx,
       scope,
       input.content.ingredients,
-      new Set(refIdsOf(head.workingCopy.ingredients))
+      new Set(refIdsOf(head.workingCopy.ingredients)),
     );
     await assertNoCycle(ctx, id, input.content.ingredients);
     await assertPhotosAttachable(ctx, scope, input.content.photoIds);
@@ -754,7 +775,7 @@ export async function updateRecipe(
     const tags = mergeAllergenTags(
       head.workingCopy.allergens,
       input.content.allergens,
-      ingredientsChanged
+      ingredientsChanged,
     );
     head.workingCopy = buildContent(input.content, tags);
   }
@@ -769,7 +790,7 @@ export async function approveAllergens(
   ctx: TenantContext,
   userId: string,
   id: string,
-  input: ApproveAllergensInput
+  input: ApproveAllergensInput,
 ): Promise<RecipeDetail> {
   assertRole(ctx, 'chef');
   const head = await loadForWrite(ctx, id);
@@ -787,8 +808,13 @@ export async function approveAllergens(
   const now = new Date();
   head.workingCopy.allergens = tags.map((t) =>
     approving.has(t.allergen) && t.status !== PUBLISHABLE_STATUS
-      ? { allergen: t.allergen, status: PUBLISHABLE_STATUS, approvedBy: new Types.ObjectId(userId), approvedAt: now }
-      : t
+      ? {
+          allergen: t.allergen,
+          status: PUBLISHABLE_STATUS,
+          approvedBy: new Types.ObjectId(userId),
+          approvedAt: now,
+        }
+      : t,
   );
 
   await head.save();
@@ -809,7 +835,7 @@ export async function approveAllergens(
 export async function updateRecipeAccess(
   ctx: TenantContext,
   id: string,
-  input: UpdateRecipeAccessInput
+  input: UpdateRecipeAccessInput,
 ): Promise<RecipeDetail> {
   assertRole(ctx, 'chef');
   const head = await loadForWrite(ctx, id);
@@ -838,7 +864,7 @@ export async function updateRecipeAccess(
  */
 export async function listAccessCandidates(
   ctx: TenantContext,
-  id: string
+  id: string,
 ): Promise<AccessCandidate[]> {
   assertRole(ctx, 'chef');
   // Archived allowed: this read only supports the panel, it mutates nothing.
@@ -867,7 +893,7 @@ export async function listAccessCandidates(
     });
   }
   return [...byUser.values()].sort((a, b) =>
-    `${a.name.last} ${a.name.first}`.localeCompare(`${b.name.last} ${b.name.first}`)
+    `${a.name.last} ${a.name.first}`.localeCompare(`${b.name.last} ${b.name.first}`),
   );
 }
 
@@ -877,7 +903,7 @@ export async function saveVersion(
   ctx: TenantContext,
   userId: string,
   id: string,
-  input: SaveVersionInput
+  input: SaveVersionInput,
 ): Promise<RecipeVersionSummary> {
   assertRole(ctx, 'chef');
   await loadForWrite(ctx, id);
@@ -889,7 +915,7 @@ export async function saveVersion(
   const head = await Recipe.findOneAndUpdate(
     { _id: id, ...scopeReadFilter(ctx), ...personAccessFilter(ctx) },
     { $inc: { currentVersion: 1 } },
-    { new: true }
+    { new: true },
   ).lean();
   if (!head) throw new AppError('Not found', 404);
 
@@ -935,7 +961,7 @@ export async function publishRecipe(
   ctx: TenantContext,
   userId: string,
   id: string,
-  input: PublishRecipeInput
+  input: PublishRecipeInput,
 ): Promise<RecipeDetail> {
   assertRole(ctx, 'chef');
   const head = await loadForWrite(ctx, id);
@@ -947,13 +973,13 @@ export async function publishRecipe(
   if (head.activeVersionId) {
     throw new AppError(
       'This recipe is already live. Save a version and set it live to change what staff read.',
-      409
+      409,
     );
   }
   if (mode === 'publish_on_save_verified' && !input.approveAllergens) {
     throw new AppError(
       'This scope requires allergen sign-off before a recipe goes live. Verify the allergen tags, then publish.',
-      409
+      409,
     );
   }
 
@@ -965,7 +991,10 @@ export async function publishRecipe(
   return activateVersion(ctx, userId, id, version._id);
 }
 
-export async function listVersions(ctx: TenantContext, id: string): Promise<RecipeVersionSummary[]> {
+export async function listVersions(
+  ctx: TenantContext,
+  id: string,
+): Promise<RecipeVersionSummary[]> {
   assertRole(ctx, 'chef');
   const head = await Recipe.findOne({
     _id: id,
@@ -985,7 +1014,7 @@ export async function listVersions(ctx: TenantContext, id: string): Promise<Reci
 export async function getVersion(
   ctx: TenantContext,
   id: string,
-  versionId: string
+  versionId: string,
 ): Promise<RecipeVersionDetail> {
   assertRole(ctx, 'chef');
   const head = await Recipe.findOne({
@@ -1018,7 +1047,7 @@ export async function activateVersion(
   ctx: TenantContext,
   userId: string,
   id: string,
-  versionId: string
+  versionId: string,
 ): Promise<RecipeDetail> {
   assertRole(ctx, 'chef');
   const head = await loadForWrite(ctx, id);
@@ -1056,7 +1085,7 @@ export async function deactivateRecipe(ctx: TenantContext, id: string): Promise<
 export async function restoreVersion(
   ctx: TenantContext,
   id: string,
-  versionId: string
+  versionId: string,
 ): Promise<RecipeDetail> {
   assertRole(ctx, 'chef');
   const head = await loadForWrite(ctx, id);
@@ -1072,7 +1101,7 @@ export async function restoreVersion(
     ctx,
     shapeScope(head.scope),
     version.content.ingredients,
-    new Set(refIdsOf(version.content.ingredients))
+    new Set(refIdsOf(version.content.ingredients)),
   );
   await assertNoCycle(ctx, id, version.content.ingredients);
 
@@ -1095,7 +1124,7 @@ export async function forkRecipe(
   ctx: TenantContext,
   userId: string,
   id: string,
-  input: ForkRecipeInput
+  input: ForkRecipeInput,
 ): Promise<RecipeDetail> {
   assertRole(ctx, 'chef');
 
@@ -1206,7 +1235,7 @@ async function assertConsumersStillCovered(head: IRecipe, newScope: TenantScope)
         activeVersionId: { $in: referencingVersions.map((v) => v._id) },
       })
         .select('scope')
-        .lean())
+        .lean()),
     );
   }
 
@@ -1216,7 +1245,7 @@ async function assertConsumersStillCovered(head: IRecipe, newScope: TenantScope)
     // this mirrors the archive guard's name-free 409.
     throw new AppError(
       `${blocked} active ${blocked === 1 ? 'recipe uses' : 'recipes use'} this as a sub-recipe and would no longer see it. Move or update those first.`,
-      409
+      409,
     );
   }
 }
@@ -1236,7 +1265,7 @@ async function assertConsumersStillCovered(head: IRecipe, newScope: TenantScope)
 export async function moveRecipe(
   ctx: TenantContext,
   id: string,
-  input: MoveRecipeInput
+  input: MoveRecipeInput,
 ): Promise<RecipeDetail> {
   assertRole(ctx, 'manager');
   const head = await loadForWrite(ctx, id, true);
@@ -1253,10 +1282,7 @@ export async function moveRecipe(
   await assertScopeExists(newScope);
 
   const oldScope = shapeScope(head.scope);
-  if (
-    oldScope.propertyId === newScope.propertyId &&
-    oldScope.locationId === newScope.locationId
-  ) {
+  if (oldScope.propertyId === newScope.propertyId && oldScope.locationId === newScope.locationId) {
     return getRecipe(ctx, id);
   }
 
@@ -1264,14 +1290,19 @@ export async function moveRecipe(
     ? await RecipeVersion.findById(head.activeVersionId).lean()
     : null;
   const contents = [head.workingCopy, active?.content].filter(
-    (content): content is IRecipeContent => content != null
+    (content): content is IRecipeContent => content != null,
   );
 
   // Everything this recipe consumes must sit at-or-above its NEW home. The
   // refs are all pre-existing, so they stay exempt from the person-level
   // access check — this is a scope re-validation, not a new attachment.
   for (const content of contents) {
-    await validateSubRefs(ctx, newScope, content.ingredients, new Set(refIdsOf(content.ingredients)));
+    await validateSubRefs(
+      ctx,
+      newScope,
+      content.ingredients,
+      new Set(refIdsOf(content.ingredients)),
+    );
   }
   // …and everything that consumes IT must still see it.
   await assertConsumersStillCovered(head, newScope);
@@ -1285,7 +1316,7 @@ export async function moveRecipe(
   // audience (never narrows; see widenAssetsToCover).
   await widenAssetsToCover(
     newScope,
-    contents.flatMap((content) => content.photoIds.map(String))
+    contents.flatMap((content) => content.photoIds.map(String)),
   );
 
   const scopeDoc = {

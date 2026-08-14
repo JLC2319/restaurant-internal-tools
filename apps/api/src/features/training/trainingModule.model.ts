@@ -22,7 +22,7 @@ const scopeSchema = new Schema<IScope>(
     propertyId: { type: Schema.Types.ObjectId, ref: 'Property', default: null },
     locationId: { type: Schema.Types.ObjectId, ref: 'Location', default: null },
   },
-  { _id: false }
+  { _id: false },
 );
 
 /**
@@ -42,7 +42,7 @@ const blockSchema = new Schema<ITrainingBlock>(
     url: { type: String, trim: true, maxlength: 500 },
     caption: { type: String, trim: true, maxlength: 300 },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const trainingModuleSchema = new Schema<ITrainingModule>(
@@ -59,10 +59,7 @@ const trainingModuleSchema = new Schema<ITrainingModule>(
     // backfill. No index: gated queries are _id-keyed or bounded by the
     // org-prefixed list index below.
     access: {
-      type: new Schema(
-        { userIds: [{ type: Schema.Types.ObjectId, ref: 'User' }] },
-        { _id: false }
-      ),
+      type: new Schema({ userIds: [{ type: Schema.Types.ObjectId, ref: 'User' }] }, { _id: false }),
       default: null,
     },
     // Set before the detached translation job starts and cleared when it
@@ -74,13 +71,13 @@ const trainingModuleSchema = new Schema<ITrainingModule>(
           status: { type: String, enum: ['running', 'failed'], required: true },
           startedAt: { type: Date, required: true },
         },
-        { _id: false }
+        { _id: false },
       ),
       default: null,
     },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   },
-  { timestamps: { createdAt: 'createdAt', updatedAt: 'modifiedAt' } }
+  { timestamps: { createdAt: 'createdAt', updatedAt: 'modifiedAt' } },
 );
 
 // Scoped list queries: filter by org + status, sort/search on title.

@@ -37,6 +37,6 @@ await run(async () => {
   });
 
   console.log(
-    `created ${user.email} (${user._id}) emailVerified=${user.emailVerified} status=${user.status}`
+    `created ${user.email} (${user._id}) emailVerified=${user.emailVerified} status=${user.status}`,
   );
 });

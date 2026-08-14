@@ -1,6 +1,6 @@
-import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import type { RecipeSummary, TrainingSummary } from '@rit/shared'
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import type { RecipeSummary, TrainingSummary } from '@rit/shared';
 import {
   BookOpen,
   CheckCircle2,
@@ -10,10 +10,10 @@ import {
   Search,
   ShieldAlert,
   ShieldCheck,
-} from 'lucide-react'
-import { listRecipes, recipesScopeKey } from '@/features/recipes/api'
-import { listTrainings, trainingsScopeKey } from '@/features/training/api'
-import { QueryProvider } from '@/lib/QueryProvider'
+} from 'lucide-react';
+import { listRecipes, recipesScopeKey } from '@/features/recipes/api';
+import { listTrainings, trainingsScopeKey } from '@/features/training/api';
+import { QueryProvider } from '@/lib/QueryProvider';
 import {
   EmptyState,
   ErrorNote,
@@ -23,7 +23,7 @@ import {
   cardClass,
   cardHoverClass,
   inputClass,
-} from '@/components/ui'
+} from '@/components/ui';
 
 /**
  * The reader's shelf: everything the line may cook from or study, and nothing
@@ -35,14 +35,15 @@ import {
  * targets, every control clearing `min-h-touch` for gloved hands.
  */
 
-type Shelf = 'recipes' | 'training'
+type Shelf = 'recipes' | 'training';
 
-const PAGE_SIZE = 24
+const PAGE_SIZE = 24;
 
 const gridClass =
-  'grid grid-cols-1 gap-4 mobile:grid-cols-2 tablet:grid-cols-3 tablet:gap-5 laptop:grid-cols-4 wide:grid-cols-5'
+  'grid grid-cols-1 gap-4 mobile:grid-cols-2 tablet:grid-cols-3 tablet:gap-5 laptop:grid-cols-4 wide:grid-cols-5';
 
-const tileDelay = (index: number) => ['', 'fade-delay-1', 'fade-delay-2', 'fade-delay-3'][index % 4]
+const tileDelay = (index: number) =>
+  ['', 'fade-delay-1', 'fade-delay-2', 'fade-delay-3'][index % 4];
 
 /**
  * The verification state is the first thing a cook needs from a tile: an
@@ -60,7 +61,7 @@ function VerifiedChip({ verified }: { verified: boolean }) {
       <ShieldAlert className="size-3.5" aria-hidden />
       Unverified
     </span>
-  )
+  );
 }
 
 function RecipeTile({ recipe, index }: { recipe: RecipeSummary; index: number }) {
@@ -103,11 +104,11 @@ function RecipeTile({ recipe, index }: { recipe: RecipeSummary; index: number })
         </div>
       </a>
     </li>
-  )
+  );
 }
 
 function TrainingTile({ training, index }: { training: TrainingSummary; index: number }) {
-  const done = training.myCompletion != null
+  const done = training.myCompletion != null;
 
   return (
     <li className={`animate-fade-up ${tileDelay(index)}`}>
@@ -158,7 +159,7 @@ function TrainingTile({ training, index }: { training: TrainingSummary; index: n
         </div>
       </a>
     </li>
-  )
+  );
 }
 
 function SkeletonGrid() {
@@ -174,37 +175,37 @@ function SkeletonGrid() {
         </li>
       ))}
     </ul>
-  )
+  );
 }
 
 function Browser() {
-  const [shelf, setShelf] = useState<Shelf>('recipes')
-  const [search, setSearch] = useState('')
-  const [q, setQ] = useState('')
-  const [page, setPage] = useState(1)
+  const [shelf, setShelf] = useState<Shelf>('recipes');
+  const [search, setSearch] = useState('');
+  const [q, setQ] = useState('');
+  const [page, setPage] = useState(1);
 
   const recipes = useQuery({
     queryKey: ['recipes', ...recipesScopeKey(), 'reader', { q, page }],
     queryFn: async () => {
-      const result = await listRecipes({ q, page, limit: PAGE_SIZE, status: 'active', live: true })
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await listRecipes({ q, page, limit: PAGE_SIZE, status: 'active', live: true });
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     enabled: shelf === 'recipes',
-  })
+  });
 
   const trainings = useQuery({
     queryKey: ['trainings', ...trainingsScopeKey(), 'reader', { q, page }],
     queryFn: async () => {
-      const result = await listTrainings({ q, page, limit: PAGE_SIZE, status: 'published' })
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await listTrainings({ q, page, limit: PAGE_SIZE, status: 'published' });
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     enabled: shelf === 'training',
-  })
+  });
 
-  const active = shelf === 'recipes' ? recipes : trainings
-  if (active.error) return <ErrorNote>{active.error.message}</ErrorNote>
+  const active = shelf === 'recipes' ? recipes : trainings;
+  if (active.error) return <ErrorNote>{active.error.message}</ErrorNote>;
 
   return (
     <div className="space-y-6">
@@ -235,8 +236,8 @@ function Browser() {
               ariaLabel="What to read"
               value={shelf}
               onChange={(next) => {
-                setShelf(next)
-                setPage(1)
+                setShelf(next);
+                setPage(1);
               }}
               options={[
                 {
@@ -259,9 +260,9 @@ function Browser() {
             />
             <form
               onSubmit={(e) => {
-                e.preventDefault()
-                setPage(1)
-                setQ(search)
+                e.preventDefault();
+                setPage(1);
+                setQ(search);
               }}
               className="relative max-w-lg min-w-56 flex-1"
             >
@@ -336,7 +337,7 @@ function Browser() {
         )}
       </div>
     </div>
-  )
+  );
 }
 
 export function ReaderBrowser() {
@@ -344,5 +345,5 @@ export function ReaderBrowser() {
     <QueryProvider>
       <Browser />
     </QueryProvider>
-  )
+  );
 }

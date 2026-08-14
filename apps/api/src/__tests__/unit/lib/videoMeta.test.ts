@@ -21,11 +21,22 @@ function mp4Bytes(majorBrand = 'isom'): Buffer {
 /** A realistic EBML header opening with the given DocType. */
 function ebmlBytes(docType: string): Buffer {
   const head = Buffer.from([
-    0x1a, 0x45, 0xdf, 0xa3, // EBML magic
+    0x1a,
+    0x45,
+    0xdf,
+    0xa3, // EBML magic
     0x9f, // header size (unknown-ish vint, irrelevant to the sniff)
-    0x42, 0x86, 0x81, 0x01, // EBMLVersion = 1
-    0x42, 0xf7, 0x81, 0x01, // EBMLReadVersion = 1
-    0x42, 0x82, 0x80 | docType.length, // DocType, single-byte length vint
+    0x42,
+    0x86,
+    0x81,
+    0x01, // EBMLVersion = 1
+    0x42,
+    0xf7,
+    0x81,
+    0x01, // EBMLReadVersion = 1
+    0x42,
+    0x82,
+    0x80 | docType.length, // DocType, single-byte length vint
   ]);
   return Buffer.concat([head, Buffer.from(docType, 'ascii'), Buffer.alloc(16)]);
 }

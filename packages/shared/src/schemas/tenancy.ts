@@ -139,10 +139,9 @@ export const updateMembershipSchema = z
     propertyId: objectIdSchema.nullish(),
     locationId: objectIdSchema.nullish(),
   })
-  .refine(
-    (v) => v.role !== undefined || v.propertyId !== undefined || v.locationId !== undefined,
-    { message: 'No changes supplied' }
-  )
+  .refine((v) => v.role !== undefined || v.propertyId !== undefined || v.locationId !== undefined, {
+    message: 'No changes supplied',
+  })
   .refine((v) => v.locationId == null || v.propertyId != null, {
     message: 'A location-scoped membership must also name its property',
     path: ['propertyId'],

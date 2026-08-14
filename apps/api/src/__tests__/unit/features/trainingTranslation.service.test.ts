@@ -20,7 +20,7 @@ function textBlock(text: string): ITrainingBlock {
 function head(
   blocks: ITrainingBlock[],
   title = 'Knife Safety',
-  description = 'Basics.'
+  description = 'Basics.',
 ): Pick<ITrainingModule, 'title' | 'description' | 'blocks'> {
   return { title, description, blocks };
 }
@@ -32,7 +32,7 @@ describe('trainingTranslatableProjection', () => {
         textBlock('Hold the knife by the handle.'),
         { kind: 'image', mediaId: null, caption: 'Correct grip' },
         { kind: 'video', mediaId: null },
-      ])
+      ]),
     );
     expect(projection.blocks).toEqual([
       { text: 'Hold the knife by the handle.', caption: null },
@@ -43,26 +43,26 @@ describe('trainingTranslatableProjection', () => {
 
   it('reads legacy plain-text bodies through the same fallback as the reader', () => {
     const projection = trainingTranslatableProjection(
-      head([{ kind: 'text', body: 'Old plain text.', mediaId: null }])
+      head([{ kind: 'text', body: 'Old plain text.', mediaId: null }]),
     );
     expect(projection.blocks[0].text).toBe('Old plain text.');
   });
 
   it('changes the hash when text changes, block order changes, or a caption changes', () => {
     const a = trainingSourceHashOf(
-      trainingTranslatableProjection(head([textBlock('One.'), textBlock('Two.')]))
+      trainingTranslatableProjection(head([textBlock('One.'), textBlock('Two.')])),
     );
     const edited = trainingSourceHashOf(
-      trainingTranslatableProjection(head([textBlock('One!'), textBlock('Two.')]))
+      trainingTranslatableProjection(head([textBlock('One!'), textBlock('Two.')])),
     );
     const reordered = trainingSourceHashOf(
-      trainingTranslatableProjection(head([textBlock('Two.'), textBlock('One.')]))
+      trainingTranslatableProjection(head([textBlock('Two.'), textBlock('One.')])),
     );
     expect(edited).not.toBe(a);
     expect(reordered).not.toBe(a);
     // Identical content — identical identity, so re-publishing is a no-op.
     const again = trainingSourceHashOf(
-      trainingTranslatableProjection(head([textBlock('One.'), textBlock('Two.')]))
+      trainingTranslatableProjection(head([textBlock('One.'), textBlock('Two.')])),
     );
     expect(again).toBe(a);
   });
@@ -70,7 +70,7 @@ describe('trainingTranslatableProjection', () => {
 
 describe('sanitizeTrainingPayload', () => {
   const projection = trainingTranslatableProjection(
-    head([textBlock('Wash hands.'), { kind: 'image', mediaId: null, caption: 'Sink' }])
+    head([textBlock('Wash hands.'), { kind: 'image', mediaId: null, caption: 'Sink' }]),
   );
 
   it('accepts aligned output and pins nulls to the source shape', () => {
@@ -83,7 +83,7 @@ describe('sanitizeTrainingPayload', () => {
           { text: 'invented', caption: 'Lavabo' },
         ],
       },
-      projection
+      projection,
     );
     // A media block's text stays null whatever the model said, and a text
     // block never grows a caption.
@@ -97,8 +97,8 @@ describe('sanitizeTrainingPayload', () => {
     expect(() =>
       sanitizeTrainingPayload(
         { title: 'T', description: '', blocks: [{ text: 'solo', caption: null }] },
-        projection
-      )
+        projection,
+      ),
     ).toThrowError(/did not line up/);
   });
 
@@ -113,8 +113,8 @@ describe('sanitizeTrainingPayload', () => {
             { text: null, caption: 'Lavabo' },
           ],
         },
-        projection
-      )
+        projection,
+      ),
     ).toThrowError(/did not line up/);
   });
 
@@ -129,8 +129,8 @@ describe('sanitizeTrainingPayload', () => {
             { text: null, caption: null },
           ],
         },
-        projection
-      )
+        projection,
+      ),
     ).toThrowError(/did not line up/);
 
     const clamped = sanitizeTrainingPayload(
@@ -142,7 +142,7 @@ describe('sanitizeTrainingPayload', () => {
           { text: null, caption: 'c'.repeat(1000) },
         ],
       },
-      projection
+      projection,
     );
     expect(clamped.title).toHaveLength(180);
     expect(clamped.description).toHaveLength(700);

@@ -20,7 +20,7 @@ translationRouter.use(authenticate, resolveTenant);
 translationRouter.get(
   '/recipes/:recipeId',
   validateQuery(translationLocaleSchema),
-  translationController.getTranslationState
+  translationController.getTranslationState,
 );
 
 // The one route that spends money — llmRateLimiter is the cost control.
@@ -29,26 +29,26 @@ translationRouter.post(
   requireRole('chef'),
   llmRateLimiter,
   validate(translationLocaleSchema),
-  translationController.requestTranslation
+  translationController.requestTranslation,
 );
 
 translationRouter.patch(
   '/recipes/:recipeId',
   requireRole('chef'),
   validate(updateTranslationSchema),
-  translationController.updateTranslation
+  translationController.updateTranslation,
 );
 translationRouter.post(
   '/recipes/:recipeId/approve',
   requireRole('chef'),
   validate(translationLocaleSchema),
-  translationController.approveTranslation
+  translationController.approveTranslation,
 );
 translationRouter.post(
   '/recipes/:recipeId/reject',
   requireRole('chef'),
   validate(translationLocaleSchema),
-  translationController.rejectTranslation
+  translationController.rejectTranslation,
 );
 
 // ── Training modules — the same five-route contract, per module ───────────────
@@ -56,7 +56,7 @@ translationRouter.post(
 translationRouter.get(
   '/trainings/:trainingId',
   validateQuery(translationLocaleSchema),
-  trainingTranslationController.getTrainingTranslationState
+  trainingTranslationController.getTrainingTranslationState,
 );
 
 // The one training route that spends money — llmRateLimiter is the cost control.
@@ -65,26 +65,26 @@ translationRouter.post(
   requireRole('chef'),
   llmRateLimiter,
   validate(translationLocaleSchema),
-  trainingTranslationController.requestTrainingTranslation
+  trainingTranslationController.requestTrainingTranslation,
 );
 
 translationRouter.patch(
   '/trainings/:trainingId',
   requireRole('chef'),
   validate(updateTrainingTranslationSchema),
-  trainingTranslationController.updateTrainingTranslation
+  trainingTranslationController.updateTrainingTranslation,
 );
 translationRouter.post(
   '/trainings/:trainingId/approve',
   requireRole('chef'),
   validate(translationLocaleSchema),
-  trainingTranslationController.approveTrainingTranslation
+  trainingTranslationController.approveTrainingTranslation,
 );
 translationRouter.post(
   '/trainings/:trainingId/reject',
   requireRole('chef'),
   validate(translationLocaleSchema),
-  trainingTranslationController.rejectTrainingTranslation
+  trainingTranslationController.rejectTrainingTranslation,
 );
 
 export { translationRouter };

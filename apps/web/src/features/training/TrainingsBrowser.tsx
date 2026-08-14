@@ -1,8 +1,8 @@
-import { useState } from 'react'
-import type { SubmitEvent } from 'react'
-import { useMutation, useQuery } from '@tanstack/react-query'
-import type { TrainingStatus, TrainingSummary } from '@rit/shared'
-import { roleAtLeast } from '@rit/shared'
+import { useState } from 'react';
+import type { SubmitEvent } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import type { TrainingStatus, TrainingSummary } from '@rit/shared';
+import { roleAtLeast } from '@rit/shared';
 import {
   Archive,
   CheckCircle2,
@@ -16,13 +16,13 @@ import {
   Search,
   Sparkles,
   X,
-} from 'lucide-react'
-import { createTraining, listTrainings, trainingsScopeKey } from '@/features/training/api'
-import { getDraftConfig } from '@/lib/api/drafts'
-import { ScopePicker, defaultScopeSelection } from '@/features/tenancy/ScopePicker'
-import type { ScopeSelection } from '@/features/tenancy/ScopePicker'
-import { useActiveRole } from '@/features/auth/useActiveRole'
-import { QueryProvider } from '@/lib/QueryProvider'
+} from 'lucide-react';
+import { createTraining, listTrainings, trainingsScopeKey } from '@/features/training/api';
+import { getDraftConfig } from '@/lib/api/drafts';
+import { ScopePicker, defaultScopeSelection } from '@/features/tenancy/ScopePicker';
+import type { ScopeSelection } from '@/features/tenancy/ScopePicker';
+import { useActiveRole } from '@/features/auth/useActiveRole';
+import { QueryProvider } from '@/lib/QueryProvider';
 import {
   Badge,
   EmptyState,
@@ -35,13 +35,13 @@ import {
   inputClass,
   primaryButtonClass,
   subtleButtonClass,
-} from '@/components/ui'
+} from '@/components/ui';
 
 function NewTrainingForm({ onClose }: { onClose: () => void }) {
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [scope, setScope] = useState<ScopeSelection>(defaultScopeSelection)
-  const [error, setError] = useState<string | null>(null)
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [scope, setScope] = useState<ScopeSelection>(defaultScopeSelection);
+  const [error, setError] = useState<string | null>(null);
 
   const create = useMutation({
     mutationFn: async () => {
@@ -51,24 +51,27 @@ function NewTrainingForm({ onClose }: { onClose: () => void }) {
         blocks: [],
         propertyId: scope.propertyId || null,
         locationId: scope.locationId || null,
-      })
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      });
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     onSuccess: (training) => {
-      window.location.href = `/training/${training._id}/edit`
+      window.location.href = `/training/${training._id}/edit`;
     },
     onError: (err: Error) => setError(err.message),
-  })
+  });
 
   function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setError(null)
-    create.mutate()
+    event.preventDefault();
+    setError(null);
+    create.mutate();
   }
 
   return (
-    <form onSubmit={handleSubmit} className={`${cardClass} animate-fade-up space-y-4 p-5 tablet:p-6`}>
+    <form
+      onSubmit={handleSubmit}
+      className={`${cardClass} animate-fade-up space-y-4 p-5 tablet:p-6`}
+    >
       <div className="flex items-center justify-between gap-3">
         <h2 className="font-semibold text-steel-900">New training</h2>
         <button
@@ -129,12 +132,12 @@ function NewTrainingForm({ onClose }: { onClose: () => void }) {
         {create.isPending ? 'Creating…' : 'Create and add content'}
       </button>
     </form>
-  )
+  );
 }
 
 function TrainingCard({ training, index }: { training: TrainingSummary; index: number }) {
-  const delay = ['', 'fade-delay-1', 'fade-delay-2', 'fade-delay-3'][index % 4]
-  const done = training.myCompletion != null
+  const delay = ['', 'fade-delay-1', 'fade-delay-2', 'fade-delay-3'][index % 4];
+  const done = training.myCompletion != null;
 
   return (
     <li className={`animate-fade-up ${delay}`}>
@@ -208,7 +211,7 @@ function TrainingCard({ training, index }: { training: TrainingSummary; index: n
         </div>
       </a>
     </li>
-  )
+  );
 }
 
 function SkeletonGrid() {
@@ -225,49 +228,49 @@ function SkeletonGrid() {
         </li>
       ))}
     </ul>
-  )
+  );
 }
 
 function Browser() {
-  const [search, setSearch] = useState('')
-  const [q, setQ] = useState('')
-  const [status, setStatus] = useState<TrainingStatus>('published')
-  const [page, setPage] = useState(1)
-  const [showForm, setShowForm] = useState(false)
-  const { role } = useActiveRole()
-  const canCreate = role != null && roleAtLeast(role, 'chef')
+  const [search, setSearch] = useState('');
+  const [q, setQ] = useState('');
+  const [status, setStatus] = useState<TrainingStatus>('published');
+  const [page, setPage] = useState(1);
+  const [showForm, setShowForm] = useState(false);
+  const { role } = useActiveRole();
+  const canCreate = role != null && roleAtLeast(role, 'chef');
 
   // Only to decide whether the AI-drafting link earns a spot in the toolbar —
   // the draft page itself re-checks and explains when drafting is off.
   const { data: draftConfig } = useQuery({
     queryKey: ['drafts', ...trainingsScopeKey(), 'config'],
     queryFn: async () => {
-      const result = await getDraftConfig()
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await getDraftConfig();
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     enabled: canCreate,
-  })
+  });
 
   const { data, error, isLoading } = useQuery({
     queryKey: ['trainings', ...trainingsScopeKey(), 'list', { q, page, status }],
     queryFn: async () => {
-      const result = await listTrainings({ q, page, status })
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await listTrainings({ q, page, status });
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
-  })
+  });
 
-  if (error) return <ErrorNote>{error.message}</ErrorNote>
+  if (error) return <ErrorNote>{error.message}</ErrorNote>;
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-3">
         <form
           onSubmit={(e) => {
-            e.preventDefault()
-            setPage(1)
-            setQ(search)
+            e.preventDefault();
+            setPage(1);
+            setQ(search);
           }}
           className="relative max-w-md flex-1"
         >
@@ -291,8 +294,8 @@ function Browser() {
               ariaLabel="Training status"
               value={status}
               onChange={(next) => {
-                setStatus(next)
-                setPage(1)
+                setStatus(next);
+                setPage(1);
               }}
               options={[
                 { id: 'published', label: 'Published' },
@@ -359,7 +362,11 @@ function Browser() {
           }
           action={
             canCreate && !q && status === 'published' ? (
-              <button type="button" onClick={() => setShowForm(true)} className={primaryButtonClass}>
+              <button
+                type="button"
+                onClick={() => setShowForm(true)}
+                className={primaryButtonClass}
+              >
                 <Plus className="size-4" aria-hidden />
                 Create the first training
               </button>
@@ -378,7 +385,7 @@ function Browser() {
 
       {data && <Pager page={data.page} totalPages={data.totalPages} onPage={setPage} />}
     </div>
-  )
+  );
 }
 
 export function TrainingsBrowser() {
@@ -386,5 +393,5 @@ export function TrainingsBrowser() {
     <QueryProvider>
       <Browser />
     </QueryProvider>
-  )
+  );
 }
