@@ -21,14 +21,11 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # @rit/shared emits the .d.ts files the apps typecheck against, so it has
-      # to compile before anything else runs.
-      - run: pnpm build:shared
-
-      - run: pnpm typecheck
-
-      - run: pnpm lint
-
-      - run: pnpm test
+      # The same gate `pnpm verify` runs locally: format:check, typecheck, lint,
+      # test. Kept as one step on purpose — if CI and local ever drift, the
+      # command developers actually run stops being the one that matters.
+      # (`typecheck` and `test` each build @rit/shared first, since the apps
+      # resolve it through its emitted .d.ts files.)
+      - run: pnpm verify
 
       - run: pnpm build
