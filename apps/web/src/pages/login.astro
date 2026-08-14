@@ -1,7 +1,7 @@
 ---
-import BaseLayout from '../layouts/BaseLayout.astro';
-import { LoginForm } from '../components/LoginForm';
-import { siteName, siteTagline } from '../assets/site-content/site-info';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { LoginForm } from '@/features/auth/LoginForm';
+import { siteName, siteTagline } from '@/assets/site-content/site-info';
 
 // Only ever read on the client — the page itself is a static shell.
 const next = Astro.url.searchParams.get('next') ?? '/';

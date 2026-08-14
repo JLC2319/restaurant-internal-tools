@@ -1,7 +1,7 @@
 ---
-import BaseLayout from '../../../layouts/BaseLayout.astro';
-import { ScopeSwitcher } from '../../../components/ScopeSwitcher';
-import { TrainingDetail } from '../../../components/TrainingDetail';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { ScopeSwitcher } from '@/features/tenancy/ScopeSwitcher';
+import { TrainingDetail } from '@/features/training/TrainingDetail';
 
 // On-demand only: training ids are runtime data, not a build-time route list.
 export const prerender = false;

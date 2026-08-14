@@ -1,7 +1,7 @@
 ---
-import BaseLayout from '../../../layouts/BaseLayout.astro';
-import { ScopeSwitcher } from '../../../components/ScopeSwitcher';
-import { ReaderRecipe } from '../../../components/ReaderRecipe';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { ScopeSwitcher } from '@/features/tenancy/ScopeSwitcher';
+import { ReaderRecipe } from '@/features/reader/ReaderRecipe';
 
 // On-demand only: recipe ids are runtime data, not a build-time route list.
 export const prerender = false;

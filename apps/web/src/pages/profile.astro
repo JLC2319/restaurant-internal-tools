@@ -1,19 +1,18 @@
 ---
-import BaseLayout from '../layouts/BaseLayout.astro';
-import { ScopeSwitcher } from '../components/ScopeSwitcher';
-import { ProfileSettings } from '../components/ProfileSettings';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import PageHeader from '@/components/PageHeader.astro';
+import { ScopeSwitcher } from '@/features/tenancy/ScopeSwitcher';
+import { ProfileSettings } from '@/features/settings/ProfileSettings';
 ---
 
 <BaseLayout title="Your profile">
   <ScopeSwitcher client:load slot="header-actions" />
 
-  <header class="max-w-2xl">
-    <p class="text-xs font-semibold tracking-widest text-ember-600 uppercase">Account</p>
-    <h1 class="mt-2 text-3xl font-bold tracking-tight text-steel-900">Your profile</h1>
-    <p class="mt-2 text-sm text-salt-600">
-      Your details, language, password and everywhere you have access.
-    </p>
-  </header>
+  <PageHeader
+    eyebrow="Account"
+    title="Your profile"
+    subtitle="Your details, language, password and everywhere you have access."
+  />
 
   {/* Wider than the old single column: the shell puts a sidebar beside the
       content on laptop and up. */}

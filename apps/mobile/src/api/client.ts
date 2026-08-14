@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import type { ApiError, ApiResult } from '@rit/shared'
 
 /**
- * The mobile twin of apps/web/src/api/client.ts. Same request contract —
+ * The mobile twin of apps/web/src/lib/api/client.ts. Same request contract —
  * bearer token plus X-Org-Id / X-Property-Id / X-Location-Id headers on every
  * scoped call, `ApiResult<T>` out — but storage is different: AsyncStorage is
  * asynchronous, so the session lives in module memory (synchronously readable
