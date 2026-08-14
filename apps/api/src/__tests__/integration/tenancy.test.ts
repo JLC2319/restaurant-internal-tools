@@ -1,8 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
-import mongoose from 'mongoose';
-import { MongoMemoryServer } from 'mongodb-memory-server';
 import { app } from '../../app';
+import { connectToTestDb, disconnectTestDb } from './db';
 import { Media } from '../../features/media/media.model';
 
 /**
@@ -12,16 +11,12 @@ import { Media } from '../../features/media/media.model';
  * role gates and tenant isolation both must enforce.
  */
 
-let mongo: MongoMemoryServer;
-
 beforeAll(async () => {
-  mongo = await MongoMemoryServer.create();
-  await mongoose.connect(mongo.getUri());
+  await connectToTestDb('tenancy');
 }, 120_000);
 
 afterAll(async () => {
-  await mongoose.disconnect();
-  await mongo?.stop();
+  await disconnectTestDb();
 });
 
 const PASSWORD = 'a-long-enough-password';
@@ -52,7 +47,7 @@ async function addMember(
   orgId: string,
   email: string,
   role: string,
-  scope: { propertyId?: string; locationId?: string } = {}
+  scope: { propertyId?: string; locationId?: string } = {},
 ): Promise<{ token: string; userId: string }> {
   const account = await registerAndLogin(email);
   const invited = await request(app)
@@ -162,8 +157,18 @@ describe('organization profile', () => {
       .patch('/api/tenancy/organization')
       .send({
         name: 'Profile Bistro Group LLC',
-        address: { line1: '1 Main St', city: 'Austin', region: 'TX', postalCode: '78701', country: 'US' },
-        contact: { phone: '555-0101', email: 'Office@Bistro.com', website: 'https://bistro.example' },
+        address: {
+          line1: '1 Main St',
+          city: 'Austin',
+          region: 'TX',
+          postalCode: '78701',
+          country: 'US',
+        },
+        contact: {
+          phone: '555-0101',
+          email: 'Office@Bistro.com',
+          website: 'https://bistro.example',
+        },
       });
     expect(updated.status).toBe(200);
     expect(updated.body.name).toBe('Profile Bistro Group LLC');
@@ -195,9 +200,15 @@ describe('organization profile', () => {
       .send({ name: 'Hijacked' });
     expect(denied.status).toBe(403);
 
-    const propAdmin = await addMember(owner.token, orgId, 'org-gate-propadmin@example.com', 'admin', {
-      propertyId,
-    });
+    const propAdmin = await addMember(
+      owner.token,
+      orgId,
+      'org-gate-propadmin@example.com',
+      'admin',
+      {
+        propertyId,
+      },
+    );
     const deniedScoped = await as(propAdmin.token, orgId, propertyId)
       .patch('/api/tenancy/organization')
       .send({ name: 'Hijacked From Property' });
@@ -243,9 +254,11 @@ describe('translation publish mode settings', () => {
     token: string,
     orgId: string,
     propertyId: string,
-    name: string
+    name: string,
   ): Promise<string> {
-    const response = await as(token, orgId).post('/api/tenancy/locations').send({ propertyId, name });
+    const response = await as(token, orgId)
+      .post('/api/tenancy/locations')
+      .send({ propertyId, name });
     expect(response.status).toBe(201);
     return response.body._id;
   }
@@ -401,7 +414,7 @@ describe('member roster', () => {
     expect(emails).not.toContain('roster-chef-b@example.com');
 
     const row = roster.body.items.find(
-      (m: { user: { email: string } }) => m.user.email === 'roster-chef-a@example.com'
+      (m: { user: { email: string } }) => m.user.email === 'roster-chef-a@example.com',
     );
     expect(row.role).toBe('chef');
     expect(row.status).toBe('active');
@@ -417,7 +430,12 @@ describe('member roster', () => {
     const owner = await registerAndLogin('roster-gate-owner@example.com');
     const orgId = await createOrg(owner.token, 'Roster Gate Org');
     const staff = await addMember(owner.token, orgId, 'roster-gate-staff@example.com', 'staff');
-    const manager = await addMember(owner.token, orgId, 'roster-gate-manager@example.com', 'manager');
+    const manager = await addMember(
+      owner.token,
+      orgId,
+      'roster-gate-manager@example.com',
+      'manager',
+    );
 
     const deniedStaff = await as(staff.token, orgId).get('/api/tenancy/members');
     expect(deniedStaff.status).toBe(403);
@@ -427,7 +445,7 @@ describe('member roster', () => {
 
     // A manager may look but not touch.
     const staffRow = allowedManager.body.items.find(
-      (m: { user: { email: string } }) => m.user.email === 'roster-gate-staff@example.com'
+      (m: { user: { email: string } }) => m.user.email === 'roster-gate-staff@example.com',
     );
     const deniedPatch = await as(manager.token, orgId)
       .patch(`/api/tenancy/members/${staffRow._id}`)
@@ -442,7 +460,7 @@ describe('member roster', () => {
 
     const roster = await as(owner.token, orgId).get('/api/tenancy/members');
     const chefRow = roster.body.items.find(
-      (m: { user: { email: string } }) => m.user.email === 'roster-revoke-chef@example.com'
+      (m: { user: { email: string } }) => m.user.email === 'roster-revoke-chef@example.com',
     );
 
     const revoked = await as(owner.token, orgId).delete(`/api/tenancy/members/${chefRow._id}`);
@@ -450,7 +468,7 @@ describe('member roster', () => {
 
     const after = await as(owner.token, orgId).get('/api/tenancy/members');
     const revokedRow = after.body.items.find(
-      (m: { user: { email: string } }) => m.user.email === 'roster-revoke-chef@example.com'
+      (m: { user: { email: string } }) => m.user.email === 'roster-revoke-chef@example.com',
     );
     expect(revokedRow.status).toBe('revoked');
 
@@ -467,11 +485,13 @@ describe('membership placement changes', () => {
   let p1: string;
   let p2: string;
 
-  async function rowFor(email: string): Promise<{ _id: string; propertyId: string | null; locationId: string | null; role: string }> {
+  async function rowFor(
+    email: string,
+  ): Promise<{ _id: string; propertyId: string | null; locationId: string | null; role: string }> {
     const roster = await as(owner.token, orgId).get('/api/tenancy/members');
     expect(roster.status).toBe(200);
     const row = roster.body.items.find(
-      (r: { user: { email: string } | null }) => r.user?.email === email
+      (r: { user: { email: string } | null }) => r.user?.email === email,
     );
     expect(row).toBeTruthy();
     return row;
@@ -530,7 +550,7 @@ describe('membership placement changes', () => {
     expect(promotedRow.propertyId).toBe(p1);
   });
 
-  it("confines a property admin to their own subtree, both directions", async () => {
+  it('confines a property admin to their own subtree, both directions', async () => {
     const p1Admin = await addMember(owner.token, orgId, 'mp-p1-admin@example.com', 'admin', {
       propertyId: p1,
     });
@@ -553,14 +573,14 @@ describe('membership placement changes', () => {
         await as(p1Admin.token, orgId)
           .patch(`/api/tenancy/members/${p1Row._id}`)
           .send({ propertyId: p2, locationId: null })
-      ).status
+      ).status,
     ).toBe(404);
     expect(
       (
         await as(p1Admin.token, orgId)
           .patch(`/api/tenancy/members/${p1Row._id}`)
           .send({ propertyId: null, locationId: null })
-      ).status
+      ).status,
     ).toBe(404);
   });
 

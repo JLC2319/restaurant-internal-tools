@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from 'vitest';
 import request from 'supertest';
-import mongoose from 'mongoose';
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { connectToTestDb, disconnectTestDb } from './db';
 
 /**
  * Full HTTP round-trips for /api/media and the plating photos it feeds into
@@ -31,16 +30,12 @@ vi.mock('@aws-sdk/client-s3', () => ({
 
 const { app } = await import('../../app');
 
-let mongo: MongoMemoryServer;
-
 beforeAll(async () => {
-  mongo = await MongoMemoryServer.create();
-  await mongoose.connect(mongo.getUri());
+  await connectToTestDb('media');
 }, 120_000);
 
 afterAll(async () => {
-  await mongoose.disconnect();
-  await mongo?.stop();
+  await disconnectTestDb();
 });
 
 beforeEach(() => {
@@ -87,7 +82,7 @@ async function addMember(
   ownerToken: string,
   orgId: string,
   email: string,
-  role: string
+  role: string,
 ): Promise<{ token: string; userId: string }> {
   const account = await registerAndLogin(email);
   const invited = await request(app)
@@ -125,7 +120,7 @@ function upload(
   token: string,
   orgId: string,
   bytes: Buffer,
-  options: { filename?: string; contentType?: string; scope?: Scope } = {}
+  options: { filename?: string; contentType?: string; scope?: Scope } = {},
 ) {
   return as(token, orgId, options.scope ?? {})
     .post('/api/media/photos')
@@ -151,7 +146,7 @@ async function createRecipe(
   token: string,
   orgId: string,
   name: string,
-  body: Record<string, unknown> = {}
+  body: Record<string, unknown> = {},
 ): Promise<string> {
   const response = await as(token, orgId)
     .post('/api/recipes')
@@ -328,7 +323,7 @@ describe('plating photos on a recipe', () => {
     const version = await as(chef.token, orgId).post(`/api/recipes/${recipeId}/versions`).send({});
     expect(version.status).toBe(201);
     const activated = await as(chef.token, orgId).post(
-      `/api/recipes/${recipeId}/versions/${version.body._id}/activate`
+      `/api/recipes/${recipeId}/versions/${version.body._id}/activate`,
     );
     expect(activated.status).toBe(200);
     expect(activated.body.activeContent.photos).toHaveLength(1);

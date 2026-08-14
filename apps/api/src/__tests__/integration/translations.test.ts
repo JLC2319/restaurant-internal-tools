@@ -1,8 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
-import mongoose from 'mongoose';
-import { MongoMemoryServer } from 'mongodb-memory-server';
 import { app } from '../../app';
+import { connectToTestDb, disconnectTestDb } from './db';
 import { Recipe } from '../../features/recipes/recipe.model';
 import { RecipeVersion } from '../../features/recipes/recipeVersion.model';
 import { RecipeTranslation } from '../../features/translations/translation.model';
@@ -27,16 +26,12 @@ import {
  * without an LLM in the loop.
  */
 
-let mongo: MongoMemoryServer;
-
 beforeAll(async () => {
-  mongo = await MongoMemoryServer.create();
-  await mongoose.connect(mongo.getUri());
+  await connectToTestDb('translations');
 }, 120_000);
 
 afterAll(async () => {
-  await mongoose.disconnect();
-  await mongo?.stop();
+  await disconnectTestDb();
 });
 
 const PASSWORD = 'a-long-enough-password';
@@ -65,7 +60,7 @@ async function addMember(
   ownerToken: string,
   orgId: string,
   email: string,
-  role: string
+  role: string,
 ): Promise<{ token: string; userId: string }> {
   const account = await registerAndLogin(email);
   const invited = await request(app)
@@ -125,7 +120,7 @@ async function seedTranslation(
   requestedBy: string,
   status: 'pending_review' | 'approved' = 'pending_review',
   /** Seeds the auto_publish outcome: approved with nobody behind it. */
-  autoApproved = false
+  autoApproved = false,
 ): Promise<void> {
   const head = await Recipe.findById(recipeId).lean();
   const version = await RecipeVersion.findById(head!.activeVersionId).lean();
@@ -192,11 +187,11 @@ describe('LLM gating (no key configured in tests)', () => {
     const recipeId = await createLiveRecipe(owner.token, orgId, 'Staff Gate Salsa');
 
     expect(
-      (await as(staff.token, orgId).post(`/api/translations/recipes/${recipeId}`).send({})).status
+      (await as(staff.token, orgId).post(`/api/translations/recipes/${recipeId}`).send({})).status,
     ).toBe(403);
     expect(
       (await as(staff.token, orgId).post(`/api/translations/recipes/${recipeId}/approve`).send({}))
-        .status
+        .status,
     ).toBe(403);
     expect((await as(staff.token, orgId).post('/api/drafts/recipes').send({})).status).toBe(403);
   });
@@ -396,11 +391,11 @@ describe('tenant isolation', () => {
 
     // Org B probing org A's recipe id: existence-hiding 404, both surfaces.
     expect((await as(ownerB.token, orgB).get(`/api/translations/recipes/${recipeA}`)).status).toBe(
-      404
+      404,
     );
     expect(
       (await as(ownerB.token, orgB).post(`/api/translations/recipes/${recipeA}/approve`).send({}))
-        .status
+        .status,
     ).toBe(404);
   });
 });
@@ -416,12 +411,12 @@ describe('automatic translation status', () => {
   async function setMarker(
     recipeId: string,
     status: 'running' | 'failed',
-    startedAt: Date
+    startedAt: Date,
   ): Promise<void> {
     const head = await Recipe.findById(recipeId).lean();
     await Recipe.updateOne(
       { _id: recipeId },
-      { $set: { autoTranslation: { status, startedAt, versionId: head!.activeVersionId } } }
+      { $set: { autoTranslation: { status, startedAt, versionId: head!.activeVersionId } } },
     );
   }
 
@@ -514,7 +509,7 @@ function textBlock(text: string): Record<string, unknown> {
 async function createPublishedTraining(
   token: string,
   orgId: string,
-  title: string
+  title: string,
 ): Promise<string> {
   const created = await as(token, orgId)
     .post('/api/training')
@@ -548,7 +543,7 @@ async function seedTrainingTranslation(
   requestedBy: string,
   status: 'pending_review' | 'approved' = 'pending_review',
   /** Seeds the auto_publish outcome: approved with nobody behind it. */
-  autoApproved = false
+  autoApproved = false,
 ): Promise<void> {
   const head = await TrainingModule.findById(trainingId).lean();
   const projection = trainingTranslatableProjection(head!);
@@ -643,14 +638,14 @@ describe('training LLM gating (no key configured in tests)', () => {
 
     expect(
       (await as(staff.token, orgId).post(`/api/translations/trainings/${trainingId}`).send({}))
-        .status
+        .status,
     ).toBe(403);
     expect(
       (
         await as(staff.token, orgId)
           .post(`/api/translations/trainings/${trainingId}/approve`)
           .send({})
-      ).status
+      ).status,
     ).toBe(403);
   });
 });
@@ -665,7 +660,7 @@ describe('the training review gate', () => {
 
     // Staff: nothing until a human approves.
     const staffBefore = await as(staff.token, orgId).get(
-      `/api/translations/trainings/${trainingId}`
+      `/api/translations/trainings/${trainingId}`,
     );
     expect(staffBefore.status).toBe(200);
     expect(staffBefore.body.canManage).toBe(false);
@@ -689,7 +684,7 @@ describe('the training review gate', () => {
     // Staff now read the Spanish, block-aligned: the text block carries text
     // and no caption, the embed block a caption and no text.
     const staffAfter = await as(staff.token, orgId).get(
-      `/api/translations/trainings/${trainingId}`
+      `/api/translations/trainings/${trainingId}`,
     );
     expect(staffAfter.body.translation).not.toBeNull();
     expect(staffAfter.body.translation.payload.title).toBe('Comida caliente, siempre caliente');
@@ -777,11 +772,11 @@ describe('the training review gate', () => {
 
     // Existence hiding, mirroring the module itself: 404, not an empty state.
     expect(
-      (await as(staff.token, orgId).get(`/api/translations/trainings/${trainingId}`)).status
+      (await as(staff.token, orgId).get(`/api/translations/trainings/${trainingId}`)).status,
     ).toBe(404);
     // The reviewer still sees the full state.
     expect(
-      (await as(owner.token, orgId).get(`/api/translations/trainings/${trainingId}`)).status
+      (await as(owner.token, orgId).get(`/api/translations/trainings/${trainingId}`)).status,
     ).toBe(200);
   });
 });
@@ -858,11 +853,14 @@ describe('training tenant isolation', () => {
 
     // Org B probing org A's module id: existence-hiding 404, both surfaces.
     expect(
-      (await as(ownerB.token, orgB).get(`/api/translations/trainings/${trainingA}`)).status
+      (await as(ownerB.token, orgB).get(`/api/translations/trainings/${trainingA}`)).status,
     ).toBe(404);
     expect(
-      (await as(ownerB.token, orgB).post(`/api/translations/trainings/${trainingA}/approve`).send({}))
-        .status
+      (
+        await as(ownerB.token, orgB)
+          .post(`/api/translations/trainings/${trainingA}/approve`)
+          .send({})
+      ).status,
     ).toBe(404);
   });
 });
