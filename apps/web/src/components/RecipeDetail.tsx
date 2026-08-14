@@ -6,11 +6,14 @@ import { roleAtLeast } from '@rit/shared'
 import {
   Archive,
   ArchiveRestore,
+  Building2,
   Flame,
   GitCommitVertical,
   GitFork,
   History,
   Leaf,
+  Lock,
+  LockOpen,
   Pencil,
   PencilRuler,
   Radio,
@@ -28,14 +31,23 @@ import {
   deactivateRecipe,
   forkRecipe,
   getRecipe,
+  listAccessCandidates,
   listVersions,
+  moveRecipe,
   recipesScopeKey,
   restoreVersion,
   saveVersion,
   unarchiveRecipe,
+  updateRecipeAccess,
 } from '../api/recipes'
-import { getTenantTree } from '../api/tenancy'
 import { useActiveRole } from './useActiveRole'
+import {
+  ScopePicker,
+  defaultScopeSelection,
+  scopeDisplayLabel,
+  useTenantTree,
+} from './ScopePicker'
+import type { ScopeSelection } from './ScopePicker'
 import { PlatingGallery } from './PlatingGallery'
 import { QueryProvider } from './QueryProvider'
 import { TranslationPanel } from './TranslationPanel'
@@ -267,25 +279,16 @@ function SaveVersionForm({ recipeId, onDone }: { recipeId: string; onDone: () =>
 
 function ForkForm({ recipe, onDone }: { recipe: RecipeDetailData; onDone: () => void }) {
   const [name, setName] = useState(`${recipe.name} (fork)`)
-  const [propertyId, setPropertyId] = useState('')
-  const [locationId, setLocationId] = useState('')
+  // Defaults to the caller's own scope — the one place they can always write.
+  const [scope, setScope] = useState<ScopeSelection>(defaultScopeSelection)
   const [error, setError] = useState<string | null>(null)
-
-  const { data: tree } = useQuery({
-    queryKey: ['tenancy', ...recipesScopeKey(), 'tree'],
-    queryFn: async () => {
-      const result = await getTenantTree()
-      if (result.error) throw new Error(result.error.message)
-      return result.data
-    },
-  })
 
   const fork = useMutation({
     mutationFn: async () => {
       const result = await forkRecipe(recipe._id, {
         name,
-        propertyId: propertyId || null,
-        locationId: locationId || null,
+        propertyId: scope.propertyId || null,
+        locationId: scope.locationId || null,
       })
       if (result.error) throw new Error(result.error.message)
       return result.data
@@ -295,8 +298,6 @@ function ForkForm({ recipe, onDone }: { recipe: RecipeDetailData; onDone: () => 
     },
     onError: (err: Error) => setError(err.message),
   })
-
-  const locations = tree?.properties.find((p) => p._id === propertyId)?.locations ?? []
 
   function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -336,46 +337,7 @@ function ForkForm({ recipe, onDone }: { recipe: RecipeDetailData; onDone: () => 
             className={inputClass}
           />
         </div>
-        <div>
-          <label htmlFor="fork-property" className="mb-1.5 block text-sm font-medium text-steel-700">
-            Property
-          </label>
-          <select
-            id="fork-property"
-            value={propertyId}
-            onChange={(e) => {
-              setPropertyId(e.target.value)
-              setLocationId('')
-            }}
-            className={inputClass}
-          >
-            <option value="">Whole organization</option>
-            {tree?.properties.map((p) => (
-              <option key={p._id} value={p._id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="fork-location" className="mb-1.5 block text-sm font-medium text-steel-700">
-            Location
-          </label>
-          <select
-            id="fork-location"
-            value={locationId}
-            onChange={(e) => setLocationId(e.target.value)}
-            disabled={!propertyId}
-            className={inputClass}
-          >
-            <option value="">Whole property</option>
-            {locations.map((l) => (
-              <option key={l._id} value={l._id}>
-                {l.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <ScopePicker idPrefix="fork" value={scope} onChange={setScope} />
       </div>
 
       <div className="flex gap-2">
@@ -388,6 +350,296 @@ function ForkForm({ recipe, onDone }: { recipe: RecipeDetailData; onDone: () => 
         </button>
       </div>
     </form>
+  )
+}
+
+/**
+ * Where the recipe lives — and, for managers, the lever to move it. Moving
+ * re-validates everything placement touches server-side (sub-recipes both
+ * ways, photos, the allow-list) and rewrites every denormalised copy.
+ */
+function PlacementPanel({ recipe }: { recipe: RecipeDetailData }) {
+  const queryClient = useQueryClient()
+  const [editing, setEditing] = useState(false)
+  const [scope, setScope] = useState<ScopeSelection>({ propertyId: '', locationId: '' })
+  const [error, setError] = useState<string | null>(null)
+  const { data: tree } = useTenantTree()
+
+  const move = useMutation({
+    mutationFn: async () => {
+      const result = await moveRecipe(recipe._id, {
+        propertyId: scope.propertyId || null,
+        locationId: scope.locationId || null,
+      })
+      if (result.error) throw new Error(result.error.message)
+      return result.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['recipes'] })
+      setEditing(false)
+    },
+    onError: (err: Error) => setError(err.message),
+  })
+
+  function startEditing() {
+    setScope({
+      propertyId: recipe.scope.propertyId ?? '',
+      locationId: recipe.scope.locationId ?? '',
+    })
+    setError(null)
+    setEditing(true)
+  }
+
+  const label = scopeDisplayLabel(recipe.scope, tree) ?? 'the whole organization'
+
+  return (
+    <section className={`${cardClass} space-y-3 p-5`}>
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="flex items-center gap-2 font-semibold text-steel-900">
+          <Building2 className="size-4 text-ember-600" aria-hidden />
+          Placement
+        </h3>
+        {!editing && (
+          <button type="button" onClick={startEditing} className={subtleButtonClass}>
+            Move
+          </button>
+        )}
+      </div>
+
+      {error && <ErrorNote>{error}</ErrorNote>}
+
+      {!editing && (
+        <p className="text-sm text-salt-600">
+          Lives at <strong className="font-semibold text-steel-800">{label}</strong> — every
+          kitchen there (and members above it) sees it.
+        </p>
+      )}
+
+      {editing && (
+        <div className="space-y-3">
+          <div className="grid gap-3 phablet:grid-cols-2">
+            <ScopePicker idPrefix="move-recipe" value={scope} onChange={setScope} />
+          </div>
+          <p className="text-xs leading-relaxed text-salt-500">
+            Moving changes who sees this recipe everywhere — lists, reader, pickers — the moment
+            it lands. Sub-recipes, plating photos and the allow-list are all re-checked against
+            the new home first.
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                if (!window.confirm('Move this recipe? Who can see it changes immediately.')) return
+                setError(null)
+                move.mutate()
+              }}
+              disabled={move.isPending}
+              className={primaryButtonClass}
+            >
+              <Building2 className="size-4" aria-hidden />
+              {move.isPending ? 'Moving…' : 'Move recipe'}
+            </button>
+            <button type="button" onClick={() => setEditing(false)} className={subtleButtonClass}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
+  )
+}
+
+/**
+ * Who may see this recipe. Rendered only for managers of it — the server
+ * returns `access` under exactly the same condition, and listed viewers are
+ * deliberately not shown who else is trusted.
+ */
+function AccessPanel({ recipe }: { recipe: RecipeDetailData }) {
+  const queryClient = useQueryClient()
+  const [editing, setEditing] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [filter, setFilter] = useState('')
+  const [error, setError] = useState<string | null>(null)
+
+  // Fetched lazily — the roster is only needed once the picker opens.
+  const { data: candidates, isLoading } = useQuery({
+    queryKey: ['recipes', ...recipesScopeKey(), 'access-candidates', recipe._id],
+    queryFn: async () => {
+      const result = await listAccessCandidates(recipe._id)
+      if (result.error) throw new Error(result.error.message)
+      return result.data
+    },
+    enabled: editing,
+  })
+
+  const save = useMutation({
+    mutationFn: async (access: { userIds: string[] } | null) => {
+      const result = await updateRecipeAccess(recipe._id, { access })
+      if (result.error) throw new Error(result.error.message)
+      return result.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['recipes'] })
+      setEditing(false)
+    },
+    onError: (err: Error) => setError(err.message),
+  })
+
+  function startEditing() {
+    setSelected(new Set(recipe.access?.userIds ?? []))
+    setFilter('')
+    setError(null)
+    setEditing(true)
+  }
+
+  function toggle(userId: string) {
+    setSelected((current) => {
+      const next = new Set(current)
+      if (next.has(userId)) next.delete(userId)
+      else next.add(userId)
+      return next
+    })
+  }
+
+  const listedUsers = recipe.access?.users ?? []
+  // Stored ids that no longer resolve to an account — kept server-side so a
+  // save never silently drops them, surfaced here so someone prunes them.
+  const formerCount = (recipe.access?.userIds.length ?? 0) - listedUsers.length
+  const needle = filter.trim().toLowerCase()
+  const shown = (candidates ?? []).filter(
+    (candidate) =>
+      !needle ||
+      `${candidate.name.first} ${candidate.name.last} ${candidate.email}`
+        .toLowerCase()
+        .includes(needle)
+  )
+
+  return (
+    <section className={`${cardClass} space-y-3 p-5`}>
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="flex items-center gap-2 font-semibold text-steel-900">
+          <Lock className="size-4 text-ember-600" aria-hidden />
+          Access
+        </h3>
+        {!editing && (
+          <button type="button" onClick={startEditing} className={subtleButtonClass}>
+            {recipe.restricted ? 'Edit' : 'Restrict'}
+          </button>
+        )}
+      </div>
+
+      {error && <ErrorNote>{error}</ErrorNote>}
+
+      {!editing && !recipe.restricted && (
+        <p className="text-sm text-salt-600">
+          Everyone who can see this recipe&rsquo;s scope can open it.
+        </p>
+      )}
+
+      {!editing && recipe.restricted && (
+        <div className="space-y-3">
+          <p className="text-sm text-salt-600">
+            Only the people below can open it. Admins, owners and the recipe&rsquo;s creator always
+            keep access.
+          </p>
+          {listedUsers.length === 0 ? (
+            <p className="text-sm text-salt-500 italic">
+              Nobody is listed — creator and admins only.
+            </p>
+          ) : (
+            <ul className="space-y-1.5">
+              {listedUsers.map((user) => (
+                <li key={user._id} className="flex min-w-0 items-baseline gap-2 text-sm">
+                  <span className="shrink-0 font-medium text-steel-900">
+                    {user.name.first} {user.name.last}
+                  </span>
+                  <span className="truncate text-xs text-salt-500">{user.email}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {formerCount > 0 && (
+            <p className="text-xs text-salt-500">
+              {formerCount} entr{formerCount === 1 ? 'y' : 'ies'} belong to accounts that no longer
+              exist — edit the list to prune them.
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              setError(null)
+              save.mutate(null)
+            }}
+            disabled={save.isPending}
+            className={subtleButtonClass}
+          >
+            <LockOpen className="size-4" aria-hidden />
+            {save.isPending ? 'Opening…' : 'Remove restriction'}
+          </button>
+        </div>
+      )}
+
+      {editing && (
+        <div className="space-y-3">
+          <p className="text-sm text-salt-600">
+            Pick who may open this recipe. Admins, owners and the creator always keep access;
+            everyone else will no longer see it anywhere.
+          </p>
+          <input
+            type="search"
+            placeholder="Filter people…"
+            value={filter}
+            onChange={(event) => setFilter(event.target.value)}
+            className={inputClass}
+          />
+          {isLoading ? (
+            <Skeleton className="h-24" />
+          ) : (
+            <ul className="max-h-64 space-y-0.5 overflow-y-auto">
+              {shown.map((candidate) => (
+                <li key={candidate._id}>
+                  <label className="flex min-h-touch cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-salt-50">
+                    <input
+                      type="checkbox"
+                      checked={selected.has(candidate._id)}
+                      onChange={() => toggle(candidate._id)}
+                      className="size-4 shrink-0 accent-ember-600"
+                    />
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium text-steel-900">
+                        {candidate.name.first} {candidate.name.last}
+                        {candidate.jobTitle && (
+                          <span className="font-normal text-salt-500"> · {candidate.jobTitle}</span>
+                        )}
+                      </span>
+                      <span className="block truncate text-xs text-salt-500">{candidate.email}</span>
+                    </span>
+                  </label>
+                </li>
+              ))}
+              {shown.length === 0 && <li className="px-2 text-sm text-salt-500">No matches.</li>}
+            </ul>
+          )}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setError(null)
+                save.mutate({ userIds: [...selected] })
+              }}
+              disabled={save.isPending}
+              className={primaryButtonClass}
+            >
+              <Lock className="size-4" aria-hidden />
+              {save.isPending ? 'Saving…' : 'Save access'}
+            </button>
+            <button type="button" onClick={() => setEditing(false)} className={subtleButtonClass}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
   )
 }
 
@@ -531,6 +783,7 @@ function Detail({ recipeId }: { recipeId: string }) {
   const [openForm, setOpenForm] = useState<'none' | 'saveVersion' | 'fork'>('none')
   const [actionError, setActionError] = useState<string | null>(null)
   const { role } = useActiveRole()
+  const { data: tree } = useTenantTree()
 
   const { data: recipe, error, isLoading } = useQuery({
     queryKey: ['recipes', ...recipesScopeKey(), 'detail', recipeId],
@@ -583,7 +836,22 @@ function Detail({ recipeId }: { recipeId: string }) {
   })
 
   if (isLoading) return <DetailSkeleton />
-  if (error) return <ErrorNote>{error.message}</ErrorNote>
+  if (error) {
+    // The server answers 404 for anything the caller may not see — a recipe
+    // restricted to specific people reads exactly like one that was removed.
+    return /not found/i.test(error.message) ? (
+      <div className={`${cardClass} space-y-2 p-8 text-center`}>
+        <Lock className="mx-auto size-6 text-salt-400" aria-hidden />
+        <h2 className="font-semibold text-steel-900">This recipe isn&rsquo;t available</h2>
+        <p className="text-sm text-salt-600">
+          It may be restricted to specific people, archived, or removed. Ask a chef or manager if
+          you think you should have access.
+        </p>
+      </div>
+    ) : (
+      <ErrorNote>{error.message}</ErrorNote>
+    )
+  }
   if (!recipe) return null
 
   const isChefView = recipe.workingCopy != null
@@ -614,6 +882,24 @@ function Detail({ recipeId }: { recipeId: string }) {
             <Badge value="active" label={`v${recipe.activeVersion} live`} />
           ) : (
             <Badge value="unpublished" label="draft only" />
+          )}
+          {recipe.scope.propertyId && (
+            <span
+              title="Only this part of the organization sees this recipe"
+              className="inline-flex items-center gap-1.5 rounded-full bg-salt-100 px-3 py-1.5 text-xs font-semibold text-steel-700 ring-1 ring-salt-300 ring-inset"
+            >
+              <Building2 className="size-3.5" aria-hidden />
+              {scopeDisplayLabel(recipe.scope, tree) ?? 'One property'}
+            </span>
+          )}
+          {recipe.restricted && (
+            <span
+              title="Restricted to specific people"
+              className="inline-flex items-center gap-1.5 rounded-full bg-salt-100 px-3 py-1.5 text-xs font-semibold text-steel-700 ring-1 ring-salt-300 ring-inset"
+            >
+              <Lock className="size-3.5" aria-hidden />
+              Restricted
+            </span>
           )}
         </div>
         {recipe.forkedFrom && (
@@ -797,8 +1083,10 @@ function Detail({ recipeId }: { recipeId: string }) {
         </div>
 
         {isChefView && (
-          <div className="laptop:sticky laptop:top-24 laptop:self-start">
+          <div className="space-y-6 laptop:sticky laptop:top-24 laptop:self-start">
             <VersionTimeline recipe={recipe} />
+            {recipe.canManage && isManager && <PlacementPanel recipe={recipe} />}
+            {recipe.canManage && <AccessPanel recipe={recipe} />}
           </div>
         )}
       </div>

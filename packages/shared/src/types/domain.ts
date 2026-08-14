@@ -60,6 +60,9 @@ export interface TenantScope {
 
 /** The caller's resolved position in the hierarchy for the current request. */
 export interface TenantContext extends TenantScope {
+  /** The authenticated caller. Caller identity, not scope — per-person access
+   * checks (a recipe's allow-list, creator bypass) key off it. */
+  userId: string;
   role: TenantRole;
   /** Which tier the caller's membership sits at. Drives what they may write. */
   tier: TenantTier;

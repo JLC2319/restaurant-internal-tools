@@ -447,7 +447,28 @@ function Reader({ recipeId }: { recipeId: string }) {
     },
   })
 
-  if (error) return <ErrorNote>{error.message}</ErrorNote>
+  if (error) {
+    // 404 covers everything the server hides: removed, out of scope, or
+    // restricted to specific people. Same calm empty state either way.
+    if (/not found/i.test(error.message)) {
+      return (
+        <div className="mx-auto max-w-3xl">
+          <EmptyState
+            icon={BookOpen}
+            title="This recipe isn’t available"
+            hint="It may be restricted to specific people or no longer on the shelf. Ask a chef or manager if you think you should have access."
+            action={
+              <a href="/reader" className="inline-flex items-center gap-1.5 text-sm font-semibold text-ember-600 transition-colors hover:text-ember-700">
+                <ArrowLeft className="size-4" aria-hidden />
+                Back to the reader
+              </a>
+            }
+          />
+        </div>
+      )
+    }
+    return <ErrorNote>{error.message}</ErrorNote>
+  }
   if (isLoading || !recipe)
     return (
       <div className="mx-auto max-w-3xl space-y-4">

@@ -59,6 +59,33 @@ export function scopeReadFilter(ctx: TenantContext, path = 'scope'): Record<stri
 }
 
 /**
+ * The Membership-collection filter selecting every membership whose visibility
+ * includes a document at `scope` — the inverse of `scopeReadFilter`, asking
+ * "who can read this?" instead of "what can they read?". The caller supplies
+ * its own `orgId`/`status` conditions:
+ *
+ *   Membership.find({ orgId, status: 'active', ...membershipReadersFilter(scope) })
+ *
+ * An org-level document is readable by the whole org; a property document by
+ * org-wide members plus that property's (including its locations'); a location
+ * document additionally never by a sibling location's members.
+ */
+export function membershipReadersFilter(
+  scope: Pick<TenantScope, 'propertyId' | 'locationId'>
+): Record<string, unknown> {
+  if (!scope.propertyId) return {};
+  if (!scope.locationId) {
+    return { propertyId: { $in: [null, scope.propertyId] } };
+  }
+  return {
+    $or: [
+      { propertyId: null },
+      { propertyId: scope.propertyId, locationId: { $in: [null, scope.locationId] } },
+    ],
+  };
+}
+
+/**
  * The scope to stamp on a document the caller is creating. Defaults to the
  * caller's own scope; a caller may deliberately publish *downward* (an org
  * director writing a menu for one location) but never upward or sideways.

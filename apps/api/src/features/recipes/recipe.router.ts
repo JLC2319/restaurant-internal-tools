@@ -4,8 +4,10 @@ import {
   createRecipeSchema,
   forkRecipeSchema,
   listRecipesQuerySchema,
+  moveRecipeSchema,
   publishRecipeSchema,
   saveVersionSchema,
+  updateRecipeAccessSchema,
   updateRecipeSchema,
 } from '@rit/shared';
 import * as recipeController from './recipe.controller';
@@ -71,6 +73,35 @@ recipeRouter.post(
   '/:id/versions/:versionId/restore',
   requireRole('chef'),
   recipeController.restoreVersion
+);
+
+// ── Placement ─────────────────────────────────────────────────────────────────
+
+// Managers only: where a recipe lives decides which kitchens see it, and the
+// service re-validates everything placement touches (sub-recipes both ways,
+// photos, the allow-list) before any copy moves.
+recipeRouter.put(
+  '/:id/scope',
+  requireRole('manager'),
+  validate(moveRecipeSchema),
+  recipeController.moveRecipe
+);
+
+// ── Person-level access ───────────────────────────────────────────────────────
+
+// PUT: the allow-list is replaced wholesale — idempotent, no merge semantics.
+// The service enforces that only someone who can currently read AND manage the
+// recipe may change its list; role alone is not enough.
+recipeRouter.put(
+  '/:id/access',
+  requireRole('chef'),
+  validate(updateRecipeAccessSchema),
+  recipeController.updateRecipeAccess
+);
+recipeRouter.get(
+  '/:id/access/candidates',
+  requireRole('chef'),
+  recipeController.listAccessCandidates
 );
 
 // ── Forking & allergen sign-off ───────────────────────────────────────────────

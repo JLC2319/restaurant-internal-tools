@@ -28,6 +28,7 @@ import type {
   UpdateOrganizationInput,
   UpdatePropertyInput,
 } from '@rit/shared';
+import { Types } from 'mongoose';
 import { AppError } from '../../lib/AppError';
 import { assertRole, tierOf } from '../../lib/scope';
 import { Organization } from './organization.model';
@@ -614,23 +615,82 @@ export async function updateMembership(
   if (!membership) throw new AppError('Not found', 404);
 
   if (!ctx.isPlatformAdmin) {
-    // You may not promote above yourself, nor edit someone senior to you.
-    if (!roleAtLeast(ctx.role, input.role) || !roleAtLeast(ctx.role, membership.role)) {
+    // You may not edit someone senior to you, nor promote above yourself.
+    if (!roleAtLeast(ctx.role, membership.role)) throw new AppError('Forbidden', 403);
+    if (input.role !== undefined && !roleAtLeast(ctx.role, input.role)) {
       throw new AppError('Forbidden', 403);
     }
   }
 
-  // The last owner must stay an owner, or the org becomes unadministrable.
-  if (membership.role === 'owner' && input.role !== 'owner') {
-    const owners = await Membership.countDocuments({
-      orgId: ctx.orgId,
-      role: 'owner',
-      status: 'active',
-    });
-    if (owners <= 1) throw new AppError('An organization must keep at least one owner', 409);
+  if (input.role !== undefined) {
+    // The last owner must stay an owner, or the org becomes unadministrable.
+    if (membership.role === 'owner' && input.role !== 'owner') {
+      const owners = await Membership.countDocuments({
+        orgId: ctx.orgId,
+        role: 'owner',
+        status: 'active',
+      });
+      if (owners <= 1) throw new AppError('An organization must keep at least one owner', 409);
+    }
+    membership.role = input.role;
   }
 
-  membership.role = input.role;
+  // A placement change is a full statement: both ids, null = the wider tier.
+  if (input.propertyId !== undefined || input.locationId !== undefined) {
+    const propertyId = input.propertyId ?? null;
+    const locationId = input.locationId ?? null;
+    if (locationId && !propertyId) {
+      throw new AppError('A location-scoped membership must also name its property', 400);
+    }
+
+    if (!ctx.isPlatformAdmin) {
+      // Confined to the caller's subtree twice over — where the member is now
+      // AND where they are going. A property admin can neither pull an
+      // org-wide member down into their property nor push one of their own
+      // members out of it. 404, not 403: same existence hiding as invites.
+      const currentPropertyId = membership.propertyId ? String(membership.propertyId) : null;
+      const currentLocationId = membership.locationId ? String(membership.locationId) : null;
+      if (
+        ctx.propertyId &&
+        (currentPropertyId !== ctx.propertyId || propertyId !== ctx.propertyId)
+      ) {
+        throw new AppError('Not found', 404);
+      }
+      if (
+        ctx.locationId &&
+        (currentLocationId !== ctx.locationId || locationId !== ctx.locationId)
+      ) {
+        throw new AppError('Not found', 404);
+      }
+    }
+
+    if (propertyId) {
+      const property = await Property.exists({ _id: propertyId, orgId: ctx.orgId });
+      if (!property) throw new AppError('Not found', 404);
+    }
+    if (locationId) {
+      const location = await Location.exists({ _id: locationId, orgId: ctx.orgId, propertyId });
+      if (!location) throw new AppError('Not found', 404);
+    }
+
+    // One membership per exact scope; the unique index is the backstop.
+    const clash = await Membership.exists({
+      _id: { $ne: membership._id },
+      userId: membership.userId,
+      orgId: ctx.orgId,
+      propertyId,
+      locationId,
+    });
+    if (clash) throw new AppError('They already have a membership at that scope', 409);
+
+    // NOTE: recipe allow-lists validate membership reach only when written.
+    // Moving a member can strand their entries on recipes their new placement
+    // cannot see — those entries grant nothing (the ACL only narrows scope)
+    // and surface in the recipe's access panel for pruning.
+    membership.propertyId = propertyId ? new Types.ObjectId(propertyId) : null;
+    membership.locationId = locationId ? new Types.ObjectId(locationId) : null;
+  }
+
   await membership.save();
 }
 

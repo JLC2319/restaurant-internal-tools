@@ -241,6 +241,15 @@ export interface IForkedFrom {
 }
 
 /**
+ * A recipe's person-level allow-list. Lives only on the lineage head — never
+ * denormalised onto versions (unlike `scope`, it mutates), so every version
+ * read must go through a gated head load. See recipeAccess.ts.
+ */
+export interface IRecipeAccess {
+  userIds: Types.ObjectId[];
+}
+
+/**
  * A recipe lineage head: identity + the mutable working copy + the pointer to
  * the active (staff-visible) version. Immutable history lives in RecipeVersion.
  */
@@ -271,6 +280,8 @@ export interface IRecipe extends Document {
   /** Denormalised from the active version doc for list display. */
   activeVersion: number | null;
   forkedFrom: IForkedFrom | null;
+  /** Null (or absent on pre-feature docs) = everyone in scope may read. */
+  access: IRecipeAccess | null;
   /** Null whenever no automatic translation is running or recently failed. */
   autoTranslation: IAutoTranslation | null;
   createdBy: Types.ObjectId;

@@ -3,7 +3,7 @@ import type { SubmitEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { OrgMemberRow, TenantRole, TenantTree } from '@rit/shared'
 import { roleAtLeast, tenantRoleValues } from '@rit/shared'
-import { ChevronLeft, ChevronRight, UserPlus, Users, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Pencil, UserPlus, Users, X } from 'lucide-react'
 import { getMe } from '../api/auth'
 import {
   getTenantTree,
@@ -14,6 +14,8 @@ import {
   updateMembership,
 } from '../api/tenancy'
 import { useActiveRole } from './useActiveRole'
+import { ScopePicker, defaultScopeSelection } from './ScopePicker'
+import type { ScopeSelection } from './ScopePicker'
 import {
   Badge,
   ErrorNote,
@@ -44,6 +46,7 @@ function InviteForm({ myRole, onClose }: { myRole: TenantRole; onClose: () => vo
   const queryClient = useQueryClient()
   const [email, setEmail] = useState('')
   const [role, setRole] = useState<TenantRole>('staff')
+  const [scope, setScope] = useState<ScopeSelection>(defaultScopeSelection)
   const [error, setError] = useState<string | null>(null)
 
   // The server refuses granting above the caller's own role; don't offer it.
@@ -51,7 +54,12 @@ function InviteForm({ myRole, onClose }: { myRole: TenantRole; onClose: () => vo
 
   const invite = useMutation({
     mutationFn: async () => {
-      const result = await inviteMember({ email: email.trim().toLowerCase(), role })
+      const result = await inviteMember({
+        email: email.trim().toLowerCase(),
+        role,
+        propertyId: scope.propertyId || null,
+        locationId: scope.locationId || null,
+      })
       if (result.error) throw new Error(result.error.message)
       return result.data
     },
@@ -120,9 +128,16 @@ function InviteForm({ myRole, onClose }: { myRole: TenantRole; onClose: () => vo
         </div>
       </div>
 
+      <div className="grid gap-4 tablet:grid-cols-3">
+        <ScopePicker idPrefix="invite" value={scope} onChange={setScope} />
+        <p className="self-end pb-1 text-xs leading-relaxed text-salt-500">
+          Membership decides what they see: recipes and training that live at their property or
+          location, plus everything org-wide — never a sibling restaurant&rsquo;s.
+        </p>
+      </div>
+
       <p className="text-xs text-salt-500">
-        They join in your current scope. They need an existing account — invite emails aren't sent
-        yet.
+        They need an existing account — invite emails aren't sent yet.
       </p>
 
       <button type="submit" disabled={invite.isPending} className={primaryButtonClass}>
@@ -148,6 +163,8 @@ function MemberRow({
 }) {
   const queryClient = useQueryClient()
   const [error, setError] = useState<string | null>(null)
+  const [moving, setMoving] = useState(false)
+  const [scope, setScope] = useState<ScopeSelection>({ propertyId: '', locationId: '' })
 
   const isSelf = row.user != null && row.user._id === myUserId
   // Editable: an active row of someone else, at or below my own role.
@@ -172,7 +189,23 @@ function MemberRow({
     onError: (err: Error) => setError(err.message),
   })
 
+  const setPlacement = useMutation({
+    mutationFn: async () => {
+      const result = await updateMembership(row._id, {
+        propertyId: scope.propertyId || null,
+        locationId: scope.locationId || null,
+      })
+      if (result.error) throw new Error(result.error.message)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['org', 'members'] })
+      setMoving(false)
+    },
+    onError: (err: Error) => setError(err.message),
+  })
+
   return (
+    <>
     <tr className="transition-colors hover:bg-salt-50">
       <td className={tdClass}>
         <span className="font-medium text-steel-900">
@@ -207,7 +240,25 @@ function MemberRow({
           </span>
         )}
       </td>
-      <td className={`${tdClass} text-salt-600`}>{scopeLabel(row, tree)}</td>
+      <td className={`${tdClass} text-salt-600`}>
+        <span className="inline-flex items-center gap-1.5">
+          {scopeLabel(row, tree)}
+          {editable && (
+            <button
+              type="button"
+              aria-label={`Move ${row.user?.email ?? 'member'} to a different scope`}
+              onClick={() => {
+                setScope({ propertyId: row.propertyId ?? '', locationId: row.locationId ?? '' })
+                setError(null)
+                setMoving((v) => !v)
+              }}
+              className="flex size-7 cursor-pointer items-center justify-center rounded-full text-salt-400 transition-colors hover:bg-salt-100 hover:text-steel-700"
+            >
+              <Pencil className="size-3.5" aria-hidden />
+            </button>
+          )}
+        </span>
+      </td>
       <td className={tdClass}>
         <Badge value={row.status} />
       </td>
@@ -230,6 +281,35 @@ function MemberRow({
         )}
       </td>
     </tr>
+    {moving && (
+      <tr className="bg-salt-50">
+        <td colSpan={6} className="px-4 py-3">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="grid max-w-xl flex-1 gap-3 phablet:grid-cols-2">
+              <ScopePicker idPrefix={`move-${row._id}`} value={scope} onChange={setScope} />
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setError(null)
+                setPlacement.mutate()
+              }}
+              disabled={setPlacement.isPending}
+              className={primaryButtonClass}
+            >
+              {setPlacement.isPending ? 'Moving…' : 'Move'}
+            </button>
+            <button type="button" onClick={() => setMoving(false)} className={subtleButtonClass}>
+              Cancel
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-salt-500">
+            They immediately see only what lives at the new placement, plus everything above it.
+          </p>
+        </td>
+      </tr>
+    )}
+    </>
   )
 }
 

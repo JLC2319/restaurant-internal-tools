@@ -3,6 +3,7 @@ import request from 'supertest';
 import mongoose from 'mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { app } from '../../app';
+import { Recipe } from '../../features/recipes/recipe.model';
 
 /**
  * Full HTTP round-trips for /api/recipes: tenant isolation, the staff/chef
@@ -116,6 +117,8 @@ function as(token: string, orgId: string) {
       request(app).post(path).set('Authorization', `Bearer ${token}`).set('X-Org-Id', orgId),
     patch: (path: string) =>
       request(app).patch(path).set('Authorization', `Bearer ${token}`).set('X-Org-Id', orgId),
+    put: (path: string) =>
+      request(app).put(path).set('Authorization', `Bearer ${token}`).set('X-Org-Id', orgId),
     delete: (path: string) =>
       request(app).delete(path).set('Authorization', `Bearer ${token}`).set('X-Org-Id', orgId),
   };
@@ -724,5 +727,485 @@ describe('publish on save', () => {
     const response = await as(owner.token, orgId).get('/api/recipes/publish-mode');
     expect(response.status).toBe(200);
     expect(response.body).toHaveProperty('mode');
+  });
+});
+
+describe('person-level access restriction', () => {
+  let owner: { token: string; userId: string };
+  let admin: { token: string; userId: string };
+  let manager: { token: string; userId: string };
+  let chefCreator: { token: string; userId: string };
+  let chefListed: { token: string; userId: string };
+  let chefOutsider: { token: string; userId: string };
+  let staffListed: { token: string; userId: string };
+  let staffOutsider: { token: string; userId: string };
+  let p2Chef: { token: string; userId: string };
+  let orgId: string;
+  let p1: string;
+  let p2: string;
+  let l1: string;
+  let secretId: string;
+  let secretV1: string;
+
+  async function publish(token: string, recipeId: string): Promise<string> {
+    const saved = await as(token, orgId).post(`/api/recipes/${recipeId}/versions`).send({});
+    expect(saved.body._id).toBeTruthy();
+    const activated = await as(token, orgId)
+      .post(`/api/recipes/${recipeId}/versions/${saved.body._id}/activate`)
+      .send();
+    expect(activated.status).toBe(200);
+    return saved.body._id;
+  }
+
+  async function restrict(
+    token: string,
+    recipeId: string,
+    userIds: string[]
+  ): Promise<request.Response> {
+    return as(token, orgId).put(`/api/recipes/${recipeId}/access`).send({ access: { userIds } });
+  }
+
+  beforeAll(async () => {
+    owner = await registerAndLogin('acl-owner@example.com');
+    orgId = await createOrg(owner.token, 'ACL Org');
+    p1 = await createProperty(owner.token, orgId, 'Sixty Vines');
+    p2 = await createProperty(owner.token, orgId, 'Whiskey Cake');
+    l1 = await createLocation(owner.token, orgId, p1, 'Sixty Vines Dallas');
+
+    admin = await addMember(owner.token, orgId, 'acl-admin@example.com', 'admin');
+    manager = await addMember(owner.token, orgId, 'acl-manager@example.com', 'manager');
+    chefCreator = await addMember(owner.token, orgId, 'acl-creator@example.com', 'chef');
+    chefListed = await addMember(owner.token, orgId, 'acl-listed@example.com', 'chef');
+    chefOutsider = await addMember(owner.token, orgId, 'acl-outsider@example.com', 'chef');
+    staffListed = await addMember(owner.token, orgId, 'acl-staff-listed@example.com', 'staff', {
+      propertyId: p1,
+      locationId: l1,
+    });
+    staffOutsider = await addMember(owner.token, orgId, 'acl-staff-out@example.com', 'staff');
+    p2Chef = await addMember(owner.token, orgId, 'acl-p2-chef@example.com', 'chef', {
+      propertyId: p2,
+    });
+
+    // The fixture: an org-level recipe, published so staff can read it, then
+    // restricted to one chef and one location-tier staff member. The creator
+    // deliberately leaves themselves off the list.
+    secretId = await createRecipe(chefCreator.token, orgId, 'Secret Demi', {
+      content: content({ ingredients: [itemLine('Veal stock')], steps: ['Reduce by half.'] }),
+    });
+    secretV1 = await publish(chefCreator.token, secretId);
+    const restricted = await restrict(chefCreator.token, secretId, [
+      chefListed.userId,
+      staffListed.userId,
+    ]);
+    expect(restricted.status).toBe(200);
+    expect(restricted.body.restricted).toBe(true);
+  }, 120_000);
+
+  it('shows a restricted recipe to listed members, with reader shaping intact for staff', async () => {
+    const chefList = await as(chefListed.token, orgId).get('/api/recipes');
+    expect(chefList.body.items.map((r: { name: string }) => r.name)).toContain('Secret Demi');
+
+    const staffDetail = await as(staffListed.token, orgId).get(`/api/recipes/${secretId}`);
+    expect(staffDetail.status).toBe(200);
+    expect(staffDetail.body.restricted).toBe(true);
+    expect(staffDetail.body.activeContent).not.toBeNull();
+    // Staff shaping is unchanged by the ACL: no working copy, no allow-list.
+    expect(staffDetail.body.workingCopy).toBeNull();
+    expect(staffDetail.body.access).toBeNull();
+
+    const staffList = await as(staffListed.token, orgId).get('/api/recipes?live=true');
+    expect(staffList.body.items.map((r: { name: string }) => r.name)).toContain('Secret Demi');
+  });
+
+  it('hides it entirely from unlisted members — list, detail, versions, writes, fork', async () => {
+    const list = await as(chefOutsider.token, orgId).get('/api/recipes');
+    expect(list.body.items.map((r: { name: string }) => r.name)).not.toContain('Secret Demi');
+
+    expect((await as(chefOutsider.token, orgId).get(`/api/recipes/${secretId}`)).status).toBe(404);
+    expect(
+      (await as(chefOutsider.token, orgId).get(`/api/recipes/${secretId}/versions`)).status
+    ).toBe(404);
+    expect(
+      (await as(chefOutsider.token, orgId).get(`/api/recipes/${secretId}/versions/${secretV1}`))
+        .status
+    ).toBe(404);
+    expect(
+      (
+        await as(chefOutsider.token, orgId)
+          .patch(`/api/recipes/${secretId}`)
+          .send({ name: 'Stolen Demi' })
+      ).status
+    ).toBe(404);
+    expect(
+      (await as(chefOutsider.token, orgId).post(`/api/recipes/${secretId}/fork`).send({})).status
+    ).toBe(404);
+    expect((await restrict(chefOutsider.token, secretId, [chefOutsider.userId])).status).toBe(404);
+
+    const staffList = await as(staffOutsider.token, orgId).get('/api/recipes?live=true');
+    expect(staffList.body.items.map((r: { name: string }) => r.name)).not.toContain('Secret Demi');
+  });
+
+  it('does not answer name probes through ?q= for unlisted members', async () => {
+    const probe = await as(chefOutsider.token, orgId).get('/api/recipes?q=Secret');
+    expect(probe.body.total).toBe(0);
+    const listed = await as(chefListed.token, orgId).get('/api/recipes?q=Secret');
+    expect(listed.body.total).toBe(1);
+  });
+
+  it('always keeps the creator in, even when they left themselves off the list', async () => {
+    const detail = await as(chefCreator.token, orgId).get(`/api/recipes/${secretId}`);
+    expect(detail.status).toBe(200);
+    // The creator manages it, so the allow-list itself is visible to them.
+    expect(detail.body.access.userIds).toEqual(
+      expect.arrayContaining([chefListed.userId, staffListed.userId])
+    );
+    const rename = await as(chefCreator.token, orgId)
+      .patch(`/api/recipes/${secretId}`)
+      .send({ name: 'Secret Demi' });
+    expect(rename.status).toBe(200);
+  });
+
+  it('lets admins and owners through, but not managers', async () => {
+    const adminDetail = await as(admin.token, orgId).get(`/api/recipes/${secretId}`);
+    expect(adminDetail.status).toBe(200);
+    expect(adminDetail.body.restricted).toBe(true);
+    expect(adminDetail.body.access).not.toBeNull();
+
+    // Idempotent re-PUT of the same list: proves admins may manage access.
+    const rePut = await restrict(admin.token, secretId, [chefListed.userId, staffListed.userId]);
+    expect(rePut.status).toBe(200);
+
+    expect((await as(owner.token, orgId).get(`/api/recipes/${secretId}`)).status).toBe(200);
+    expect((await as(manager.token, orgId).get(`/api/recipes/${secretId}`)).status).toBe(404);
+  });
+
+  it('refuses access edits from listed members below chef', async () => {
+    const attempt = await restrict(staffListed.token, secretId, [staffListed.userId]);
+    expect(attempt.status).toBe(403);
+  });
+
+  it('rejects allow-list entries whose membership cannot see the recipe scope', async () => {
+    const p1Recipe = await createRecipe(owner.token, orgId, 'P1 House Rub', { propertyId: p1 });
+
+    // A sibling property's chef never sees a P1 recipe — listing them lies.
+    const sibling = await restrict(owner.token, p1Recipe, [p2Chef.userId]);
+    expect(sibling.status).toBe(400);
+    expect(sibling.body.message).toMatch(/cannot see/);
+
+    // Someone from another org entirely, ditto — even on an org-level recipe.
+    const strangerOwner = await registerAndLogin('acl-stranger@example.com');
+    await createOrg(strangerOwner.token, 'ACL Other Org');
+    expect((await restrict(owner.token, secretId, [strangerOwner.userId])).status).toBe(400);
+
+    // A location member below the recipe's property, and an org-wide member,
+    // are both genuinely covered — accepted.
+    const valid = await restrict(owner.token, p1Recipe, [
+      staffListed.userId,
+      chefOutsider.userId,
+    ]);
+    expect(valid.status).toBe(200);
+    expect(valid.body.access.userIds).toHaveLength(2);
+  });
+
+  it('offers exactly the coverable people as picker candidates', async () => {
+    const p1Recipe = await createRecipe(owner.token, orgId, 'P1 Staff Meal', { propertyId: p1 });
+    const candidates = await as(owner.token, orgId).get(
+      `/api/recipes/${p1Recipe}/access/candidates`
+    );
+    expect(candidates.status).toBe(200);
+    const emails = candidates.body.map((c: { email: string }) => c.email);
+    expect(emails).toContain('acl-outsider@example.com'); // org-wide member
+    expect(emails).toContain('acl-staff-listed@example.com'); // L1 under P1
+    expect(emails).not.toContain('acl-p2-chef@example.com'); // sibling property
+
+    // The endpoint is gated like any other read of the recipe…
+    expect(
+      (await as(chefOutsider.token, orgId).get(`/api/recipes/${secretId}/access/candidates`))
+        .status
+    ).toBe(404);
+    // …and by role.
+    expect(
+      (await as(staffListed.token, orgId).get(`/api/recipes/${secretId}/access/candidates`))
+        .status
+    ).toBe(403);
+  });
+
+  it('clears the restriction with access: null', async () => {
+    const dish = await createRecipe(chefCreator.token, orgId, 'Sometimes Secret');
+    expect((await restrict(chefCreator.token, dish, [])).status).toBe(200);
+    expect((await as(chefOutsider.token, orgId).get(`/api/recipes/${dish}`)).status).toBe(404);
+
+    const cleared = await as(chefCreator.token, orgId)
+      .put(`/api/recipes/${dish}/access`)
+      .send({ access: null });
+    expect(cleared.status).toBe(200);
+    expect(cleared.body.restricted).toBe(false);
+    expect((await as(chefOutsider.token, orgId).get(`/api/recipes/${dish}`)).status).toBe(200);
+  });
+
+  it('forks into an unrestricted lineage, and hides the origin from non-readers', async () => {
+    const forked = await as(chefListed.token, orgId)
+      .post(`/api/recipes/${secretId}/fork`)
+      .send({ name: 'Open Demi' });
+    expect(forked.status).toBe(201);
+    expect(forked.body.restricted).toBe(false);
+    expect(forked.body.forkedFrom.recipeId).toBe(secretId);
+
+    // Anyone may read the fork now — but only readers of the source learn
+    // where it came from; everyone else just sees "a fork of something".
+    const outsiderView = await as(chefOutsider.token, orgId).get(
+      `/api/recipes/${forked.body._id}`
+    );
+    expect(outsiderView.status).toBe(200);
+    expect(outsiderView.body.isFork).toBe(true);
+    expect(outsiderView.body.forkedFrom).toBeNull();
+
+    const adminView = await as(admin.token, orgId).get(`/api/recipes/${forked.body._id}`);
+    expect(adminView.body.forkedFrom?.recipeId).toBe(secretId);
+  });
+
+  it('grandfathers existing sub-recipe refs but blocks new ones', async () => {
+    // Board Sauce references Secret Glaze while the glaze is still open…
+    const glaze = await createRecipe(chefCreator.token, orgId, 'Secret Glaze');
+    const board = await createRecipe(chefOutsider.token, orgId, 'Board Sauce', {
+      content: content({ ingredients: [subLine(glaze)], steps: ['Combine.'] }),
+    });
+    expect((await restrict(chefCreator.token, glaze, [])).status).toBe(200);
+
+    // …so resaving Board Sauce keeps working for its unlisted editor,
+    const resave = await as(chefOutsider.token, orgId)
+      .patch(`/api/recipes/${board}`)
+      .send({ content: content({ ingredients: [subLine(glaze)], steps: ['Whisk, then combine.'] }) });
+    expect(resave.status).toBe(200);
+
+    // the glaze's NAME still renders on the line (approved, name-only leak),
+    const detail = await as(chefOutsider.token, orgId).get(`/api/recipes/${board}`);
+    expect(detail.body.workingCopy.ingredients[0].name).toBe('Secret Glaze');
+
+    // but referencing it from anywhere new answers like it does not exist.
+    const probe = await as(chefOutsider.token, orgId)
+      .post('/api/recipes')
+      .send({
+        name: 'Glaze Thief',
+        content: content({ ingredients: [subLine(glaze)] }),
+      });
+    expect(probe.status).toBe(404);
+  });
+
+  it('gates translation reads behind the same predicate', async () => {
+    expect(
+      (
+        await as(chefOutsider.token, orgId).get(
+          `/api/translations/recipes/${secretId}?locale=es`
+        )
+      ).status
+    ).toBe(404);
+    expect(
+      (await as(chefListed.token, orgId).get(`/api/translations/recipes/${secretId}?locale=es`))
+        .status
+    ).toBe(200);
+  });
+
+  it('treats documents that predate the feature as unrestricted', async () => {
+    const legacy = await createRecipe(chefCreator.token, orgId, 'Legacy Dish');
+    expect((await restrict(chefCreator.token, legacy, [])).status).toBe(200);
+    expect((await as(chefOutsider.token, orgId).get(`/api/recipes/${legacy}`)).status).toBe(404);
+
+    // Strip the field entirely, as any pre-feature document stores it.
+    await Recipe.updateOne({ _id: legacy }, { $unset: { access: 1 } });
+    const detail = await as(chefOutsider.token, orgId).get(`/api/recipes/${legacy}`);
+    expect(detail.status).toBe(200);
+    expect(detail.body.restricted).toBe(false);
+  });
+
+  it('changes nothing about cross-org isolation', async () => {
+    const otherOwner = await registerAndLogin('acl-other-org@example.com');
+    const otherOrg = await createOrg(otherOwner.token, 'ACL Foreign Org');
+    expect((await as(otherOwner.token, otherOrg).get(`/api/recipes/${secretId}`)).status).toBe(
+      404
+    );
+  });
+
+  it('accepts an allow-list at creation, validated the same way', async () => {
+    const born = await as(chefCreator.token, orgId)
+      .post('/api/recipes')
+      .send({
+        name: 'Born Secret',
+        content: content(),
+        access: { userIds: [chefListed.userId] },
+      });
+    expect(born.status).toBe(201);
+    expect(born.body.restricted).toBe(true);
+    expect(
+      (await as(chefOutsider.token, orgId).get(`/api/recipes/${born.body._id}`)).status
+    ).toBe(404);
+
+    const invalid = await as(owner.token, orgId)
+      .post('/api/recipes')
+      .send({
+        name: 'Bad Bind',
+        content: content(),
+        propertyId: p1,
+        access: { userIds: [p2Chef.userId] },
+      });
+    expect(invalid.status).toBe(400);
+  });
+});
+
+describe('moving a recipe between scopes', () => {
+  let owner: { token: string; userId: string };
+  let p1Staff: { token: string; userId: string };
+  let p2Staff: { token: string; userId: string };
+  let p2Chef: { token: string; userId: string };
+  let orgId: string;
+  let p1: string;
+  let p2: string;
+  let l1: string;
+
+  async function publishHere(token: string, recipeId: string): Promise<void> {
+    const saved = await as(token, orgId).post(`/api/recipes/${recipeId}/versions`).send({});
+    expect(saved.body._id).toBeTruthy();
+    const activated = await as(token, orgId)
+      .post(`/api/recipes/${recipeId}/versions/${saved.body._id}/activate`)
+      .send();
+    expect(activated.status).toBe(200);
+  }
+
+  function move(
+    token: string,
+    recipeId: string,
+    placement: { propertyId: string | null; locationId: string | null }
+  ) {
+    return as(token, orgId).put(`/api/recipes/${recipeId}/scope`).send(placement);
+  }
+
+  beforeAll(async () => {
+    owner = await registerAndLogin('mv-owner@example.com');
+    orgId = await createOrg(owner.token, 'Move Recipes Org');
+    p1 = await createProperty(owner.token, orgId, 'Move Vines');
+    p2 = await createProperty(owner.token, orgId, 'Move Cake');
+    l1 = await createLocation(owner.token, orgId, p1, 'Move Vines Dallas');
+    p1Staff = await addMember(owner.token, orgId, 'mv-p1-staff@example.com', 'staff', {
+      propertyId: p1,
+    });
+    p2Staff = await addMember(owner.token, orgId, 'mv-p2-staff@example.com', 'staff', {
+      propertyId: p2,
+    });
+    p2Chef = await addMember(owner.token, orgId, 'mv-p2-chef@example.com', 'chef', {
+      propertyId: p2,
+    });
+  }, 120_000);
+
+  it('moves an org recipe into a property: siblings lose it, the new home keeps it', async () => {
+    const id = await createRecipe(owner.token, orgId, 'Wandering Rub');
+    await publishHere(owner.token, id);
+
+    expect(
+      (await as(p2Staff.token, orgId).get('/api/recipes')).body.items.map(
+        (r: { name: string }) => r.name
+      )
+    ).toContain('Wandering Rub');
+
+    const moved = await move(owner.token, id, { propertyId: p1, locationId: null });
+    expect(moved.status).toBe(200);
+    expect(moved.body.scope.propertyId).toBe(p1);
+
+    expect(
+      (await as(p1Staff.token, orgId).get('/api/recipes')).body.items.map(
+        (r: { name: string }) => r.name
+      )
+    ).toContain('Wandering Rub');
+    const p2View = await as(p2Staff.token, orgId).get('/api/recipes');
+    expect(p2View.body.items.map((r: { name: string }) => r.name)).not.toContain('Wandering Rub');
+    expect((await as(p2Staff.token, orgId).get(`/api/recipes/${id}`)).status).toBe(404);
+  });
+
+  it('rewrites version snapshots with the head, so history follows the move', async () => {
+    const id = await createRecipe(owner.token, orgId, 'Climbing Stock', {
+      propertyId: p1,
+      locationId: l1,
+    });
+    await publishHere(owner.token, id);
+
+    // Straight up: location → org-wide.
+    const moved = await move(owner.token, id, { propertyId: null, locationId: null });
+    expect(moved.status).toBe(200);
+
+    // A chef at the SIBLING property can now read the lineage's history — the
+    // denormalised version scopes must have moved with the head for this to
+    // return anything at all.
+    const versions = await as(p2Chef.token, orgId).get(`/api/recipes/${id}/versions`);
+    expect(versions.status).toBe(200);
+    expect(versions.body).toHaveLength(1);
+  });
+
+  it('refuses to move out from under active consumers', async () => {
+    const sauce = await createRecipe(owner.token, orgId, 'Mother Sauce');
+    const dish = await createRecipe(owner.token, orgId, 'Org Dish', {
+      content: content({ ingredients: [subLine(sauce)] }),
+    });
+
+    const blocked = await move(owner.token, sauce, { propertyId: p1, locationId: null });
+    expect(blocked.status).toBe(409);
+    expect(blocked.body.message).toMatch(/sub-recipe/);
+
+    // Move the consumer down first, then the sauce may follow.
+    expect((await move(owner.token, dish, { propertyId: p1, locationId: null })).status).toBe(200);
+    expect((await move(owner.token, sauce, { propertyId: p1, locationId: null })).status).toBe(200);
+
+    // But not below it: the dish sits property-wide, the sauce would be
+    // location-only and unreadable for the rest of the property.
+    const tooDeep = await move(owner.token, sauce, { propertyId: p1, locationId: l1 });
+    expect(tooDeep.status).toBe(409);
+  });
+
+  it('refuses a move that would strand what the recipe itself consumes', async () => {
+    const localSub = await createRecipe(owner.token, orgId, 'P1 Base', { propertyId: p1 });
+    const localDish = await createRecipe(owner.token, orgId, 'P1 Dish', {
+      propertyId: p1,
+      content: content({ ingredients: [subLine(localSub)] }),
+    });
+
+    const up = await move(owner.token, localDish, { propertyId: null, locationId: null });
+    expect(up.status).toBe(400);
+    expect(up.body.message).toMatch(/scoped below/);
+  });
+
+  it('re-validates the allow-list against the new home', async () => {
+    const secret = await createRecipe(owner.token, orgId, 'Traveling Secret');
+    const restricted = await as(owner.token, orgId)
+      .put(`/api/recipes/${secret}/access`)
+      .send({ access: { userIds: [p2Staff.userId] } });
+    expect(restricted.status).toBe(200);
+
+    // P2's staff member cannot see a P1 recipe — the list would lie there.
+    const bad = await move(owner.token, secret, { propertyId: p1, locationId: null });
+    expect(bad.status).toBe(400);
+    expect(bad.body.message).toMatch(/cannot see/);
+
+    // At their own property the same list is fine.
+    expect((await move(owner.token, secret, { propertyId: p2, locationId: null })).status).toBe(
+      200
+    );
+  });
+
+  it('gates moves at manager role and write tier', async () => {
+    const id = await createRecipe(owner.token, orgId, 'Immovable Object', { propertyId: p2 });
+
+    // Chef: right property, wrong role.
+    expect((await move(p2Chef.token, id, { propertyId: null, locationId: null })).status).toBe(
+      403
+    );
+
+    const p2Manager = await addMember(owner.token, orgId, 'mv-p2-manager@example.com', 'manager', {
+      propertyId: p2,
+    });
+    // Property manager: may not move it up to the org, nor sideways.
+    expect(
+      (await move(p2Manager.token, id, { propertyId: null, locationId: null })).status
+    ).toBe(403);
+    expect((await move(p2Manager.token, id, { propertyId: p1, locationId: null })).status).toBe(
+      403
+    );
   });
 });

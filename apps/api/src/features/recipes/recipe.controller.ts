@@ -5,7 +5,9 @@ import type {
   ForkRecipeInput,
   ListRecipesQuery,
   PublishRecipeInput,
+  MoveRecipeInput,
   SaveVersionInput,
+  UpdateRecipeAccessInput,
   UpdateRecipeInput,
 } from '@rit/shared';
 import * as recipeService from './recipe.service';
@@ -46,6 +48,29 @@ export async function updateRecipe(req: Request, res: Response): Promise<void> {
     req.body as UpdateRecipeInput
   );
   res.status(200).json(recipe);
+}
+
+export async function moveRecipe(req: Request, res: Response): Promise<void> {
+  const recipe = await recipeService.moveRecipe(
+    req.tenant!,
+    pathParam(req, 'id'),
+    req.body as MoveRecipeInput
+  );
+  res.status(200).json(recipe);
+}
+
+export async function updateRecipeAccess(req: Request, res: Response): Promise<void> {
+  const recipe = await recipeService.updateRecipeAccess(
+    req.tenant!,
+    pathParam(req, 'id'),
+    req.body as UpdateRecipeAccessInput
+  );
+  res.status(200).json(recipe);
+}
+
+export async function listAccessCandidates(req: Request, res: Response): Promise<void> {
+  const candidates = await recipeService.listAccessCandidates(req.tenant!, pathParam(req, 'id'));
+  res.status(200).json(candidates);
 }
 
 export async function archiveRecipe(req: Request, res: Response): Promise<void> {

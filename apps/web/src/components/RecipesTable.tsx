@@ -5,11 +5,13 @@ import type { RecipeStatus, RecipeSummary, Unit } from '@rit/shared'
 import { roleAtLeast, unitValues, unitFamily } from '@rit/shared'
 import {
   Archive,
+  Building2,
   ChevronLeft,
   ChevronRight,
   Clock,
   CookingPot,
   GitFork,
+  Lock,
   Plus,
   Search,
   ShieldAlert,
@@ -18,6 +20,13 @@ import {
   X,
 } from 'lucide-react'
 import { createRecipe, listRecipes, recipesScopeKey } from '../api/recipes'
+import {
+  ScopePicker,
+  defaultScopeSelection,
+  scopeDisplayLabel,
+  useTenantTree,
+} from './ScopePicker'
+import type { ScopeSelection } from './ScopePicker'
 import { useActiveRole } from './useActiveRole'
 import { QueryProvider } from './QueryProvider'
 import {
@@ -72,12 +81,15 @@ function NewRecipeForm({ onClose }: { onClose: () => void }) {
   const [name, setName] = useState('')
   const [yieldAmount, setYieldAmount] = useState('1')
   const [yieldUnit, setYieldUnit] = useState<Unit>('qt')
+  const [scope, setScope] = useState<ScopeSelection>(defaultScopeSelection)
   const [error, setError] = useState<string | null>(null)
 
   const create = useMutation({
     mutationFn: async () => {
       const result = await createRecipe({
         name,
+        propertyId: scope.propertyId || null,
+        locationId: scope.locationId || null,
         content: {
           description: '',
           yield: { amount: Number(yieldAmount), unit: yieldUnit },
@@ -157,6 +169,14 @@ function NewRecipeForm({ onClose }: { onClose: () => void }) {
         </div>
       </div>
 
+      <div className="grid gap-4 tablet:grid-cols-3">
+        <ScopePicker idPrefix="new-recipe" value={scope} onChange={setScope} />
+        <p className="self-end pb-1 text-xs leading-relaxed text-salt-500">
+          Where a recipe lives decides who sees it: the whole organization, one property&rsquo;s
+          kitchens, or a single location. Sibling properties never see each other&rsquo;s.
+        </p>
+      </div>
+
       <button type="submit" disabled={create.isPending} className={primaryButtonClass}>
         <Plus className="size-4" aria-hidden />
         {create.isPending ? 'Creating…' : 'Create and edit'}
@@ -165,7 +185,15 @@ function NewRecipeForm({ onClose }: { onClose: () => void }) {
   )
 }
 
-function RecipeCard({ recipe, index }: { recipe: RecipeSummary; index: number }) {
+function RecipeCard({
+  recipe,
+  belongsTo,
+  index,
+}: {
+  recipe: RecipeSummary
+  belongsTo: string | null
+  index: number
+}) {
   const delay = ['', 'fade-delay-1', 'fade-delay-2', 'fade-delay-3'][index % 4]
   return (
     <li className={`animate-fade-up ${delay}`}>
@@ -191,14 +219,24 @@ function RecipeCard({ recipe, index }: { recipe: RecipeSummary; index: number })
             <h2 className="font-semibold text-steel-900 transition-colors group-hover:text-ember-700">
               {recipe.name}
             </h2>
-            {recipe.isFork && (
-              <span
-                title="Forked from another recipe"
-                className="flex size-7 shrink-0 items-center justify-center rounded-full bg-steel-50 text-steel-500 ring-1 ring-steel-200 ring-inset"
-              >
-                <GitFork className="size-3.5" aria-hidden />
-              </span>
-            )}
+            <span className="flex shrink-0 items-center gap-1.5">
+              {recipe.restricted && (
+                <span
+                  title="Restricted to specific people"
+                  className="flex size-7 items-center justify-center rounded-full bg-steel-50 text-steel-500 ring-1 ring-steel-200 ring-inset"
+                >
+                  <Lock className="size-3.5" aria-hidden />
+                </span>
+              )}
+              {recipe.isFork && (
+                <span
+                  title="Forked from another recipe"
+                  className="flex size-7 items-center justify-center rounded-full bg-steel-50 text-steel-500 ring-1 ring-steel-200 ring-inset"
+                >
+                  <GitFork className="size-3.5" aria-hidden />
+                </span>
+              )}
+            </span>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -223,10 +261,18 @@ function RecipeCard({ recipe, index }: { recipe: RecipeSummary; index: number })
             </span>
           </div>
 
-          <p className="mt-auto flex items-center gap-1.5 text-xs text-salt-500">
-            <Clock className="size-3.5" aria-hidden />
-            Updated {new Date(recipe.modifiedAt).toLocaleDateString()}
-          </p>
+          <div className="mt-auto space-y-1.5">
+            {belongsTo && (
+              <p className="flex items-center gap-1.5 text-xs text-salt-500">
+                <Building2 className="size-3.5" aria-hidden />
+                {belongsTo}
+              </p>
+            )}
+            <p className="flex items-center gap-1.5 text-xs text-salt-500">
+              <Clock className="size-3.5" aria-hidden />
+              Updated {new Date(recipe.modifiedAt).toLocaleDateString()}
+            </p>
+          </div>
         </div>
       </a>
     </li>
@@ -256,6 +302,7 @@ function Browser() {
   const { role } = useActiveRole()
   const canCreate = role != null && roleAtLeast(role, 'chef')
 
+  const { data: tree } = useTenantTree()
   const { data, error, isLoading } = useQuery({
     queryKey: ['recipes', ...recipesScopeKey(), 'list', { q, page, status }],
     queryFn: async () => {
@@ -358,7 +405,12 @@ function Browser() {
       {data && data.items.length > 0 && (
         <ul className="grid gap-4 phablet:grid-cols-2 desktop:grid-cols-3">
           {data.items.map((recipe, index) => (
-            <RecipeCard key={recipe._id} recipe={recipe} index={index} />
+            <RecipeCard
+              key={recipe._id}
+              recipe={recipe}
+              belongsTo={scopeDisplayLabel(recipe.scope, tree)}
+              index={index}
+            />
           ))}
         </ul>
       )}

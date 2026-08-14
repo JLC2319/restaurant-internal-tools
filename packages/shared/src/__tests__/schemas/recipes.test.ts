@@ -5,7 +5,9 @@ import {
   ingredientLineSchema,
   listRecipesQuerySchema,
   publishRecipeSchema,
+  recipeAccessSchema,
   recipeContentSchema,
+  updateRecipeAccessSchema,
   updateRecipeSchema,
 } from '../../schemas/recipes.js';
 import { MAX_RECIPE_PHOTOS } from '../../types/domain.js';
@@ -111,6 +113,54 @@ describe('createRecipeSchema', () => {
       locationId: OTHER_OID,
     });
     expect(result.success).toBe(true);
+  });
+
+  it('accepts an optional allow-list so a recipe can be born restricted', () => {
+    const result = createRecipeSchema.safeParse({
+      name: 'House sauce',
+      content: { yield: QUANTITY },
+      access: { userIds: [OID] },
+    });
+    expect(result.success).toBe(true);
+    expect(result.data?.access?.userIds).toEqual([OID]);
+  });
+});
+
+describe('recipeAccessSchema', () => {
+  it('defaults userIds so an empty object is a valid (empty) list', () => {
+    const result = recipeAccessSchema.safeParse({});
+    expect(result.success).toBe(true);
+    expect(result.data?.userIds).toEqual([]);
+  });
+
+  it('rejects a userId that is not an ObjectId', () => {
+    const result = recipeAccessSchema.safeParse({ userIds: ['not-an-id'] });
+    expect(result.success).toBe(false);
+  });
+
+  it('caps the list at 200 — beyond that it should be a scope, not an ACL', () => {
+    const userIds = Array.from({ length: 201 }, () => OID);
+    const result = recipeAccessSchema.safeParse({ userIds });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('updateRecipeAccessSchema', () => {
+  it('accepts null to clear the restriction', () => {
+    const result = updateRecipeAccessSchema.safeParse({ access: null });
+    expect(result.success).toBe(true);
+    expect(result.data?.access).toBeNull();
+  });
+
+  it('accepts a replacement list', () => {
+    const result = updateRecipeAccessSchema.safeParse({ access: { userIds: [OID, OTHER_OID] } });
+    expect(result.success).toBe(true);
+    expect(result.data?.access?.userIds).toEqual([OID, OTHER_OID]);
+  });
+
+  it('rejects a body missing the access key — clearing must be explicit', () => {
+    const result = updateRecipeAccessSchema.safeParse({});
+    expect(result.success).toBe(false);
   });
 });
 

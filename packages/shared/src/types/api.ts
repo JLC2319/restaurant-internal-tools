@@ -269,6 +269,32 @@ export interface ForkedFromRef {
   version: number;
 }
 
+/** One person on a recipe's allow-list, resolved for display. */
+export interface RecipeAccessUserView {
+  _id: string;
+  name: UserName;
+  email: string;
+}
+
+/**
+ * A recipe's person-level allow-list. `userIds` is the full stored list;
+ * `users` resolves only the ids that still map to an account, so the UI can
+ * badge the remainder as former members without a save round-trip ever
+ * silently dropping them.
+ */
+export interface RecipeAccessView {
+  userIds: string[];
+  users: RecipeAccessUserView[];
+}
+
+/** One eligible person for the access picker — their membership can see the recipe's scope. */
+export interface RecipeAccessCandidate {
+  _id: string;
+  name: UserName;
+  email: string;
+  jobTitle: string | null;
+}
+
 /** One row of the recipe list. */
 export interface RecipeSummary {
   _id: string;
@@ -281,6 +307,11 @@ export interface RecipeSummary {
   allergensVerified: boolean;
   isFork: boolean;
   /**
+   * True when the recipe carries a person-level allow-list. Anyone who can see
+   * the recipe may see this flag; it names nobody.
+   */
+  restricted: boolean;
+  /**
    * First plating photo of whichever content the caller may see — the live
    * version for staff, the working copy for chefs. Null when there is none.
    */
@@ -291,6 +322,11 @@ export interface RecipeSummary {
 
 /** Full recipe detail. Staff receive `workingCopy: null` — the active version is their whole truth. */
 export interface RecipeDetail extends RecipeSummary {
+  /**
+   * Origin lineage — null when this is not a fork, and also null when the
+   * caller cannot read the source (its identity is hidden like any other
+   * unreadable recipe; `isFork` alone says a lineage has an origin).
+   */
   forkedFrom: ForkedFromRef | null;
   createdBy: string;
   currentVersion: number;
@@ -299,6 +335,12 @@ export interface RecipeDetail extends RecipeSummary {
   workingCopy: RecipeContentView | null;
   /** Whether the caller may edit/version/fork this recipe (role + write tier). */
   canManage: boolean;
+  /**
+   * The allow-list, present only when the recipe is restricted AND the caller
+   * may manage it. Everyone else — including listed viewers — gets null: who
+   * else is trusted is itself managed information.
+   */
+  access: RecipeAccessView | null;
   /**
    * `recipePublishMode` resolved for *this recipe's* scope, so the editor offers
    * the publish-on-save shortcut on exactly the recipes the server would accept

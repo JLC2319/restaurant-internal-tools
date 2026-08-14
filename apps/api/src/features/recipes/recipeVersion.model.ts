@@ -6,8 +6,15 @@ import { recipeContentSchema } from './recipe.model';
  * An immutable snapshot of a recipe's working copy, minted by "save as
  * version". No update path exists on purpose — history that can be rewritten
  * is not history. The scope is denormalised from the head so version queries
- * compose scopeReadFilter directly; that is safe because a lineage's scope
- * never mutates (forking creates a new head).
+ * compose scopeReadFilter directly; that stays safe because scope mutates
+ * only through `moveRecipe`, which rewrites these copies in the same act
+ * (forking still creates a new head).
+ *
+ * ACCESS INVARIANT: the head's `access` allow-list is deliberately NOT
+ * denormalised here — it mutates, so copies would go stale. Every read of a
+ * version must therefore first load the head through `recipeAccessFilter`
+ * (see recipeAccess.ts); a standalone RecipeVersion query is an ACL bypass by
+ * construction.
  */
 
 const scopeSchema = new Schema<IScope>(

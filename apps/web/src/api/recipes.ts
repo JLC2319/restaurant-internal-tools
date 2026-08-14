@@ -4,7 +4,9 @@ import type {
   CreateRecipeInput,
   ForkRecipeInput,
   PaginatedResponse,
+  MoveRecipeInput,
   PublishRecipeInput,
+  RecipeAccessCandidate,
   RecipeDetail,
   RecipePublishModeView,
   RecipeStatus,
@@ -12,6 +14,7 @@ import type {
   RecipeVersionDetail,
   RecipeVersionSummary,
   SaveVersionInput,
+  UpdateRecipeAccessInput,
   UpdateRecipeInput,
 } from '@rit/shared'
 import { apiRequest, getScope } from './client'
@@ -144,6 +147,30 @@ export function forkRecipe(id: string, input: ForkRecipeInput): Promise<ApiResul
     method: 'POST',
     body: JSON.stringify(input),
   })
+}
+
+/** Move the recipe to a new home in the tree; the server re-validates everything placement touches. */
+export function moveRecipe(id: string, input: MoveRecipeInput): Promise<ApiResult<RecipeDetail>> {
+  return apiRequest<RecipeDetail>(`/api/recipes/${id}/scope`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  })
+}
+
+/** Replace the person-level allow-list wholesale; `access: null` clears it. */
+export function updateRecipeAccess(
+  id: string,
+  input: UpdateRecipeAccessInput
+): Promise<ApiResult<RecipeDetail>> {
+  return apiRequest<RecipeDetail>(`/api/recipes/${id}/access`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  })
+}
+
+/** Everyone the allow-list may name: members whose scope covers this recipe. */
+export function listAccessCandidates(id: string): Promise<ApiResult<RecipeAccessCandidate[]>> {
+  return apiRequest<RecipeAccessCandidate[]>(`/api/recipes/${id}/access/candidates`)
 }
 
 export function approveAllergens(

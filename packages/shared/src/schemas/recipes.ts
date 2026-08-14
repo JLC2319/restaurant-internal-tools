@@ -64,6 +64,16 @@ export const recipeContentSchema = z.object({
     .optional(),
 });
 
+/**
+ * A recipe's person-level allow-list. An object rather than a bare id array so
+ * named groups (`groupIds`) can join later without reshaping stored requests.
+ * The cap is a sanity bound, not a product limit — a list approaching it
+ * should be a scope change, not an ACL.
+ */
+export const recipeAccessSchema = z.object({
+  userIds: z.array(objectIdSchema).max(200).default([]),
+});
+
 // ── Requests ──────────────────────────────────────────────────────────────────
 
 /**
@@ -77,6 +87,8 @@ export const createRecipeSchema = z
     content: recipeContentSchema,
     propertyId: objectIdSchema.nullish(),
     locationId: objectIdSchema.nullish(),
+    /** Optional person-level allow-list, so a recipe can be born restricted. */
+    access: recipeAccessSchema.nullish(),
   })
   .refine((v) => !v.locationId || !!v.propertyId, {
     message: 'A location-scoped recipe must also name its property',
@@ -126,6 +138,26 @@ export const forkRecipeSchema = z
     path: ['propertyId'],
   });
 
+/**
+ * Move a lineage to a new home in the tree. A full placement statement, not a
+ * patch — both ids, null meaning the wider tier — because "where does this
+ * live" only makes sense whole.
+ */
+export const moveRecipeSchema = z
+  .object({
+    propertyId: objectIdSchema.nullish(),
+    locationId: objectIdSchema.nullish(),
+  })
+  .refine((v) => !v.locationId || !!v.propertyId, {
+    message: 'A location-scoped recipe must also name its property',
+    path: ['propertyId'],
+  });
+
+/** Replace the allow-list wholesale. `access: null` clears the restriction. */
+export const updateRecipeAccessSchema = z.object({
+  access: recipeAccessSchema.nullable(),
+});
+
 /** Sign off allergen tags. Omitting `allergens` approves every pending tag. */
 export const approveAllergensSchema = z.object({
   allergens: z.array(z.enum(allergenValues)).min(1).optional(),
@@ -153,5 +185,8 @@ export type UpdateRecipeInput = z.infer<typeof updateRecipeSchema>;
 export type SaveVersionInput = z.infer<typeof saveVersionSchema>;
 export type PublishRecipeInput = z.infer<typeof publishRecipeSchema>;
 export type ForkRecipeInput = z.infer<typeof forkRecipeSchema>;
+export type MoveRecipeInput = z.infer<typeof moveRecipeSchema>;
+export type RecipeAccessInput = z.infer<typeof recipeAccessSchema>;
+export type UpdateRecipeAccessInput = z.infer<typeof updateRecipeAccessSchema>;
 export type ApproveAllergensInput = z.infer<typeof approveAllergensSchema>;
 export type ListRecipesQuery = z.infer<typeof listRecipesQuerySchema>;

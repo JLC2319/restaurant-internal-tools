@@ -52,9 +52,11 @@ const A = '507f1f77bcf86cd799439011';
 const B = '507f1f77bcf86cd799439012';
 const C = '507f1f77bcf86cd799439013';
 const D = '507f1f77bcf86cd799439014';
+const CALLER = '507f1f77bcf86cd799439099';
 
 function ctx(overrides: Partial<TenantContext> = {}): TenantContext {
   return {
+    userId: CALLER,
     orgId: 'org-1',
     propertyId: null,
     locationId: null,

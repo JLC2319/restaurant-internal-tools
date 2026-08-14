@@ -6,8 +6,10 @@ import type {
   ForkRecipeInput,
   ListRecipesQuery,
   MediaAssetView,
+  MoveRecipeInput,
   PaginatedResponse,
   PublishRecipeInput,
+  RecipeAccessCandidate,
   RecipeContentInput,
   RecipeContentView,
   RecipeDetail,
@@ -18,14 +20,29 @@ import type {
   SaveVersionInput,
   TenantContext,
   TenantScope,
+  UpdateRecipeAccessInput,
   UpdateRecipeInput,
 } from '@rit/shared';
 import { Types } from 'mongoose';
 import type { Document } from 'mongoose';
 import { AppError } from '../../lib/AppError';
 import { escapeRegex } from '../../lib/regex';
-import { assertCanWriteAt, assertRole, scopeForWrite, scopeReadFilter } from '../../lib/scope';
-import { assertPhotosAttachable, resolveAssets } from '../media/media.service';
+import {
+  assertCanWriteAt,
+  assertRole,
+  membershipReadersFilter,
+  scopeForWrite,
+  scopeReadFilter,
+} from '../../lib/scope';
+import { assertPhotosAttachable, resolveAssets, widenAssetsToCover } from '../media/media.service';
+import {
+  assertAccessListValid,
+  canBypassRecipeAccess,
+  dedupeAccessUserIds,
+  recipeAccessFilter,
+} from './recipeAccess';
+import { Membership } from '../tenancy/membership.model';
+import { User } from '../auth/auth.model';
 import {
   autoTranslateOnPublish,
   beginAutoTranslation,
@@ -36,12 +53,14 @@ import { Location } from '../tenancy/location.model';
 import { resolveRecipePublishModeForScope } from '../tenancy/tenancy.service';
 import { Recipe } from './recipe.model';
 import { RecipeVersion } from './recipeVersion.model';
+import { RecipeTranslation } from '../translations/translation.model';
 import type {
   IAllergenTag,
   IRecipe,
   IRecipeContent,
   IRecipeVersion,
   IScope,
+  IUser,
 } from '../../types/index';
 
 /**
@@ -219,12 +238,16 @@ function buildContent(input: RecipeContentInput, allergens: IAllergenTag[]): IRe
  * - its scope must sit at-or-above `targetScope` → 400. Anything narrower
  *   would render broken for part of the referencing recipe's audience: a
  *   property recipe pointing at one location's sub-recipe is unreadable at
- *   every sibling location.
+ *   every sibling location;
+ * - a person-restricted recipe may only be NEWLY referenced by someone who can
+ *   read it → 404. Ids in `accessExemptIds` — refs the document already
+ *   carries — are grandfathered past that last check only.
  */
 async function validateSubRefs(
   ctx: TenantContext,
   targetScope: TenantScope,
-  lines: Array<{ kind: string; recipeId?: unknown }>
+  lines: Array<{ kind: string; recipeId?: unknown }>,
+  accessExemptIds?: Set<string>
 ): Promise<void> {
   const refIds = refIdsOf(lines);
   if (refIds.length === 0) return;
@@ -235,6 +258,25 @@ async function validateSubRefs(
   const byId = new Map(refs.map((r) => [String(r._id), r]));
 
   if (refIds.some((id) => !byId.has(id))) throw new AppError('Sub-recipe not found', 404);
+
+  // Person-restricted sub-recipes: a NEW reference requires read access — a
+  // chef must not attach a recipe they cannot see, which would broadcast its
+  // name to this recipe's whole audience. Exempt ids skip the check, so
+  // restricting a recipe never bricks resaves of recipes already using it.
+  // Same 404 as above: out-of-access and nonexistent are indistinguishable.
+  if (!canBypassRecipeAccess(ctx)) {
+    const newIds = refIds.filter((id) => !accessExemptIds?.has(id));
+    if (newIds.length > 0) {
+      const readable = await Recipe.find({
+        _id: { $in: newIds },
+        ...scopeReadFilter(ctx),
+        ...recipeAccessFilter(ctx),
+      })
+        .select('_id')
+        .lean();
+      if (readable.length !== newIds.length) throw new AppError('Sub-recipe not found', 404);
+    }
+  }
 
   const badLines: number[] = [];
   const archivedLines: number[] = [];
@@ -266,6 +308,10 @@ async function validateSubRefs(
  * contributes the refs of its working copy AND of its active version —
  * consumption resolves active versions, and an active snapshot can reference
  * recipes its current working copy no longer does. Exported for unit tests.
+ *
+ * Composes only scopeReadFilter — never the person-level access filter. An
+ * ACL-hidden node would make a real cycle undetectable, and nothing traversed
+ * here reaches the caller beyond a generic 409.
  */
 export async function assertNoCycle(
   ctx: TenantContext,
@@ -403,6 +449,8 @@ function shapeSummary(
     activeVersion: head.activeVersion ?? null,
     allergensVerified: tagsVerified(source?.allergens),
     isFork: Boolean(head.forkedFrom),
+    // `!= null` covers pre-feature lean docs where the field is undefined.
+    restricted: head.access != null,
     heroPhoto: heroOf(source, photos),
     createdAt: head.createdAt.toISOString(),
     modifiedAt: head.modifiedAt.toISOString(),
@@ -422,7 +470,14 @@ function shapeVersionSummary(v: LeanVersion, activeVersionId: unknown): RecipeVe
   };
 }
 
-/** Batch-resolves the display names of every sub-recipe referenced by `contents`. */
+/**
+ * Batch-resolves the display names of every sub-recipe referenced by
+ * `contents`. Deliberately unscoped and ungated by the person-level ACL: an
+ * ingredient line is part of the *consuming* recipe, and rendering
+ * "Demi-glace" there is an approved name-only disclosure (see AGENTS.md and
+ * recipeAccess.ts) — the restricted recipe's content stays unreachable, and
+ * clicking through to it 404s.
+ */
 async function subNamesFor(contents: Array<IRecipeContent | null | undefined>): Promise<Map<string, string>> {
   const ids = new Set<string>();
   for (const content of contents) {
@@ -450,6 +505,7 @@ async function photosFor(
 
 async function shapeDetail(ctx: TenantContext, head: LeanRecipe): Promise<RecipeDetail> {
   const reader = isReader(ctx);
+  const manage = canManage(ctx, shapeScope(head.scope));
   const active = head.activeVersionId
     ? await RecipeVersion.findById(head.activeVersionId).lean()
     : null;
@@ -460,28 +516,57 @@ async function shapeDetail(ctx: TenantContext, head: LeanRecipe): Promise<Recipe
   // parallel with the rest — it is three keyed lookups on a read that already
   // does several, and the alternative (the client resolving it from its own
   // scope) can disagree with the server about a recipe the chef did not move.
-  const [subNames, photos, publishMode] = await Promise.all([
+  const [subNames, photos, publishMode, accessUsers, forkSourceVisible] = await Promise.all([
     subNamesFor(visible),
     photosFor(visible),
     resolveRecipePublishModeForScope(head.scope),
+    // The allow-list resolves for managers of the recipe only: who else is
+    // trusted is itself managed information, not something a listed viewer
+    // (let alone staff) is told.
+    head.access && manage
+      ? User.find({ _id: { $in: head.access.userIds } })
+          .select('name email')
+          .lean()
+      : null,
+    // A fork names its source only to callers who could read that source —
+    // an unreadable origin is hidden like any other unreadable recipe.
+    head.forkedFrom
+      ? Recipe.exists({
+          _id: head.forkedFrom.recipeId,
+          ...scopeReadFilter(ctx),
+          ...recipeAccessFilter(ctx),
+        })
+      : null,
   ]);
   const summarySource = active ? active.content : reader ? null : head.workingCopy;
 
   return {
     ...shapeSummary(head, summarySource, photos),
-    forkedFrom: head.forkedFrom
-      ? {
-          recipeId: String(head.forkedFrom.recipeId),
-          versionId: String(head.forkedFrom.versionId),
-          version: head.forkedFrom.version,
-        }
-      : null,
+    forkedFrom:
+      head.forkedFrom && forkSourceVisible
+        ? {
+            recipeId: String(head.forkedFrom.recipeId),
+            versionId: String(head.forkedFrom.versionId),
+            version: head.forkedFrom.version,
+          }
+        : null,
     createdBy: String(head.createdBy),
     currentVersion: head.currentVersion,
     activeVersionId: head.activeVersionId ? String(head.activeVersionId) : null,
     activeContent: active ? shapeContent(active.content, subNames, photos, reader) : null,
     workingCopy: reader ? null : shapeContent(head.workingCopy, subNames, photos, false),
-    canManage: canManage(ctx, shapeScope(head.scope)),
+    canManage: manage,
+    access:
+      head.access && accessUsers
+        ? {
+            userIds: head.access.userIds.map(String),
+            users: accessUsers.map((user) => ({
+              _id: String(user._id),
+              name: { first: user.name.first, last: user.name.last },
+              email: user.email,
+            })),
+          }
+        : null,
     publishMode,
   };
 }
@@ -496,6 +581,9 @@ export async function listRecipes(
 
   const filter: Record<string, unknown> = {
     ...scopeReadFilter(ctx),
+    // One filter drives the rows, the total AND the ?q= name regex, so a
+    // person-restricted recipe neither lists, counts, nor answers name probes.
+    ...recipeAccessFilter(ctx),
     // Readers never see archived lineages or unpublished work-in-progress.
     status: reader ? 'active' : query.status,
   };
@@ -552,7 +640,11 @@ export async function getScopePublishMode(ctx: TenantContext): Promise<RecipePub
 }
 
 export async function getRecipe(ctx: TenantContext, id: string): Promise<RecipeDetail> {
-  const head = await Recipe.findOne({ _id: id, ...scopeReadFilter(ctx) }).lean();
+  const head = await Recipe.findOne({
+    _id: id,
+    ...scopeReadFilter(ctx),
+    ...recipeAccessFilter(ctx),
+  }).lean();
   if (!head) throw new AppError('Not found', 404);
   // Unpublished or archived work is invisible to readers, not forbidden —
   // existence hiding, as everywhere else.
@@ -578,6 +670,15 @@ export async function createRecipe(
   await validateSubRefs(ctx, scope, input.content.ingredients);
   await assertPhotosAttachable(ctx, scope, input.content.photoIds);
 
+  // Born restricted, when asked. An empty list is legitimate — it means the
+  // creator plus the standing bypass set (admin and up), nobody else.
+  let access: IRecipe['access'] = null;
+  if (input.access != null) {
+    const userIds = dedupeAccessUserIds(input.access.userIds);
+    await assertAccessListValid(scope, userIds);
+    access = { userIds: userIds.map((uid) => new Types.ObjectId(uid)) };
+  }
+
   const recipe = await Recipe.create({
     scope,
     name: input.name,
@@ -587,15 +688,22 @@ export async function createRecipe(
     activeVersionId: null,
     activeVersion: null,
     forkedFrom: null,
+    access,
     createdBy: userId,
   });
 
+  // The read-back always succeeds for the caller — `createdBy` is a bypass
+  // branch of the access filter, even when they left themselves off the list.
   return getRecipe(ctx, String(recipe._id));
 }
 
-/** Loads a head for mutation: scoped (404), write-tier checked (403), not archived (409). */
+/** Loads a head for mutation: scoped + person-ACL-gated (404), write-tier checked (403), not archived (409). */
 async function loadForWrite(ctx: TenantContext, id: string, allowArchived = false): Promise<IRecipe> {
-  const head = await Recipe.findOne({ _id: id, ...scopeReadFilter(ctx) });
+  const head = await Recipe.findOne({
+    _id: id,
+    ...scopeReadFilter(ctx),
+    ...recipeAccessFilter(ctx),
+  });
   if (!head) throw new AppError('Not found', 404);
   const scope = shapeScope(head.scope);
   assertCanWriteAt(ctx, { propertyId: scope.propertyId, locationId: scope.locationId });
@@ -625,7 +733,15 @@ export async function updateRecipe(
 
   if (input.content !== undefined) {
     const scope = shapeScope(head.scope);
-    await validateSubRefs(ctx, scope, input.content.ingredients);
+    // Refs already on the working copy are grandfathered past the person-level
+    // access check — restricting a sub-recipe must never brick resaves of the
+    // recipes that were already using it.
+    await validateSubRefs(
+      ctx,
+      scope,
+      input.content.ingredients,
+      new Set(refIdsOf(head.workingCopy.ingredients))
+    );
     await assertNoCycle(ctx, id, input.content.ingredients);
     await assertPhotosAttachable(ctx, scope, input.content.photoIds);
 
@@ -679,6 +795,82 @@ export async function approveAllergens(
   return getRecipe(ctx, id);
 }
 
+// ── Person-level access ───────────────────────────────────────────────────────
+
+/**
+ * Replaces the allow-list wholesale (PUT semantics), or clears it with null.
+ *
+ * `loadForWrite` is the entire gate: the caller must currently *read* the
+ * recipe (creator / listed / admin+, else 404), hold chef+ within its write
+ * tier (403), and the lineage must not be archived (409). Because only current
+ * readers may edit the list and creator + admin/owner always remain readers,
+ * no edit can ever lock everyone out.
+ */
+export async function updateRecipeAccess(
+  ctx: TenantContext,
+  id: string,
+  input: UpdateRecipeAccessInput
+): Promise<RecipeDetail> {
+  assertRole(ctx, 'chef');
+  const head = await loadForWrite(ctx, id);
+
+  if (input.access != null) {
+    const userIds = dedupeAccessUserIds(input.access.userIds);
+    await assertAccessListValid(shapeScope(head.scope), userIds);
+    head.access = { userIds: userIds.map((uid) => new Types.ObjectId(uid)) };
+  } else {
+    head.access = null;
+  }
+
+  await head.save();
+  return getRecipe(ctx, id);
+}
+
+/**
+ * The people the access picker may offer: every active member whose membership
+ * can see this recipe's scope — by construction exactly the set
+ * `assertAccessListValid` accepts. Not the tenancy roster endpoint, which is
+ * manager-gated and exact-scope: it would miss org-wide members and, for a
+ * property recipe, its locations' members, precisely the valid entries here.
+ *
+ * The cap bounds the response, far above any real staff roster; the UI
+ * filters client-side.
+ */
+export async function listAccessCandidates(
+  ctx: TenantContext,
+  id: string
+): Promise<RecipeAccessCandidate[]> {
+  assertRole(ctx, 'chef');
+  // Archived allowed: this read only supports the panel, it mutates nothing.
+  const head = await loadForWrite(ctx, id, true);
+
+  const rows = await Membership.find({
+    orgId: head.scope.orgId,
+    status: 'active',
+    ...membershipReadersFilter(shapeScope(head.scope)),
+  })
+    .populate('userId', 'name email jobTitle')
+    .limit(500)
+    .lean();
+
+  // One entry per person — a user may hold several rows (org-wide plus a
+  // location, say) — and none for deleted accounts.
+  const byUser = new Map<string, RecipeAccessCandidate>();
+  for (const row of rows) {
+    const user = row.userId as unknown as Pick<IUser, '_id' | 'name' | 'email' | 'jobTitle'> | null;
+    if (!user) continue;
+    byUser.set(String(user._id), {
+      _id: String(user._id),
+      name: { first: user.name.first, last: user.name.last },
+      email: user.email,
+      jobTitle: user.jobTitle ?? null,
+    });
+  }
+  return [...byUser.values()].sort((a, b) =>
+    `${a.name.last} ${a.name.first}`.localeCompare(`${b.name.last} ${b.name.first}`)
+  );
+}
+
 // ── Versioning ────────────────────────────────────────────────────────────────
 
 export async function saveVersion(
@@ -695,7 +887,7 @@ export async function saveVersion(
   // into the errorHandler's 409. A failed create leaves a numbering gap, which
   // is harmless: numbers order history, they don't count it.
   const head = await Recipe.findOneAndUpdate(
-    { _id: id, ...scopeReadFilter(ctx) },
+    { _id: id, ...scopeReadFilter(ctx), ...recipeAccessFilter(ctx) },
     { $inc: { currentVersion: 1 } },
     { new: true }
   ).lean();
@@ -775,7 +967,11 @@ export async function publishRecipe(
 
 export async function listVersions(ctx: TenantContext, id: string): Promise<RecipeVersionSummary[]> {
   assertRole(ctx, 'chef');
-  const head = await Recipe.findOne({ _id: id, ...scopeReadFilter(ctx) })
+  const head = await Recipe.findOne({
+    _id: id,
+    ...scopeReadFilter(ctx),
+    ...recipeAccessFilter(ctx),
+  })
     .select('activeVersionId')
     .lean();
   if (!head) throw new AppError('Not found', 404);
@@ -792,7 +988,11 @@ export async function getVersion(
   versionId: string
 ): Promise<RecipeVersionDetail> {
   assertRole(ctx, 'chef');
-  const head = await Recipe.findOne({ _id: id, ...scopeReadFilter(ctx) })
+  const head = await Recipe.findOne({
+    _id: id,
+    ...scopeReadFilter(ctx),
+    ...recipeAccessFilter(ctx),
+  })
     .select('activeVersionId')
     .lean();
   if (!head) throw new AppError('Not found', 404);
@@ -866,7 +1066,14 @@ export async function restoreVersion(
 
   // The reference graph may have changed since this snapshot was taken: a
   // recipe it references may now reference us back, or have been archived.
-  await validateSubRefs(ctx, shapeScope(head.scope), version.content.ingredients);
+  // Every ref is access-exempt — it comes from this lineage's own history,
+  // not from the restorer's browsing.
+  await validateSubRefs(
+    ctx,
+    shapeScope(head.scope),
+    version.content.ingredients,
+    new Set(refIdsOf(version.content.ingredients))
+  );
   await assertNoCycle(ctx, id, version.content.ingredients);
 
   // Verbatim, approval stamps included: the sign-off was made against exactly
@@ -892,7 +1099,13 @@ export async function forkRecipe(
 ): Promise<RecipeDetail> {
   assertRole(ctx, 'chef');
 
-  const source = await Recipe.findOne({ _id: id, ...scopeReadFilter(ctx) }).lean();
+  // The one read path outside loadForWrite: gate it the same way, or a fork
+  // becomes the copy-everything bypass of the person-level ACL.
+  const source = await Recipe.findOne({
+    _id: id,
+    ...scopeReadFilter(ctx),
+    ...recipeAccessFilter(ctx),
+  }).lean();
   if (!source) throw new AppError('Not found', 404);
 
   let version: LeanVersion | null = null;
@@ -951,6 +1164,144 @@ export async function forkRecipe(
   return getRecipe(ctx, String(fork._id));
 }
 
+// ── Placement ─────────────────────────────────────────────────────────────────
+
+/**
+ * Every ACTIVE recipe that consumes `head` (working copy or live snapshot)
+ * must still find it at-or-above their own scope after a move — the same
+ * queries as the archive guard below, comparing scopes instead of refusing
+ * outright. Only narrowing or sideways moves can break a consumer; a move
+ * straight up covers everyone and skips the queries entirely.
+ */
+async function assertConsumersStillCovered(head: IRecipe, newScope: TenantScope): Promise<void> {
+  if (!newScope.propertyId) return;
+
+  const uncovered = (scope: IScope): boolean => {
+    const propertyId = scope.propertyId ? String(scope.propertyId) : null;
+    const locationId = scope.locationId ? String(scope.locationId) : null;
+    if (propertyId !== newScope.propertyId) return true;
+    return newScope.locationId != null && locationId !== newScope.locationId;
+  };
+
+  const consumers: Array<{ scope: IScope }> = await Recipe.find({
+    'scope.orgId': head.scope.orgId,
+    status: 'active',
+    _id: { $ne: head._id },
+    'workingCopy.ingredients.recipeId': head._id,
+  })
+    .select('scope')
+    .lean();
+
+  const referencingVersions = await RecipeVersion.find({
+    'scope.orgId': head.scope.orgId,
+    'content.ingredients.recipeId': head._id,
+  })
+    .select('_id')
+    .lean();
+  if (referencingVersions.length > 0) {
+    consumers.push(
+      ...(await Recipe.find({
+        status: 'active',
+        _id: { $ne: head._id },
+        activeVersionId: { $in: referencingVersions.map((v) => v._id) },
+      })
+        .select('scope')
+        .lean())
+    );
+  }
+
+  const blocked = consumers.filter((consumer) => uncovered(consumer.scope)).length;
+  if (blocked > 0) {
+    // Names deliberately withheld — a consumer may be person-restricted, and
+    // this mirrors the archive guard's name-free 409.
+    throw new AppError(
+      `${blocked} active ${blocked === 1 ? 'recipe uses' : 'recipes use'} this as a sub-recipe and would no longer see it. Move or update those first.`,
+      409
+    );
+  }
+}
+
+/**
+ * Moves a lineage to a new home in the tree — the one sanctioned mutation of
+ * `scope`. Every denormalised copy moves in the same act (versions,
+ * translations), which is what keeps the version model's "scope never
+ * mutates" shortcut sound. Order matters for crash recovery: copies first,
+ * head last — every read is gated by the head, so a half-applied move leaves
+ * the OLD home governing everything and re-running the move completes it.
+ *
+ * Manager-gated: placement decides which kitchens see a recipe, which is an
+ * org-structure decision, not a content edit. The caller must hold write tier
+ * at both the current home (via loadForWrite) and the new one.
+ */
+export async function moveRecipe(
+  ctx: TenantContext,
+  id: string,
+  input: MoveRecipeInput
+): Promise<RecipeDetail> {
+  assertRole(ctx, 'manager');
+  const head = await loadForWrite(ctx, id, true);
+
+  const newScope: TenantScope = {
+    orgId: ctx.orgId,
+    propertyId: input.propertyId ?? null,
+    locationId: input.locationId ?? null,
+  };
+  if (newScope.locationId && !newScope.propertyId) {
+    throw new AppError('A location-scoped recipe must also name its property', 400);
+  }
+  assertCanWriteAt(ctx, newScope);
+  await assertScopeExists(newScope);
+
+  const oldScope = shapeScope(head.scope);
+  if (
+    oldScope.propertyId === newScope.propertyId &&
+    oldScope.locationId === newScope.locationId
+  ) {
+    return getRecipe(ctx, id);
+  }
+
+  const active = head.activeVersionId
+    ? await RecipeVersion.findById(head.activeVersionId).lean()
+    : null;
+  const contents = [head.workingCopy, active?.content].filter(
+    (content): content is IRecipeContent => content != null
+  );
+
+  // Everything this recipe consumes must sit at-or-above its NEW home. The
+  // refs are all pre-existing, so they stay exempt from the person-level
+  // access check — this is a scope re-validation, not a new attachment.
+  for (const content of contents) {
+    await validateSubRefs(ctx, newScope, content.ingredients, new Set(refIdsOf(content.ingredients)));
+  }
+  // …and everything that consumes IT must still see it.
+  await assertConsumersStillCovered(head, newScope);
+
+  // The allow-list must still make sense where the recipe is going.
+  if (head.access) {
+    await assertAccessListValid(newScope, head.access.userIds.map(String));
+  }
+
+  // Plating photos ride along — widen any that would no longer cover the new
+  // audience (never narrows; see widenAssetsToCover).
+  await widenAssetsToCover(
+    newScope,
+    contents.flatMap((content) => content.photoIds.map(String))
+  );
+
+  const scopeDoc = {
+    orgId: head.scope.orgId,
+    propertyId: newScope.propertyId ? new Types.ObjectId(newScope.propertyId) : null,
+    locationId: newScope.locationId ? new Types.ObjectId(newScope.locationId) : null,
+  };
+  // Copies first, head last — see the docblock.
+  await RecipeVersion.updateMany({ recipeId: head._id }, { $set: { scope: scopeDoc } });
+  await RecipeTranslation.updateMany({ recipeId: head._id }, { $set: { scope: scopeDoc } });
+  head.scope = scopeDoc as IScope;
+  await head.save();
+
+  return getRecipe(ctx, id);
+}
+
 // ── Archival ──────────────────────────────────────────────────────────────────
 
 export async function archiveRecipe(ctx: TenantContext, id: string): Promise<void> {
@@ -958,9 +1309,11 @@ export async function archiveRecipe(ctx: TenantContext, id: string): Promise<voi
   const head = await loadForWrite(ctx, id, true);
 
   // A recipe that other recipes consume cannot be archived out from under
-  // them. Check working copies and active snapshots org-wide — consumers
-  // always sit at-or-below this recipe's scope, so anyone entitled to archive
-  // it can see every consumer.
+  // them. Check working copies and active snapshots org-wide, and deliberately
+  // NOT through the person-level access filter: a restricted consumer still
+  // depends on this recipe, and archiving beneath it would corrupt it. The
+  // 409 below may thereby reveal that *some* consumer the caller cannot see
+  // exists — accepted; it names nothing.
   const usedByWorkingCopy = await Recipe.exists({
     'scope.orgId': head.scope.orgId,
     status: 'active',

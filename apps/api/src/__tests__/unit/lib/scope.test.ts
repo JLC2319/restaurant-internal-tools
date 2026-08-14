@@ -1,6 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import type { TenantContext } from '@rit/shared';
-import { scopeReadFilter, scopeForWrite, assertCanWriteAt, assertRole, tierOf } from '../../../lib/scope';
+import {
+  scopeReadFilter,
+  scopeForWrite,
+  assertCanWriteAt,
+  assertRole,
+  membershipReadersFilter,
+  tierOf,
+} from '../../../lib/scope';
 import { AppError } from '../../../lib/AppError';
 
 const ORG = 'org-1';
@@ -11,6 +18,7 @@ const OTHER_LOC = 'loc-2';
 
 function ctx(overrides: Partial<TenantContext> = {}): TenantContext {
   return {
+    userId: 'user-1',
     orgId: ORG,
     propertyId: null,
     locationId: null,
@@ -94,6 +102,29 @@ describe('assertCanWriteAt', () => {
     expect(() => assertCanWriteAt(ctx(), { propertyId: null, locationId: LOC })).toThrow(
       /must also name its property/
     );
+  });
+});
+
+describe('membershipReadersFilter', () => {
+  it('an org-level document is readable by every membership in the org', () => {
+    expect(membershipReadersFilter({ propertyId: null, locationId: null })).toEqual({});
+  });
+
+  it('a property document reaches org-wide members plus that property (and its locations)', () => {
+    expect(membershipReadersFilter({ propertyId: PROP, locationId: null })).toEqual({
+      propertyId: { $in: [null, PROP] },
+    });
+  });
+
+  // The mirror of scopeReadFilter's sibling rule: a sibling location's
+  // membership must not read this location's document.
+  it('a location document additionally excludes sibling locations', () => {
+    expect(membershipReadersFilter({ propertyId: PROP, locationId: LOC })).toEqual({
+      $or: [
+        { propertyId: null },
+        { propertyId: PROP, locationId: { $in: [null, LOC] } },
+      ],
+    });
   });
 });
 

@@ -146,6 +146,41 @@ while one restaurant's local menu never leaks sideways to another.
 **Never hand-roll a scope condition in a feature module.** A query that forgets
 `scopeReadFilter` returns every tenant's data, and it will look like it works.
 
+### Person-level recipe access (the layer under scope)
+
+A recipe may carry `access: { userIds } | null` — an allow-list that narrows
+visibility **within** its scope; `null` (or absent, on pre-feature docs) means
+everyone in scope. It never widens scope: `features/recipes/recipeAccess.ts`
+builds `recipeAccessFilter(ctx)`, which every recipe read composes **beside**
+`scopeReadFilter`. Fixed bypass set: the recipe's `createdBy`, roles
+admin-or-above at the scope (directors/managers do **not** bypass), and
+platform staff. Out-of-list reads 404 exactly like out-of-scope ones.
+
+Rules that keep it sound:
+
+- `RecipeVersion` deliberately does not denormalise `access` (it mutates
+  freely; the scope stamp changes only through `moveRecipe`, which rewrites
+  the denormalised copies — versions, translations — in the same act). Every
+  version read must load the head through the filter first; a standalone
+  RecipeVersion query is an ACL bypass by construction.
+- Translations gate in `translation.service.loadHead`; the list endpoint's one
+  filter object also covers `total` and the `?q=` regex, so counts and name
+  probes reveal nothing.
+- Deliberately ungated, each with a comment at the site: `subNamesFor` (a
+  restricted sub-recipe's **name** on a consuming recipe's ingredient line is
+  an accepted, product-approved leak), `assertNoCycle`, and the archive usage
+  guards.
+- `validateSubRefs` checks access on **new** references only —
+  `accessExemptIds` grandfathers refs a document already carries, so
+  restricting a recipe never bricks resaves of its consumers.
+- The allow-list may only name people whose membership can see the recipe's
+  scope (`assertAccessListValid`, using `membershipReadersFilter` — the
+  inverse of `scopeReadFilter`, in `lib/scope.ts`). Editing it requires
+  currently *reading* the recipe plus `canManage`; forks never copy it.
+- Known v1 limits: R2 photo URLs already handed out stay fetchable (unsigned,
+  immutable-cached), and auto-translation still sends restricted text to the
+  LLM (the stored translation is read-gated).
+
 ### How a request gets its scope
 
 The client sends the scope in headers, not in the path:

@@ -460,3 +460,128 @@ describe('member roster', () => {
     expect(denied.status).toBe(404);
   });
 });
+
+describe('membership placement changes', () => {
+  let owner: { token: string; userId: string };
+  let orgId: string;
+  let p1: string;
+  let p2: string;
+
+  async function rowFor(email: string): Promise<{ _id: string; propertyId: string | null; locationId: string | null; role: string }> {
+    const roster = await as(owner.token, orgId).get('/api/tenancy/members');
+    expect(roster.status).toBe(200);
+    const row = roster.body.items.find(
+      (r: { user: { email: string } | null }) => r.user?.email === email
+    );
+    expect(row).toBeTruthy();
+    return row;
+  }
+
+  beforeAll(async () => {
+    owner = await registerAndLogin('mp-owner@example.com');
+    orgId = await createOrg(owner.token, 'Move Members Org');
+    p1 = await createProperty(owner.token, orgId, 'Move P1');
+    p2 = await createProperty(owner.token, orgId, 'Move P2');
+  }, 120_000);
+
+  it('moves a member to a property, flipping what they can see; role rides untouched', async () => {
+    const staff = await addMember(owner.token, orgId, 'mp-staff@example.com', 'staff');
+
+    // A P2 recipe, published, so visibility is observable from the reader list.
+    const recipe = await as(owner.token, orgId)
+      .post('/api/recipes')
+      .send({ name: 'P2 Special', content: { yield: { amount: 1, unit: 'qt' } }, propertyId: p2 });
+    expect(recipe.status).toBe(201);
+    // Staff are readers — they only see published lineages, so put v1 live.
+    const saved = await as(owner.token, orgId)
+      .post(`/api/recipes/${recipe.body._id}/versions`)
+      .send({});
+    expect(saved.body._id).toBeTruthy();
+    const activated = await as(owner.token, orgId)
+      .post(`/api/recipes/${recipe.body._id}/versions/${saved.body._id}/activate`)
+      .send();
+    expect(activated.status).toBe(200);
+
+    // Org-wide staff see P2 content…
+    const before = await as(staff.token, orgId).get('/api/recipes');
+    expect(before.body.items.map((r: { name: string }) => r.name)).toContain('P2 Special');
+
+    const row = await rowFor('mp-staff@example.com');
+    const moved = await as(owner.token, orgId)
+      .patch(`/api/tenancy/members/${row._id}`)
+      .send({ propertyId: p1, locationId: null });
+    expect(moved.status).toBe(204);
+
+    // …a P1 member does not.
+    const after = await as(staff.token, orgId).get('/api/recipes');
+    expect(after.body.items.map((r: { name: string }) => r.name)).not.toContain('P2 Special');
+
+    const updated = await rowFor('mp-staff@example.com');
+    expect(updated.propertyId).toBe(p1);
+    expect(updated.role).toBe('staff');
+
+    // Role-only patches keep working and leave placement alone.
+    const promoted = await as(owner.token, orgId)
+      .patch(`/api/tenancy/members/${row._id}`)
+      .send({ role: 'chef' });
+    expect(promoted.status).toBe(204);
+    const promotedRow = await rowFor('mp-staff@example.com');
+    expect(promotedRow.role).toBe('chef');
+    expect(promotedRow.propertyId).toBe(p1);
+  });
+
+  it("confines a property admin to their own subtree, both directions", async () => {
+    const p1Admin = await addMember(owner.token, orgId, 'mp-p1-admin@example.com', 'admin', {
+      propertyId: p1,
+    });
+    const orgStaff = await addMember(owner.token, orgId, 'mp-org-staff@example.com', 'staff');
+    const p1Staff = await addMember(owner.token, orgId, 'mp-p1-staff@example.com', 'staff', {
+      propertyId: p1,
+    });
+
+    // May not pull an org-wide member down into their property…
+    const orgRow = await rowFor('mp-org-staff@example.com');
+    const pullDown = await as(p1Admin.token, orgId)
+      .patch(`/api/tenancy/members/${orgRow._id}`)
+      .send({ propertyId: p1, locationId: null });
+    expect(pullDown.status).toBe(404);
+
+    // …nor push one of their own out to a sibling or up to the org.
+    const p1Row = await rowFor('mp-p1-staff@example.com');
+    expect(
+      (
+        await as(p1Admin.token, orgId)
+          .patch(`/api/tenancy/members/${p1Row._id}`)
+          .send({ propertyId: p2, locationId: null })
+      ).status
+    ).toBe(404);
+    expect(
+      (
+        await as(p1Admin.token, orgId)
+          .patch(`/api/tenancy/members/${p1Row._id}`)
+          .send({ propertyId: null, locationId: null })
+      ).status
+    ).toBe(404);
+  });
+
+  it('rejects malformed and clashing placements', async () => {
+    await addMember(owner.token, orgId, 'mp-clash@example.com', 'staff');
+    const row = await rowFor('mp-clash@example.com');
+
+    // A location without its property is a scope no read filter can match.
+    const orphanLocation = await as(owner.token, orgId)
+      .patch(`/api/tenancy/members/${row._id}`)
+      .send({ propertyId: null, locationId: p1 });
+    expect(orphanLocation.status).toBe(400);
+
+    // A second membership already sits at P1 for this user → the move clashes.
+    const second = await as(owner.token, orgId)
+      .post('/api/tenancy/members')
+      .send({ email: 'mp-clash@example.com', role: 'staff', propertyId: p1 });
+    expect(second.status).toBe(201);
+    const clash = await as(owner.token, orgId)
+      .patch(`/api/tenancy/members/${row._id}`)
+      .send({ propertyId: p1, locationId: null });
+    expect(clash.status).toBe(409);
+  });
+});

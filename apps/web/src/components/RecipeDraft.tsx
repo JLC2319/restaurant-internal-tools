@@ -30,6 +30,8 @@ import {
   recipesScopeKey,
 } from '../api/recipes'
 import { useActiveRole } from './useActiveRole'
+import { ScopePicker, defaultScopeSelection } from './ScopePicker'
+import type { ScopeSelection } from './ScopePicker'
 import { QueryProvider } from './QueryProvider'
 import { PublishOnSaveControls, usePublishOnSave } from './PublishOnSave'
 import { DRAFTING_MESSAGES, WorkingOverlay } from './WorkingOverlay'
@@ -86,12 +88,14 @@ function ProposalCard({
   index,
   publishMode,
   publish,
+  scope,
   onPublishChange,
 }: {
   proposal: RecipeDraftProposal
   index: number
   publishMode: RecipePublishMode
   publish: boolean
+  scope: ScopeSelection
   onPublishChange: (next: boolean) => void
 }) {
   const [error, setError] = useState<string | null>(null)
@@ -102,7 +106,12 @@ function ProposalCard({
 
   const create = useMutation({
     mutationFn: async () => {
-      const result = await createRecipe({ name: proposal.name, content: proposalToContent(proposal) })
+      const result = await createRecipe({
+        name: proposal.name,
+        content: proposalToContent(proposal),
+        propertyId: scope.propertyId || null,
+        locationId: scope.locationId || null,
+      })
       if (result.error) throw new Error(result.error.message)
       if (!publish) return { recipe: result.data, published: false }
 
@@ -322,6 +331,11 @@ function Drafter() {
   // One switch for the page, not one per proposal: a chef reviewing six cards
   // from one batch of photos is making a single decision about all of them.
   const [publish, setPublish] = usePublishOnSave(publishMode !== 'manual')
+  // Likewise one placement for the whole batch — photos of one book belong in
+  // one place. NOTE: `publishMode` above is resolved for the caller's own
+  // scope; picking a different home may make the publish shortcut fail there,
+  // in which case the proposal is still created as a draft (the card says so).
+  const [scope, setScope] = useState<ScopeSelection>(defaultScopeSelection)
 
   // Object URLs are revoked when their thumbnail is removed (below) and, as a
   // backstop, all together on unmount — via a ref so this cleanup runs once.
@@ -419,6 +433,16 @@ function Drafter() {
           </p>
         )}
 
+        {result.proposals.length > 0 && (
+          <div className="grid gap-4 rounded-xl bg-salt-50 p-4 ring-1 ring-salt-200 ring-inset tablet:grid-cols-3">
+            <ScopePicker idPrefix="draft" value={scope} onChange={setScope} />
+            <p className="self-end pb-1 text-xs leading-relaxed text-salt-500">
+              Every recipe created from this batch lands here — the whole organization, one
+              property, or a single location.
+            </p>
+          </div>
+        )}
+
         {result.proposals.length === 0 && (
           <EmptyState
             icon={Camera}
@@ -435,6 +459,7 @@ function Drafter() {
               index={index}
               publishMode={publishMode}
               publish={publish}
+              scope={scope}
               onPublishChange={setPublish}
             />
           ))}

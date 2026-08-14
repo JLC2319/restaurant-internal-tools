@@ -125,9 +125,26 @@ export const inviteMemberSchema = z
     path: ['propertyId'],
   });
 
-export const updateMembershipSchema = z.object({
-  role: z.enum(tenantRoleValues),
-});
+/**
+ * Change a membership's role, its placement in the tree, or both. A placement
+ * change is a FULL statement — send both ids, where null means the wider tier
+ * (no property = org-wide). Omit both to leave placement untouched, so a
+ * role-only patch stays exactly what it always was.
+ */
+export const updateMembershipSchema = z
+  .object({
+    role: z.enum(tenantRoleValues).optional(),
+    propertyId: objectIdSchema.nullish(),
+    locationId: objectIdSchema.nullish(),
+  })
+  .refine(
+    (v) => v.role !== undefined || v.propertyId !== undefined || v.locationId !== undefined,
+    { message: 'No changes supplied' }
+  )
+  .refine((v) => v.locationId == null || v.propertyId != null, {
+    message: 'A location-scoped membership must also name its property',
+    path: ['propertyId'],
+  });
 
 export type CreateOrganizationInput = z.infer<typeof createOrganizationSchema>;
 export type UpdateOrganizationInput = z.infer<typeof updateOrganizationSchema>;

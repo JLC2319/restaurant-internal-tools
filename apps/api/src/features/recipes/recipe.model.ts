@@ -15,7 +15,8 @@ import type { IRecipe, IRecipeContent, IScope } from '../../types/index';
  * cook from. Immutable history lives in the RecipeVersion collection.
  *
  * First model to embed the `scope` sub-document — see lib/scope.ts. A lineage's
- * scope never changes after insert; forking creates a new head instead.
+ * scope changes only through `moveRecipe`, which rewrites every denormalised
+ * copy (versions, translations) in the same act; forking creates a new head.
  */
 
 const scopeSchema = new Schema<IScope>(
@@ -95,6 +96,21 @@ const recipeSchema = new Schema<IRecipe>(
           versionId: { type: Schema.Types.ObjectId, ref: 'RecipeVersion', required: true },
           version: { type: Number, required: true },
         },
+        { _id: false }
+      ),
+      default: null,
+    },
+    // Optional person-level allow-list that narrows visibility *within* the
+    // scope — it can never widen it (see recipeAccess.ts, which composes with
+    // scopeReadFilter rather than replacing it). null — and, on documents that
+    // predate the field, absent, which Mongo's `{access: null}` also matches —
+    // means everyone in scope, so no backfill is ever needed. An object rather
+    // than a bare array so named groups (`groupIds`) can join later without a
+    // migration. No index: every gated query is keyed by _id or already bounded
+    // by the org-prefixed list index above.
+    access: {
+      type: new Schema(
+        { userIds: [{ type: Schema.Types.ObjectId, ref: 'User' }] },
         { _id: false }
       ),
       default: null,

@@ -290,6 +290,48 @@ export async function assertAssetsAttachable(
   await assertKindAttachable(ctx, targetScope, [...new Set(ids)], kind);
 }
 
+/**
+ * Raises each asset's scope just enough to stay at-or-above `target` — called
+ * when a recipe MOVES and carries its plating photos to a wider or sibling
+ * audience. Widening only: an asset already covering the target is untouched,
+ * and nothing ever narrows (other documents may rely on today's coverage). A
+ * same-property target raises to the property; anything else raises to
+ * org-wide. Deliberately not permission-checked per asset — the caller proved
+ * manage rights over the moving recipe, and media scope governs
+ * attachability, not secrecy (the URLs are public).
+ */
+export async function widenAssetsToCover(target: TenantScope, ids: string[]): Promise<void> {
+  const unique = [...new Set(ids)];
+  if (unique.length === 0) return;
+
+  const assets = await Media.find({ _id: { $in: unique }, 'scope.orgId': target.orgId })
+    .select('scope')
+    .lean();
+
+  const ops = [];
+  for (const asset of assets) {
+    const propertyId = asset.scope.propertyId ? String(asset.scope.propertyId) : null;
+    const locationId = asset.scope.locationId ? String(asset.scope.locationId) : null;
+    const covers =
+      (!propertyId || propertyId === target.propertyId) &&
+      (!locationId || locationId === target.locationId);
+    if (covers) continue;
+
+    const sameProperty = propertyId != null && propertyId === target.propertyId;
+    ops.push({
+      updateOne: {
+        filter: { _id: asset._id },
+        update: {
+          $set: sameProperty
+            ? { 'scope.locationId': null } // sibling location → whole property
+            : { 'scope.propertyId': null, 'scope.locationId': null }, // → org-wide
+        },
+      },
+    });
+  }
+  if (ops.length > 0) await Media.bulkWrite(ops);
+}
+
 // ── Deletion ──────────────────────────────────────────────────────────────────
 
 /**

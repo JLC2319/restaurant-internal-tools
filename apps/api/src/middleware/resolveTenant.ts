@@ -101,6 +101,8 @@ export async function resolveTenant(
   }
 
   const tenant: TenantContext = {
+    // Guarded non-null above: the 401 throw at the top of this function.
+    userId: req.userId,
     orgId,
     propertyId,
     locationId,

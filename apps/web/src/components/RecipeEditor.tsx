@@ -94,7 +94,11 @@ function Editor({ recipeId }: { recipeId: string }) {
       yieldUnit: wc.yield.unit,
       ingredients: wc.ingredients.map((line) => ({
         kind: line.kind,
-        name: line.kind === 'item' ? line.name : '',
+        // For recipe rows this is the server-resolved display name; the save
+        // path never sends it, but the picker pins an option with it when the
+        // referenced recipe is missing from the list (person-restricted, or
+        // beyond the page cap) so the row survives an untouched resave.
+        name: line.name,
         recipeId: line.recipeId ?? '',
         amount: String(line.quantity.amount),
         unit: line.quantity.unit,
@@ -398,6 +402,14 @@ function Editor({ recipeId }: { recipeId: string }) {
                     className={inputClass}
                   >
                     <option value="">Choose a recipe…</option>
+                    {/* A referenced recipe the picker cannot offer (restricted
+                        to specific people, or past the list cap) stays pinned
+                        under its stored name — otherwise this row would blank
+                        out and the reference be lost on the next change. */}
+                    {row.recipeId &&
+                      !recipeOptions?.items.some((r) => r._id === row.recipeId) && (
+                        <option value={row.recipeId}>{row.name || 'Current sub-recipe'}</option>
+                      )}
                     {recipeOptions?.items
                       .filter((r) => r._id !== recipeId)
                       .map((r) => (

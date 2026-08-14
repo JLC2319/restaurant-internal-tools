@@ -24,6 +24,7 @@ import { anthropic } from '../../lib/anthropic';
 import { AppError } from '../../lib/AppError';
 import { assertCanWriteAt, assertRole, scopeReadFilter } from '../../lib/scope';
 import { Recipe } from '../recipes/recipe.model';
+import { recipeAccessFilter } from '../recipes/recipeAccess';
 import { RecipeVersion } from '../recipes/recipeVersion.model';
 import { Organization } from '../tenancy/organization.model';
 import { Property } from '../tenancy/property.model';
@@ -255,7 +256,15 @@ function shapeTranslation(doc: LeanTranslation, stale: boolean): RecipeTranslati
 // ── Loading helpers ───────────────────────────────────────────────────────────
 
 async function loadHead(ctx: TenantContext, recipeId: string): Promise<LeanRecipe> {
-  const head = await Recipe.findOne({ _id: recipeId, ...scopeReadFilter(ctx) }).lean();
+  // Composes the person-level ACL as well as scope: a translation is a
+  // derivative of the recipe's full text, and this loader fronts every
+  // translation read and write — gating it gates all five endpoints, above
+  // all the staff-readable payload route, which carries no role gate.
+  const head = await Recipe.findOne({
+    _id: recipeId,
+    ...scopeReadFilter(ctx),
+    ...recipeAccessFilter(ctx),
+  }).lean();
   if (!head) throw new AppError('Not found', 404);
   return head;
 }
