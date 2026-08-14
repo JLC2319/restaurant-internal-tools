@@ -6,7 +6,7 @@ import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated'
 import colors from '../theme/colors.js'
 
 /**
- * The mobile twins of apps/web/src/components/ui.tsx — same design language
+ * The mobile twins of apps/web/src/components/ui/ (tokens.ts + the atom files) — same design language
  * (soft 2xl radii, hairline borders, restrained tones), expressed in React
  * Native. Web `ring` becomes `border`; hover states become press opacity;
  * font weights are their own families (see tailwind.config.js).

@@ -241,7 +241,7 @@ Adding another means one field on each schema in `tenantSettings.model.ts`, one
 on `ITenantSettings` / `ITenantSettingsOverride`, one on the Zod schemas, and
 one entry in the web settings shell's section array. The two publishing cards
 share their picker, override rows and PATCH wiring via
-`components/PublishModeSettings.tsx`; a third setting of this shape should use
+`features/settings/PublishModeSettings.tsx`; a third setting of this shape should use
 it rather than copy either card.
 
 `recipePublishMode` has **two** defaults, and the split is load-bearing. The
@@ -323,7 +323,7 @@ Every feature lives in `apps/api/src/features/{feature}/`:
 React islands hydrate with `client:load` unless deferred hydration is clearly
 better.
 
-**Settings pages use `SettingsShell`** (`components/SettingsShell.tsx`): a
+**Settings pages use `SettingsShell`** (`components/ui/SettingsShell.tsx`): a
 sidebar on laptop and up, a tab strip below, one section rendered at a time,
 and the active section in the URL hash. Both `/organization` and `/profile` are
 built from it. Sections are a data array, so a new setting is one more entry
@@ -390,7 +390,7 @@ type ApiResult<T> = { data: T; error: null } | { data: null; error: ApiError }
 Callers check `result.error` first. Error and loading states render inline
 (early returns or ternaries in JSX) — no separate error-boundary components.
 
-Every request goes through `apiRequest` in `src/api/client.ts`, which attaches
+Every request goes through `apiRequest` in `src/lib/api/client.ts`, which attaches
 the bearer token and the scope headers. Pass `scoped: false` for the few routes
 that run outside a tenant (login, register, create-organization).
 
@@ -627,8 +627,11 @@ regression that would otherwise ship silently.
 1. Create `apps/web/src/pages/{name}.astro` using `BaseLayout`.
 2. Leave `requireAuth` at its default unless the page is genuinely public
    (`/login` is the only one today).
-3. Extract any interactive section to a React island in `components/`.
+3. Extract any interactive section to a React island in the owning
+   `features/<feature>/` directory; shared atoms come from `components/ui`.
+   Internal imports use the `@/` alias (`@/components/ui`, `@/lib/QueryProvider`).
 4. Wrap islands that use TanStack Query in `QueryProvider`.
-5. Add client fetch functions to the relevant `src/api/*.ts`, returning
-   `ApiResult<T>`, and handle both branches inline.
+5. Add client fetch functions to that feature's `features/<feature>/api.ts`
+   (cross-feature client, drafts and media modules live in `src/lib/api/`),
+   returning `ApiResult<T>`, and handle both branches inline.
 6. Include the scope in query keys for anything tenant-scoped.
