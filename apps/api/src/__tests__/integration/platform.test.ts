@@ -1,8 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
-import mongoose from 'mongoose';
-import { MongoMemoryServer } from 'mongodb-memory-server';
 import { app } from '../../app';
+import { connectToTestDb, disconnectTestDb } from './db';
 import { User } from '../../features/auth/auth.model';
 
 /**
@@ -11,16 +10,12 @@ import { User } from '../../features/auth/auth.model';
  * who is not platform staff.
  */
 
-let mongo: MongoMemoryServer;
-
 beforeAll(async () => {
-  mongo = await MongoMemoryServer.create();
-  await mongoose.connect(mongo.getUri());
+  await connectToTestDb('platform');
 }, 120_000);
 
 afterAll(async () => {
-  await mongoose.disconnect();
-  await mongo?.stop();
+  await disconnectTestDb();
 });
 
 const PASSWORD = 'a-long-enough-password';

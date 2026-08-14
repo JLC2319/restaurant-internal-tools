@@ -60,7 +60,7 @@ describe('parseVideoEmbed', () => {
 
   it('derives the embed src from the id alone — attacker path/query never survives', () => {
     const embed = parseVideoEmbed(
-      'https://www.youtube.com/watch?v=dQw4w9WgXcQ&autoplay=1&onload=evil'
+      'https://www.youtube.com/watch?v=dQw4w9WgXcQ&autoplay=1&onload=evil',
     );
     expect(embed?.embedSrc).toBe('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ');
   });
@@ -69,21 +69,21 @@ describe('parseVideoEmbed', () => {
 describe('trainingBlockSchema', () => {
   it('accepts each block kind with its own required fields', () => {
     expect(trainingBlockSchema.safeParse({ kind: 'text', doc: textDoc('Hello') }).success).toBe(
-      true
+      true,
     );
     expect(trainingBlockSchema.safeParse({ kind: 'image', mediaId: OID }).success).toBe(true);
     expect(
-      trainingBlockSchema.safeParse({ kind: 'video', mediaId: OID, caption: 'Plating' }).success
+      trainingBlockSchema.safeParse({ kind: 'video', mediaId: OID, caption: 'Plating' }).success,
     ).toBe(true);
     expect(
-      trainingBlockSchema.safeParse({ kind: 'embed', url: 'https://youtu.be/dQw4w9WgXcQ' }).success
+      trainingBlockSchema.safeParse({ kind: 'embed', url: 'https://youtu.be/dQw4w9WgXcQ' }).success,
     ).toBe(true);
   });
 
   it('rejects a text block with nothing in it', () => {
     expect(trainingBlockSchema.safeParse({ kind: 'text', doc: textDoc('') }).success).toBe(false);
     expect(trainingBlockSchema.safeParse({ kind: 'text', doc: textDoc('   ') }).success).toBe(
-      false
+      false,
     );
   });
 
@@ -94,7 +94,7 @@ describe('trainingBlockSchema', () => {
 
   it('rejects an embed pointing anywhere but the allow-listed providers', () => {
     expect(
-      trainingBlockSchema.safeParse({ kind: 'embed', url: 'https://evil.example/video' }).success
+      trainingBlockSchema.safeParse({ kind: 'embed', url: 'https://evil.example/video' }).success,
     ).toBe(false);
   });
 });

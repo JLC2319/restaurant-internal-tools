@@ -1,42 +1,50 @@
-import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { PlatformUpdateUserInput, PlatformUserRow } from '@rit/shared'
-import { getMe } from '../api/auth'
-import { listUsers, updateUser } from '../api/platform'
-import { QueryProvider } from './QueryProvider'
-import { Badge, ErrorNote, TableShell, inputClass, subtleButtonClass, tdClass, thClass } from './ui'
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { PlatformUpdateUserInput, PlatformUserRow } from '@rit/shared';
+import { getMe } from '../api/auth';
+import { listUsers, updateUser } from '../api/platform';
+import { QueryProvider } from './QueryProvider';
+import {
+  Badge,
+  ErrorNote,
+  TableShell,
+  inputClass,
+  subtleButtonClass,
+  tdClass,
+  thClass,
+} from './ui';
 
 function Actions({
   user,
   isSelf,
   onError,
 }: {
-  user: PlatformUserRow
-  isSelf: boolean
-  onError: (message: string | null) => void
+  user: PlatformUserRow;
+  isSelf: boolean;
+  onError: (message: string | null) => void;
 }) {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   const update = useMutation({
     mutationFn: async (input: PlatformUpdateUserInput) => {
-      const result = await updateUser(user._id, input)
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await updateUser(user._id, input);
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     onSuccess: () => {
-      onError(null)
-      queryClient.invalidateQueries({ queryKey: ['platform', 'users'] })
+      onError(null);
+      queryClient.invalidateQueries({ queryKey: ['platform', 'users'] });
     },
     onError: (err: Error) => onError(err.message),
-  })
+  });
 
   function confirmAnd(message: string, input: PlatformUpdateUserInput) {
-    if (window.confirm(message)) update.mutate(input)
+    if (window.confirm(message)) update.mutate(input);
   }
 
-  const suspended = user.status === 'suspended'
-  const isStaff = user.platformRole === 'superAdmin'
-  const who = `${user.name.first} ${user.name.last} <${user.email}>`
+  const suspended = user.status === 'suspended';
+  const isStaff = user.platformRole === 'superAdmin';
+  const who = `${user.name.first} ${user.name.last} <${user.email}>`;
 
   // The API refuses self-suspension and self-demotion anyway; hiding the
   // buttons just keeps the console from offering a dead end.
@@ -59,8 +67,10 @@ function Actions({
             disabled={update.isPending}
             onClick={() =>
               confirmAnd(
-                suspended ? `Reactivate ${who}?` : `Suspend ${who}? They are signed out everywhere.`,
-                { status: suspended ? 'active' : 'suspended' }
+                suspended
+                  ? `Reactivate ${who}?`
+                  : `Suspend ${who}? They are signed out everywhere.`,
+                { status: suspended ? 'active' : 'suspended' },
               )
             }
             className={subtleButtonClass}
@@ -75,7 +85,7 @@ function Actions({
                 isStaff
                   ? `Remove superAdmin from ${who}?`
                   : `Grant superAdmin to ${who}? They will see every tenant.`,
-                { platformRole: isStaff ? 'user' : 'superAdmin' }
+                { platformRole: isStaff ? 'user' : 'superAdmin' },
               )
             }
             className={subtleButtonClass}
@@ -85,42 +95,42 @@ function Actions({
         </>
       )}
     </div>
-  )
+  );
 }
 
 function Table() {
-  const [search, setSearch] = useState('')
-  const [q, setQ] = useState('')
-  const [page, setPage] = useState(1)
-  const [actionError, setActionError] = useState<string | null>(null)
+  const [search, setSearch] = useState('');
+  const [q, setQ] = useState('');
+  const [page, setPage] = useState(1);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const me = useQuery({
     queryKey: ['auth', 'me'],
     queryFn: async () => {
-      const result = await getMe()
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await getMe();
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
-  })
+  });
 
   const { data, error, isLoading } = useQuery({
     queryKey: ['platform', 'users', { q, page }],
     queryFn: async () => {
-      const result = await listUsers({ q, page })
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await listUsers({ q, page });
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
-  })
+  });
 
-  if (error) return <ErrorNote>{error.message}</ErrorNote>
+  if (error) return <ErrorNote>{error.message}</ErrorNote>;
 
   return (
     <div className="space-y-4">
       <form
         onSubmit={(e) => {
-          e.preventDefault()
-          setPage(1)
-          setQ(search)
+          e.preventDefault();
+          setPage(1);
+          setQ(search);
         }}
         className="flex max-w-md gap-2"
       >
@@ -219,7 +229,7 @@ function Table() {
         </div>
       )}
     </div>
-  )
+  );
 }
 
 export function UsersTable() {
@@ -227,5 +237,5 @@ export function UsersTable() {
     <QueryProvider>
       <Table />
     </QueryProvider>
-  )
+  );
 }

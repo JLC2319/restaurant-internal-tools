@@ -49,11 +49,7 @@ export function canBypassPersonAccess(ctx: TenantContext): boolean {
 export function personAccessFilter(ctx: TenantContext): Record<string, unknown> {
   if (canBypassPersonAccess(ctx)) return {};
   return {
-    $or: [
-      { access: null },
-      { 'access.userIds': ctx.userId },
-      { createdBy: ctx.userId },
-    ],
+    $or: [{ access: null }, { 'access.userIds': ctx.userId }, { createdBy: ctx.userId }],
   };
 }
 
@@ -72,10 +68,7 @@ export function dedupeAccessUserIds(userIds: string[]): string[] {
  * visibility includes a document at `scope`; any requested id not covered is
  * named in the 400.
  */
-export async function assertAccessListValid(
-  scope: TenantScope,
-  userIds: string[]
-): Promise<void> {
+export async function assertAccessListValid(scope: TenantScope, userIds: string[]): Promise<void> {
   if (userIds.length === 0) return;
 
   const rows = await Membership.find({
@@ -90,9 +83,6 @@ export async function assertAccessListValid(
   const covered = new Set(rows.map((row) => String(row.userId)));
   const missing = userIds.filter((id) => !covered.has(id));
   if (missing.length > 0) {
-    throw new AppError(
-      `These users cannot see this scope: ${missing.join(', ')}`,
-      400
-    );
+    throw new AppError(`These users cannot see this scope: ${missing.join(', ')}`, 400);
   }
 }

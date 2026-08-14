@@ -1,7 +1,7 @@
-import { useQuery } from '@tanstack/react-query'
-import type { TenantRole } from '@rit/shared'
-import { getMyMemberships } from '@/features/auth/api'
-import { getScope } from '@/lib/api/client'
+import { useQuery } from '@tanstack/react-query';
+import type { TenantRole } from '@rit/shared';
+import { getMyMemberships } from '@/features/auth/api';
+import { getScope } from '@/lib/api/client';
 
 /**
  * The caller's tenant role in the active scope, for hiding controls the server
@@ -15,24 +15,24 @@ export function useActiveRole(): { role: TenantRole | null; isLoading: boolean }
   const { data, isLoading } = useQuery({
     queryKey: ['auth', 'memberships'],
     queryFn: async () => {
-      const result = await getMyMemberships()
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await getMyMemberships();
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
-  })
+  });
 
-  const memberships = data ?? []
-  const scope = getScope()
+  const memberships = data ?? [];
+  const scope = getScope();
   const active =
     memberships.find(
       (m) =>
         scope &&
         m.org._id === scope.orgId &&
         (m.property?._id ?? null) === (scope.propertyId ?? null) &&
-        (m.location?._id ?? null) === (scope.locationId ?? null)
+        (m.location?._id ?? null) === (scope.locationId ?? null),
     ) ??
     memberships[0] ??
-    null
+    null;
 
-  return { role: active?.role ?? null, isLoading }
+  return { role: active?.role ?? null, isLoading };
 }

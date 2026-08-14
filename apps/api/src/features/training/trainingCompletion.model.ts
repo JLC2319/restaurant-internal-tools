@@ -23,7 +23,7 @@ const trainingCompletionSchema = new Schema<ITrainingCompletion>(
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     completedAt: { type: Date, required: true },
   },
-  { timestamps: { createdAt: 'createdAt', updatedAt: 'modifiedAt' } }
+  { timestamps: { createdAt: 'createdAt', updatedAt: 'modifiedAt' } },
 );
 
 // One completion per person per location context; the upsert in the service
@@ -34,5 +34,5 @@ trainingCompletionSchema.index({ orgId: 1, userId: 1, trainingId: 1 });
 
 export const TrainingCompletion = model<ITrainingCompletion>(
   'TrainingCompletion',
-  trainingCompletionSchema
+  trainingCompletionSchema,
 );

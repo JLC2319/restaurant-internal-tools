@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
-import type { ReactNode } from 'react'
-import type { LucideIcon } from 'lucide-react'
+import { useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
+import type { LucideIcon } from 'lucide-react';
 
 /**
  * The settings-page chrome: a vertical sidebar on laptop and up, a horizontal
@@ -18,41 +18,41 @@ import type { LucideIcon } from 'lucide-react'
 
 export interface SettingsSection {
   /** Stable id — it is the URL hash, so treat a rename as a broken bookmark. */
-  id: string
-  label: string
-  icon: LucideIcon
+  id: string;
+  label: string;
+  icon: LucideIcon;
   /**
    * Rendered only while the section is active. Sections carry their own
    * `SectionCard` header, so the shell adds no heading of its own — one title
    * per panel, not two.
    */
-  render: () => ReactNode
+  render: () => ReactNode;
 }
 
 /** Reads the active section from the hash, ignoring hashes we do not own. */
 function useHashSection(ids: string[], fallback: string): [string, (id: string) => void] {
-  const [active, setActive] = useState(fallback)
-  const key = ids.join('|')
+  const [active, setActive] = useState(fallback);
+  const key = ids.join('|');
 
   useEffect(() => {
     const read = () => {
-      const id = window.location.hash.replace(/^#/, '')
-      setActive(id && ids.includes(id) ? id : fallback)
-    }
-    read()
-    window.addEventListener('hashchange', read)
-    return () => window.removeEventListener('hashchange', read)
+      const id = window.location.hash.replace(/^#/, '');
+      setActive(id && ids.includes(id) ? id : fallback);
+    };
+    read();
+    window.addEventListener('hashchange', read);
+    return () => window.removeEventListener('hashchange', read);
     // `key` stands in for the id list; `ids` is a fresh array every render.
-  }, [key, fallback])
+  }, [key, fallback]);
 
   return [
     active,
     (id: string) => {
       // Writing the hash drives the state through the listener above, so the
       // URL and what is on screen can never disagree.
-      window.location.hash = id
+      window.location.hash = id;
     },
-  ]
+  ];
 }
 
 function NavItem({
@@ -61,12 +61,12 @@ function NavItem({
   orientation,
   onSelect,
 }: {
-  section: SettingsSection
-  isActive: boolean
-  orientation: 'vertical' | 'horizontal'
-  onSelect: () => void
+  section: SettingsSection;
+  isActive: boolean;
+  orientation: 'vertical' | 'horizontal';
+  onSelect: () => void;
 }) {
-  const Icon = section.icon
+  const Icon = section.icon;
   return (
     <button
       type="button"
@@ -82,10 +82,13 @@ function NavItem({
           : 'text-salt-600 hover:bg-salt-100 hover:text-steel-900'
       }`}
     >
-      <Icon className={`size-4 shrink-0 ${isActive ? 'text-ember-600' : 'text-salt-500'}`} aria-hidden />
+      <Icon
+        className={`size-4 shrink-0 ${isActive ? 'text-ember-600' : 'text-salt-500'}`}
+        aria-hidden
+      />
       {section.label}
     </button>
-  )
+  );
 }
 
 export function SettingsShell({
@@ -93,16 +96,16 @@ export function SettingsShell({
   ariaLabel,
   aside,
 }: {
-  sections: SettingsSection[]
-  ariaLabel: string
+  sections: SettingsSection[];
+  ariaLabel: string;
   /** Optional identity block above the nav — the org header, for instance. */
-  aside?: ReactNode
+  aside?: ReactNode;
 }) {
-  const ids = sections.map((section) => section.id)
-  const [activeId, select] = useHashSection(ids, ids[0] ?? '')
-  const active = sections.find((section) => section.id === activeId) ?? sections[0]
+  const ids = sections.map((section) => section.id);
+  const [activeId, select] = useHashSection(ids, ids[0] ?? '');
+  const active = sections.find((section) => section.id === activeId) ?? sections[0];
 
-  if (!active) return null
+  if (!active) return null;
 
   return (
     <div className="space-y-5">
@@ -158,5 +161,5 @@ export function SettingsShell({
         </div>
       </div>
     </div>
-  )
+  );
 }

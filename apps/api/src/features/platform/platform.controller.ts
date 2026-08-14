@@ -20,7 +20,7 @@ export async function listOrganizations(req: Request, res: Response): Promise<vo
 
 export async function createOrganization(req: Request, res: Response): Promise<void> {
   const org = await platformService.createOrganizationForOwner(
-    req.body as PlatformCreateOrganizationInput
+    req.body as PlatformCreateOrganizationInput,
   );
   res.status(201).json(org);
 }
@@ -33,7 +33,7 @@ export async function getOrganizationDetail(req: Request, res: Response): Promis
 export async function updateOrganization(req: Request, res: Response): Promise<void> {
   const org = await platformService.updateOrganization(
     pathParam(req, 'id'),
-    req.body as PlatformUpdateOrganizationInput
+    req.body as PlatformUpdateOrganizationInput,
   );
   res.status(200).json(org);
 }
@@ -47,7 +47,7 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
   const user = await platformService.updateUser(
     req.userId!,
     pathParam(req, 'id'),
-    req.body as PlatformUpdateUserInput
+    req.body as PlatformUpdateUserInput,
   );
   res.status(200).json(user);
 }

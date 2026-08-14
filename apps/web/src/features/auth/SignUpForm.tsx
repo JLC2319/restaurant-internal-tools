@@ -1,57 +1,57 @@
-import { useState } from 'react'
-import type { SubmitEvent } from 'react'
-import type { Locale } from '@rit/shared'
-import { register } from '@/features/auth/api'
-import { ErrorNote, inputClass, primaryButtonClass } from '@/components/ui'
+import { useState } from 'react';
+import type { SubmitEvent } from 'react';
+import type { Locale } from '@rit/shared';
+import { register } from '@/features/auth/api';
+import { ErrorNote, inputClass, primaryButtonClass } from '@/components/ui';
 
 export function SignUpForm() {
-  const [first, setFirst] = useState('')
-  const [last, setLast] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirm, setConfirm] = useState('')
-  const [preferredLocale, setPreferredLocale] = useState<Locale>('en')
-  const [error, setError] = useState<string | null>(null)
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
-  const [submitting, setSubmitting] = useState(false)
-  const [createdEmail, setCreatedEmail] = useState<string | null>(null)
+  const [first, setFirst] = useState('');
+  const [last, setLast] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [preferredLocale, setPreferredLocale] = useState<Locale>('en');
+  const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
+  const [createdEmail, setCreatedEmail] = useState<string | null>(null);
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setError(null)
-    setFieldErrors({})
+    event.preventDefault();
+    setError(null);
+    setFieldErrors({});
 
     if (password !== confirm) {
-      setFieldErrors({ confirm: 'Passwords do not match' })
-      return
+      setFieldErrors({ confirm: 'Passwords do not match' });
+      return;
     }
 
-    setSubmitting(true)
+    setSubmitting(true);
 
     const result = await register({
       name: { first, last },
       email,
       password,
       preferredLocale,
-    })
+    });
 
     if (result.error) {
       const fields = Object.fromEntries(
-        (result.error.errors ?? []).map((e) => [e.field, e.message])
-      )
-      setFieldErrors(fields)
-      if (Object.keys(fields).length === 0) setError(result.error.message)
-      setSubmitting(false)
-      return
+        (result.error.errors ?? []).map((e) => [e.field, e.message]),
+      );
+      setFieldErrors(fields);
+      if (Object.keys(fields).length === 0) setError(result.error.message);
+      setSubmitting(false);
+      return;
     }
 
-    setCreatedEmail(result.data.email)
+    setCreatedEmail(result.data.email);
   }
 
   function fieldError(field: string) {
-    const message = fieldErrors[field]
-    if (!message) return null
-    return <p className="mt-1 text-sm text-chili-700">{message}</p>
+    const message = fieldErrors[field];
+    if (!message) return null;
+    return <p className="mt-1 text-sm text-chili-700">{message}</p>;
   }
 
   // Accounts are created unattached; an admin invites the email afterwards
@@ -68,7 +68,7 @@ export function SignUpForm() {
           Go to sign in
         </a>
       </div>
-    )
+    );
   }
 
   return (
@@ -181,5 +181,5 @@ export function SignUpForm() {
         {submitting ? 'Creating account…' : 'Create account'}
       </button>
     </form>
-  )
+  );
 }

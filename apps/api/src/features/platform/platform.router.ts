@@ -24,21 +24,25 @@ platformRouter.get('/stats', platformController.getStats);
 platformRouter.get(
   '/organizations',
   validateQuery(platformListQuerySchema),
-  platformController.listOrganizations
+  platformController.listOrganizations,
 );
 platformRouter.post(
   '/organizations',
   validate(platformCreateOrganizationSchema),
-  platformController.createOrganization
+  platformController.createOrganization,
 );
 platformRouter.get('/organizations/:id', platformController.getOrganizationDetail);
 platformRouter.patch(
   '/organizations/:id',
   validate(platformUpdateOrganizationSchema),
-  platformController.updateOrganization
+  platformController.updateOrganization,
 );
 
 platformRouter.get('/users', validateQuery(platformListQuerySchema), platformController.listUsers);
-platformRouter.patch('/users/:id', validate(platformUpdateUserSchema), platformController.updateUser);
+platformRouter.patch(
+  '/users/:id',
+  validate(platformUpdateUserSchema),
+  platformController.updateUser,
+);
 
 export { platformRouter };

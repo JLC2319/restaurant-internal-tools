@@ -49,7 +49,7 @@ export const orgSettingsSchema = new Schema<ITenantSettings>(
       default: NEW_ORG_RECIPE_PUBLISH_MODE,
     },
   },
-  { _id: false }
+  { _id: false },
 );
 
 export const settingsOverrideSchema = new Schema<ITenantSettingsOverride>(
@@ -70,5 +70,5 @@ export const settingsOverrideSchema = new Schema<ITenantSettingsOverride>(
       default: null,
     },
   },
-  { _id: false }
+  { _id: false },
 );

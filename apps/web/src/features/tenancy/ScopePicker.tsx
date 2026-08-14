@@ -1,8 +1,8 @@
-import { useQuery } from '@tanstack/react-query'
-import type { TenantTree } from '@rit/shared'
-import { getScope } from '@/lib/api/client'
-import { getTenantTree, tenancyScopeKey } from '@/features/tenancy/api'
-import { inputClass } from '@/components/ui'
+import { useQuery } from '@tanstack/react-query';
+import type { TenantTree } from '@rit/shared';
+import { getScope } from '@/lib/api/client';
+import { getTenantTree, tenancyScopeKey } from '@/features/tenancy/api';
+import { inputClass } from '@/components/ui';
 
 /**
  * Property/location placement for anything that lives in the tenant tree —
@@ -14,14 +14,14 @@ import { inputClass } from '@/components/ui'
 
 /** '' means "the whole tier above": no property = whole org, no location = whole property. */
 export interface ScopeSelection {
-  propertyId: string
-  locationId: string
+  propertyId: string;
+  locationId: string;
 }
 
 /** Where a create form starts: the caller's active browsing scope. */
 export function defaultScopeSelection(): ScopeSelection {
-  const active = getScope()
-  return { propertyId: active?.propertyId ?? '', locationId: active?.locationId ?? '' }
+  const active = getScope();
+  return { propertyId: active?.propertyId ?? '', locationId: active?.locationId ?? '' };
 }
 
 /** One tree query, shared by every picker and attribution chip via the cache. */
@@ -29,11 +29,11 @@ export function useTenantTree() {
   return useQuery({
     queryKey: ['tenancy', 'tree', ...tenancyScopeKey()],
     queryFn: async () => {
-      const result = await getTenantTree()
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await getTenantTree();
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
-  })
+  });
 }
 
 /**
@@ -42,13 +42,13 @@ export function useTenantTree() {
  */
 export function scopeDisplayLabel(
   scope: { propertyId: string | null; locationId: string | null },
-  tree: TenantTree | undefined
+  tree: TenantTree | undefined,
 ): string | null {
-  if (!scope.propertyId) return null
-  const property = tree?.properties.find((p) => p._id === scope.propertyId)
-  if (!scope.locationId) return property?.name ?? 'One property'
-  const location = property?.locations.find((l) => l._id === scope.locationId)
-  return `${property?.name ?? '…'} › ${location?.name ?? '…'}`
+  if (!scope.propertyId) return null;
+  const property = tree?.properties.find((p) => p._id === scope.propertyId);
+  if (!scope.locationId) return property?.name ?? 'One property';
+  const location = property?.locations.find((l) => l._id === scope.locationId);
+  return `${property?.name ?? '…'} › ${location?.name ?? '…'}`;
 }
 
 /**
@@ -63,19 +63,19 @@ export function ScopePicker({
   value,
   onChange,
 }: {
-  idPrefix: string
-  value: ScopeSelection
-  onChange: (next: ScopeSelection) => void
+  idPrefix: string;
+  value: ScopeSelection;
+  onChange: (next: ScopeSelection) => void;
 }) {
-  const { data: tree } = useTenantTree()
-  const active = getScope()
+  const { data: tree } = useTenantTree();
+  const active = getScope();
 
   const properties = (tree?.properties ?? []).filter(
-    (property) => !active?.propertyId || property._id === active.propertyId
-  )
+    (property) => !active?.propertyId || property._id === active.propertyId,
+  );
   const locations = (
     properties.find((property) => property._id === value.propertyId)?.locations ?? []
-  ).filter((location) => !active?.locationId || location._id === active.locationId)
+  ).filter((location) => !active?.locationId || location._id === active.locationId);
 
   return (
     <>
@@ -123,5 +123,5 @@ export function ScopePicker({
         </select>
       </div>
     </>
-  )
+  );
 }

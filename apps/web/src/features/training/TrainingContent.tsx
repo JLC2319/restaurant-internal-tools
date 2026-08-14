@@ -1,10 +1,10 @@
-import { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import type { TrainingBlockView, TrainingDetail as TrainingDetailData } from '@rit/shared'
-import { CheckCircle2, GraduationCap, RotateCcw } from 'lucide-react'
-import { completeTraining, uncompleteTraining } from '@/features/training/api'
-import { RichText } from '@/components/ui/RichText'
-import { ErrorNote, primaryButtonClass } from '@/components/ui'
+import { useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import type { TrainingBlockView, TrainingDetail as TrainingDetailData } from '@rit/shared';
+import { CheckCircle2, GraduationCap, RotateCcw } from 'lucide-react';
+import { completeTraining, uncompleteTraining } from '@/features/training/api';
+import { RichText } from '@/components/ui/RichText';
+import { ErrorNote, primaryButtonClass } from '@/components/ui';
 
 /**
  * The training viewer — what staff actually read on the line. Content renders
@@ -19,25 +19,25 @@ import { ErrorNote, primaryButtonClass } from '@/components/ui'
  */
 
 /** Media stretches slightly past the text measure — editorial, not boxed-in. */
-const breakoutClass = 'tablet:-mx-6'
+const breakoutClass = 'tablet:-mx-6';
 
 function Caption({ text }: { text: string | null }) {
-  if (!text) return null
+  if (!text) return null;
   return (
     <figcaption className="px-4 text-center text-sm leading-relaxed text-salt-500">
       {text}
     </figcaption>
-  )
+  );
 }
 
 export function BlockView({ block, index }: { block: TrainingBlockView; index: number }) {
   switch (block.kind) {
     case 'text':
-      return <RichText doc={block.doc} />
+      return <RichText doc={block.doc} />;
 
     case 'image':
       // Asset deleted out from under the module — skip rather than render broken.
-      if (!block.media) return null
+      if (!block.media) return null;
       return (
         <figure className={`space-y-3 ${breakoutClass}`}>
           <img
@@ -50,10 +50,10 @@ export function BlockView({ block, index }: { block: TrainingBlockView; index: n
           />
           <Caption text={block.caption} />
         </figure>
-      )
+      );
 
     case 'video':
-      if (!block.media) return null
+      if (!block.media) return null;
       return (
         <figure className={`space-y-3 ${breakoutClass}`}>
           {/* preload="metadata" + playsInline: fetch the header only, then
@@ -68,7 +68,7 @@ export function BlockView({ block, index }: { block: TrainingBlockView; index: n
           />
           <Caption text={block.caption} />
         </figure>
-      )
+      );
 
     case 'embed':
       return (
@@ -84,38 +84,38 @@ export function BlockView({ block, index }: { block: TrainingBlockView; index: n
           />
           <Caption text={block.caption} />
         </figure>
-      )
+      );
   }
 }
 
 export function CompletionCard({ training }: { training: TrainingDetailData }) {
-  const queryClient = useQueryClient()
-  const [error, setError] = useState<string | null>(null)
-  const done = training.myCompletion != null
+  const queryClient = useQueryClient();
+  const [error, setError] = useState<string | null>(null);
+  const done = training.myCompletion != null;
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['trainings'] })
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['trainings'] });
 
   const complete = useMutation({
     mutationFn: async () => {
-      const result = await completeTraining(training._id)
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await completeTraining(training._id);
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     onSuccess: invalidate,
     onError: (err: Error) => setError(err.message),
-  })
+  });
 
   const uncomplete = useMutation({
     mutationFn: async () => {
-      const result = await uncompleteTraining(training._id)
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await uncompleteTraining(training._id);
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     onSuccess: invalidate,
     onError: (err: Error) => setError(err.message),
-  })
+  });
 
-  if (training.status !== 'published') return null
+  if (training.status !== 'published') return null;
 
   return (
     <section
@@ -173,5 +173,5 @@ export function CompletionCard({ training }: { training: TrainingDetailData }) {
         </div>
       )}
     </section>
-  )
+  );
 }

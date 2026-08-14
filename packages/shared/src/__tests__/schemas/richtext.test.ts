@@ -44,15 +44,22 @@ describe('richTextDocSchema', () => {
               type: 'listItem',
               content: [
                 paragraph('Two'),
-                { type: 'bulletList', content: [{ type: 'listItem', content: [paragraph('Two point one')] }] },
+                {
+                  type: 'bulletList',
+                  content: [{ type: 'listItem', content: [paragraph('Two point one')] }],
+                },
               ],
             },
           ],
         },
-        { type: 'orderedList', attrs: { start: 3 }, content: [{ type: 'listItem', content: [paragraph('Three')] }] },
+        {
+          type: 'orderedList',
+          attrs: { start: 3 },
+          content: [{ type: 'listItem', content: [paragraph('Three')] }],
+        },
         { type: 'blockquote', content: [paragraph('Quoted')] },
         { type: 'paragraph' },
-      ])
+      ]),
     );
     expect(result.success).toBe(true);
   });
@@ -76,7 +83,7 @@ describe('richTextDocSchema', () => {
             },
           ],
         },
-      ])
+      ]),
     );
     expect(result.success).toBe(true);
     const parsed = result.data as RichTextDoc;
@@ -88,7 +95,7 @@ describe('richTextDocSchema', () => {
   it('rejects node and mark types outside the allow-list', () => {
     expect(
       richTextDocSchema.safeParse(doc([{ type: 'iframe', attrs: { src: 'https://evil.io' } }]))
-        .success
+        .success,
     ).toBe(false);
     expect(
       richTextDocSchema.safeParse(
@@ -97,8 +104,8 @@ describe('richTextDocSchema', () => {
             type: 'paragraph',
             content: [{ type: 'text', text: 'x', marks: [{ type: 'textStyle' }] }],
           },
-        ])
-      ).success
+        ]),
+      ).success,
     ).toBe(false);
   });
 
@@ -110,7 +117,7 @@ describe('richTextDocSchema', () => {
             type: 'paragraph',
             content: [{ type: 'text', text: 'x', marks: [{ type: 'link', attrs: { href } }] }],
           },
-        ])
+        ]),
       ).success;
     // eslint-disable-next-line no-script-url
     expect(bad('javascript:alert(1)')).toBe(false);
@@ -121,7 +128,7 @@ describe('richTextDocSchema', () => {
   it('caps total text length across the whole document', () => {
     const half = 'x'.repeat(Math.ceil(MAX_TRAINING_TEXT_CHARS / 2) + 1);
     expect(richTextDocSchema.safeParse(doc([paragraph(half), paragraph(half)])).success).toBe(
-      false
+      false,
     );
   });
 

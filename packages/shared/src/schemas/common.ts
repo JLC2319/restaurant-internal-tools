@@ -1,9 +1,7 @@
 import { z } from 'zod';
 
 /** A 24-character hex Mongo ObjectId, as it appears in JSON. */
-export const objectIdSchema = z
-  .string()
-  .regex(/^[0-9a-fA-F]{24}$/, 'Must be a valid id');
+export const objectIdSchema = z.string().regex(/^[0-9a-fA-F]{24}$/, 'Must be a valid id');
 
 /**
  * Query-string pagination. Coerced because everything arrives as a string;

@@ -1,33 +1,42 @@
-import { useState } from 'react'
-import type { SubmitEvent } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createOrganization, listOrganizations } from '../api/platform'
-import { QueryProvider } from './QueryProvider'
-import { Badge, ErrorNote, TableShell, inputClass, primaryButtonClass, subtleButtonClass, tdClass, thClass } from './ui'
+import { useState } from 'react';
+import type { SubmitEvent } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { createOrganization, listOrganizations } from '../api/platform';
+import { QueryProvider } from './QueryProvider';
+import {
+  Badge,
+  ErrorNote,
+  TableShell,
+  inputClass,
+  primaryButtonClass,
+  subtleButtonClass,
+  tdClass,
+  thClass,
+} from './ui';
 
 function NewOrgForm() {
-  const queryClient = useQueryClient()
-  const [name, setName] = useState('')
-  const [ownerEmail, setOwnerEmail] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient();
+  const [name, setName] = useState('');
+  const [ownerEmail, setOwnerEmail] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   const create = useMutation({
     mutationFn: async () => {
-      const result = await createOrganization({ name, ownerEmail, locales: ['en', 'es'] })
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await createOrganization({ name, ownerEmail, locales: ['en', 'es'] });
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     onSuccess: (org) => {
-      queryClient.invalidateQueries({ queryKey: ['platform'] })
-      window.location.href = `/organizations/${org._id}`
+      queryClient.invalidateQueries({ queryKey: ['platform'] });
+      window.location.href = `/organizations/${org._id}`;
     },
     onError: (err: Error) => setError(err.message),
-  })
+  });
 
   function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setError(null)
-    create.mutate()
+    event.preventDefault();
+    setError(null);
+    create.mutate();
   }
 
   return (
@@ -76,34 +85,34 @@ function NewOrgForm() {
         {create.isPending ? 'Creating…' : 'Create organization'}
       </button>
     </form>
-  )
+  );
 }
 
 function Table() {
-  const [search, setSearch] = useState('')
-  const [q, setQ] = useState('')
-  const [page, setPage] = useState(1)
-  const [showForm, setShowForm] = useState(false)
+  const [search, setSearch] = useState('');
+  const [q, setQ] = useState('');
+  const [page, setPage] = useState(1);
+  const [showForm, setShowForm] = useState(false);
 
   const { data, error, isLoading } = useQuery({
     queryKey: ['platform', 'orgs', { q, page }],
     queryFn: async () => {
-      const result = await listOrganizations({ q, page })
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await listOrganizations({ q, page });
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
-  })
+  });
 
-  if (error) return <ErrorNote>{error.message}</ErrorNote>
+  if (error) return <ErrorNote>{error.message}</ErrorNote>;
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
         <form
           onSubmit={(e) => {
-            e.preventDefault()
-            setPage(1)
-            setQ(search)
+            e.preventDefault();
+            setPage(1);
+            setQ(search);
           }}
           className="flex max-w-md flex-1 gap-2"
         >
@@ -207,7 +216,7 @@ function Table() {
         </div>
       )}
     </div>
-  )
+  );
 }
 
 export function OrgsTable() {
@@ -215,5 +224,5 @@ export function OrgsTable() {
     <QueryProvider>
       <Table />
     </QueryProvider>
-  )
+  );
 }

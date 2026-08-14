@@ -25,7 +25,7 @@ const scopeSchema = new Schema<IScope>(
     propertyId: { type: Schema.Types.ObjectId, ref: 'Property', default: null },
     locationId: { type: Schema.Types.ObjectId, ref: 'Location', default: null },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const quantitySchema = new Schema(
@@ -33,7 +33,7 @@ const quantitySchema = new Schema(
     amount: { type: Number, required: true },
     unit: { type: String, enum: unitValues, required: true },
   },
-  { _id: false }
+  { _id: false },
 );
 
 /**
@@ -55,7 +55,7 @@ export const recipeContentSchema = new Schema<IRecipeContent>(
           quantity: { type: quantitySchema, required: true },
           note: { type: String, trim: true, maxlength: 300 },
         },
-        { _id: false }
+        { _id: false },
       ),
     ],
     steps: [{ type: String, trim: true }],
@@ -67,7 +67,7 @@ export const recipeContentSchema = new Schema<IRecipeContent>(
           approvedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
           approvedAt: { type: Date, default: null },
         },
-        { _id: false }
+        { _id: false },
       ),
     ],
     dietary: [{ type: String, enum: dietaryValues }],
@@ -77,7 +77,7 @@ export const recipeContentSchema = new Schema<IRecipeContent>(
       cookMinutes: { type: Number, min: 0 },
     },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const recipeSchema = new Schema<IRecipe>(
@@ -96,7 +96,7 @@ const recipeSchema = new Schema<IRecipe>(
           versionId: { type: Schema.Types.ObjectId, ref: 'RecipeVersion', required: true },
           version: { type: Number, required: true },
         },
-        { _id: false }
+        { _id: false },
       ),
       default: null,
     },
@@ -109,10 +109,7 @@ const recipeSchema = new Schema<IRecipe>(
     // migration. No index: every gated query is keyed by _id or already bounded
     // by the org-prefixed list index above.
     access: {
-      type: new Schema(
-        { userIds: [{ type: Schema.Types.ObjectId, ref: 'User' }] },
-        { _id: false }
-      ),
+      type: new Schema({ userIds: [{ type: Schema.Types.ObjectId, ref: 'User' }] }, { _id: false }),
       default: null,
     },
     // Set before the detached translation job starts and cleared when it
@@ -125,13 +122,13 @@ const recipeSchema = new Schema<IRecipe>(
           startedAt: { type: Date, required: true },
           versionId: { type: Schema.Types.ObjectId, ref: 'RecipeVersion', default: null },
         },
-        { _id: false }
+        { _id: false },
       ),
       default: null,
     },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   },
-  { timestamps: { createdAt: 'createdAt', updatedAt: 'modifiedAt' } }
+  { timestamps: { createdAt: 'createdAt', updatedAt: 'modifiedAt' } },
 );
 
 // Scoped list queries: filter by org + status, sort/search on name.

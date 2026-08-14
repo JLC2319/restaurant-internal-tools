@@ -12,12 +12,7 @@ const MULTER_MESSAGES: Record<string, { status: number; message: string }> = {
   LIMIT_UNEXPECTED_FILE: { status: 400, message: 'Too many files in one upload.' },
 };
 
-export function errorHandler(
-  err: Error,
-  _req: Request,
-  res: Response,
-  _next: NextFunction
-): void {
+export function errorHandler(err: Error, _req: Request, res: Response, _next: NextFunction): void {
   if (err instanceof AppError) {
     const body: Record<string, unknown> = { message: err.message };
     if (err.errors) body.errors = err.errors;

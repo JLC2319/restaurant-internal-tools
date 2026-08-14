@@ -101,7 +101,7 @@ export interface TranslatableProjection {
  */
 export function translatableProjection(
   name: string,
-  content: Pick<IRecipeContent, 'description' | 'ingredients' | 'steps'>
+  content: Pick<IRecipeContent, 'description' | 'ingredients' | 'steps'>,
 ): TranslatableProjection {
   return {
     name,
@@ -163,7 +163,7 @@ Rules:
  */
 export function sanitizePayload(
   raw: z.infer<typeof llmTranslationSchema>,
-  projection: TranslatableProjection
+  projection: TranslatableProjection,
 ): ITranslationPayload {
   const misaligned = () =>
     new AppError('The translation did not line up with the recipe. Please try again.', 502);
@@ -305,7 +305,7 @@ export interface PublishConfig {
  */
 export async function loadPublishConfig(
   scope: IScope,
-  setting: 'translationPublishMode' | 'trainingTranslationPublishMode' = 'translationPublishMode'
+  setting: 'translationPublishMode' | 'trainingTranslationPublishMode' = 'translationPublishMode',
 ): Promise<PublishConfig> {
   const [org, property, location] = await Promise.all([
     Organization.findById(scope.orgId).select('settings locales').lean(),
@@ -318,16 +318,14 @@ export async function loadPublishConfig(
     mode: resolveTranslationPublishMode(
       org?.settings?.[setting] ?? DEFAULT_TRANSLATION_PUBLISH_MODE,
       property?.settings?.[setting] ?? null,
-      location?.settings?.[setting] ?? null
+      location?.settings?.[setting] ?? null,
     ),
     targets: targetLocaleValues.filter((locale) => locales.includes(locale)),
   };
 }
 
 /** The mode governing one recipe's scope. */
-export async function resolvePublishModeForScope(
-  scope: IScope
-): Promise<TranslationPublishMode> {
+export async function resolvePublishModeForScope(scope: IScope): Promise<TranslationPublishMode> {
   return (await loadPublishConfig(scope)).mode;
 }
 
@@ -342,7 +340,7 @@ export async function resolvePublishModeForScope(
 export async function getTranslationState(
   ctx: TenantContext,
   recipeId: string,
-  locale: TargetLocale
+  locale: TargetLocale,
 ): Promise<RecipeTranslationState> {
   const head = await loadHead(ctx, recipeId);
   // Unpublished or archived work is invisible to readers — existence hiding,
@@ -387,7 +385,7 @@ export async function requestTranslation(
   ctx: TenantContext,
   userId: string,
   recipeId: string,
-  locale: TargetLocale
+  locale: TargetLocale,
 ): Promise<RecipeTranslationView> {
   if (!env.translationEnabled) {
     throw new AppError('Machine translation is not configured on this server', 503);
@@ -396,7 +394,7 @@ export async function requestTranslation(
   if (!head.activeVersionId) {
     throw new AppError(
       'This recipe has no live version. Translation follows what staff read — set a version live first.',
-      409
+      409,
     );
   }
 
@@ -426,7 +424,7 @@ export async function requestTranslation(
         autoApproved: false,
       },
     },
-    { returnDocument: 'after', upsert: true }
+    { returnDocument: 'after', upsert: true },
   ).lean();
 
   // A chef translating by hand settles whatever the last automatic attempt did
@@ -445,7 +443,7 @@ export async function updateTranslation(
   ctx: TenantContext,
   recipeId: string,
   locale: TargetLocale,
-  payload: TranslationPayloadInput
+  payload: TranslationPayloadInput,
 ): Promise<RecipeTranslationView> {
   const head = await loadHeadForManage(ctx, recipeId);
 
@@ -466,7 +464,7 @@ export async function updateTranslation(
   ) {
     throw new AppError(
       'The edited translation does not line up with the source version. Reload and try again.',
-      409
+      409,
     );
   }
 
@@ -505,7 +503,7 @@ export async function approveTranslation(
   ctx: TenantContext,
   userId: string,
   recipeId: string,
-  locale: TargetLocale
+  locale: TargetLocale,
 ): Promise<RecipeTranslationView> {
   const head = await loadHeadForManage(ctx, recipeId);
 
@@ -519,7 +517,7 @@ export async function approveTranslation(
   if (await isStale(head, doc.toObject())) {
     throw new AppError(
       'The live recipe has changed since this translation was made. Re-translate before approving.',
-      409
+      409,
     );
   }
 
@@ -538,7 +536,7 @@ export async function approveTranslation(
 export async function rejectTranslation(
   ctx: TenantContext,
   recipeId: string,
-  locale: TargetLocale
+  locale: TargetLocale,
 ): Promise<RecipeTranslationView> {
   const head = await loadHeadForManage(ctx, recipeId);
 
@@ -572,7 +570,7 @@ async function runAutoTranslation(
   activeVersionId: Types.ObjectId,
   locale: TargetLocale,
   mode: TranslationPublishMode,
-  actorUserId: string
+  actorUserId: string,
 ): Promise<'written' | 'skipped'> {
   const version = await RecipeVersion.findById(activeVersionId).select('content version').lean();
   if (!version) return 'skipped';
@@ -635,7 +633,7 @@ async function runAutoTranslation(
         autoApproved: autoPublish,
       },
     },
-    { upsert: true }
+    { upsert: true },
   );
 
   return 'written';
@@ -664,9 +662,7 @@ const AUTO_TRANSLATION_TIMEOUT_MS = 3 * 60_000;
  * job when there is one. Re-checks the same gates the job does; they are cheap
  * and this is the only place that decides.
  */
-export async function beginAutoTranslation(
-  recipeId: Types.ObjectId | string
-): Promise<boolean> {
+export async function beginAutoTranslation(recipeId: Types.ObjectId | string): Promise<boolean> {
   try {
     if (!env.translationEnabled) return false;
 
@@ -686,7 +682,7 @@ export async function beginAutoTranslation(
             versionId: head.activeVersionId,
           },
         },
-      }
+      },
     );
     return true;
   } catch (err) {
@@ -705,7 +701,7 @@ export async function beginAutoTranslation(
 /** Clears the marker, or leaves `failed` behind for the UI to explain. */
 async function endAutoTranslation(
   recipeId: Types.ObjectId | string,
-  outcome: 'done' | 'failed'
+  outcome: 'done' | 'failed',
 ): Promise<void> {
   try {
     const head = await Recipe.findById(recipeId).select('autoTranslation').lean();
@@ -719,11 +715,9 @@ async function endAutoTranslation(
       {
         $set: {
           autoTranslation:
-            outcome === 'done'
-              ? null
-              : { ...head.autoTranslation, status: 'failed' as const },
+            outcome === 'done' ? null : { ...head.autoTranslation, status: 'failed' as const },
         },
-      }
+      },
     );
   } catch (err) {
     console.error('Could not clear the automatic translation marker', {
@@ -768,7 +762,7 @@ function autoTranslationFlags(head: LeanRecipe): {
  */
 export async function autoTranslateOnPublish(
   recipeId: Types.ObjectId | string,
-  actorUserId: string
+  actorUserId: string,
 ): Promise<void> {
   try {
     if (!env.translationEnabled) return;
@@ -817,7 +811,7 @@ export async function autoTranslateOnPublish(
  */
 export async function invalidateForActiveVersion(
   recipeId: Types.ObjectId | string,
-  newActiveVersionId: Types.ObjectId | string
+  newActiveVersionId: Types.ObjectId | string,
 ): Promise<void> {
   await RecipeTranslation.updateMany(
     {
@@ -825,6 +819,6 @@ export async function invalidateForActiveVersion(
       status: PUBLISHABLE_STATUS,
       sourceVersionId: { $ne: newActiveVersionId },
     },
-    { $set: { status: 'pending_review', approvedBy: null, approvedAt: null } }
+    { $set: { status: 'pending_review', approvedBy: null, approvedAt: null } },
   );
 }

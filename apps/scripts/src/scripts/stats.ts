@@ -28,7 +28,7 @@ await run(async () => {
         `  properties ${properties}\n` +
         `  locations  ${locations}\n` +
         `  members    ${members}\n` +
-        `  seats      ${1 + properties + locations}`
+        `  seats      ${1 + properties + locations}`,
     );
   }
 });

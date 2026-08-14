@@ -16,7 +16,7 @@ import { pathParam } from '../../lib/params';
 export async function listRecipes(req: Request, res: Response): Promise<void> {
   const recipes = await recipeService.listRecipes(
     req.tenant!,
-    req.validatedQuery as ListRecipesQuery
+    req.validatedQuery as ListRecipesQuery,
   );
   res.status(200).json(recipes);
 }
@@ -25,7 +25,7 @@ export async function createRecipe(req: Request, res: Response): Promise<void> {
   const recipe = await recipeService.createRecipe(
     req.tenant!,
     req.userId!,
-    req.body as CreateRecipeInput
+    req.body as CreateRecipeInput,
   );
   res.status(201).json(recipe);
 }
@@ -45,7 +45,7 @@ export async function updateRecipe(req: Request, res: Response): Promise<void> {
     req.tenant!,
     req.userId!,
     pathParam(req, 'id'),
-    req.body as UpdateRecipeInput
+    req.body as UpdateRecipeInput,
   );
   res.status(200).json(recipe);
 }
@@ -54,7 +54,7 @@ export async function moveRecipe(req: Request, res: Response): Promise<void> {
   const recipe = await recipeService.moveRecipe(
     req.tenant!,
     pathParam(req, 'id'),
-    req.body as MoveRecipeInput
+    req.body as MoveRecipeInput,
   );
   res.status(200).json(recipe);
 }
@@ -63,7 +63,7 @@ export async function updateRecipeAccess(req: Request, res: Response): Promise<v
   const recipe = await recipeService.updateRecipeAccess(
     req.tenant!,
     pathParam(req, 'id'),
-    req.body as UpdateRecipeAccessInput
+    req.body as UpdateRecipeAccessInput,
   );
   res.status(200).json(recipe);
 }
@@ -93,7 +93,7 @@ export async function saveVersion(req: Request, res: Response): Promise<void> {
     req.tenant!,
     req.userId!,
     pathParam(req, 'id'),
-    req.body as SaveVersionInput
+    req.body as SaveVersionInput,
   );
   res.status(201).json(version);
 }
@@ -103,7 +103,7 @@ export async function publishRecipe(req: Request, res: Response): Promise<void> 
     req.tenant!,
     req.userId!,
     pathParam(req, 'id'),
-    req.body as PublishRecipeInput
+    req.body as PublishRecipeInput,
   );
   res.status(200).json(recipe);
 }
@@ -112,7 +112,7 @@ export async function getVersion(req: Request, res: Response): Promise<void> {
   const version = await recipeService.getVersion(
     req.tenant!,
     pathParam(req, 'id'),
-    pathParam(req, 'versionId')
+    pathParam(req, 'versionId'),
   );
   res.status(200).json(version);
 }
@@ -122,7 +122,7 @@ export async function activateVersion(req: Request, res: Response): Promise<void
     req.tenant!,
     req.userId!,
     pathParam(req, 'id'),
-    pathParam(req, 'versionId')
+    pathParam(req, 'versionId'),
   );
   res.status(200).json(recipe);
 }
@@ -136,7 +136,7 @@ export async function restoreVersion(req: Request, res: Response): Promise<void>
   const recipe = await recipeService.restoreVersion(
     req.tenant!,
     pathParam(req, 'id'),
-    pathParam(req, 'versionId')
+    pathParam(req, 'versionId'),
   );
   res.status(200).json(recipe);
 }
@@ -146,7 +146,7 @@ export async function forkRecipe(req: Request, res: Response): Promise<void> {
     req.tenant!,
     req.userId!,
     pathParam(req, 'id'),
-    req.body as ForkRecipeInput
+    req.body as ForkRecipeInput,
   );
   res.status(201).json(recipe);
 }
@@ -156,7 +156,7 @@ export async function approveAllergens(req: Request, res: Response): Promise<voi
     req.tenant!,
     req.userId!,
     pathParam(req, 'id'),
-    req.body as ApproveAllergensInput
+    req.body as ApproveAllergensInput,
   );
   res.status(200).json(recipe);
 }

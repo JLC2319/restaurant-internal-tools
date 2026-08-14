@@ -41,7 +41,7 @@ describe('shapeProposal', () => {
     const proposal = shapeProposal(
       raw({
         ingredients: [{ name: 'Salt', quantity: { amount: 0, unit: 'tsp' }, note: 'to taste' }],
-      })
+      }),
     );
     expect(proposal.ingredients[0].quantity.amount).toBe(1);
     expect(proposal.ingredients[0].note).toContain('[quantity unclear]');
@@ -62,7 +62,7 @@ describe('shapeProposal', () => {
           { name: 'Onion', quantity: { amount: 1, unit: 'each' }, note: null },
         ],
         steps: ['  ', 'Dice the onion.'],
-      })
+      }),
     );
     expect(proposal.ingredients).toHaveLength(1);
     expect(proposal.ingredients[0].name).toBe('Onion');
@@ -76,7 +76,7 @@ describe('shapeProposal', () => {
 
   it('dedupes transcribed tags', () => {
     const proposal = shapeProposal(
-      raw({ allergens: ['milk', 'milk', 'wheat'], dietary: ['vegan', 'vegan'] })
+      raw({ allergens: ['milk', 'milk', 'wheat'], dietary: ['vegan', 'vegan'] }),
     );
     expect(proposal.allergens).toEqual(['milk', 'wheat']);
     expect(proposal.dietary).toEqual(['vegan']);

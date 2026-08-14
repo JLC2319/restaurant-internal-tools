@@ -1,5 +1,5 @@
-import { useSyncExternalStore } from 'react'
-import { getSession, subscribeSession } from '../api/client'
+import { useSyncExternalStore } from 'react';
+import { getSession, subscribeSession } from '../api/client';
 
 /**
  * The session as React state. Screens guard on it: no token → /login, token
@@ -7,5 +7,5 @@ import { getSession, subscribeSession } from '../api/client'
  * expired session redirects from wherever the user happens to be.
  */
 export function useSession() {
-  return useSyncExternalStore(subscribeSession, getSession, getSession)
+  return useSyncExternalStore(subscribeSession, getSession, getSession);
 }

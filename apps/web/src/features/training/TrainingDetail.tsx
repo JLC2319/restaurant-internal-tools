@@ -4,10 +4,10 @@
  * itself renders through BlockView/CompletionCard in TrainingContent.tsx,
  * which the staff reader shares.
  */
-import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { TrainingDetail as TrainingDetailData } from '@rit/shared'
-import { roleAtLeast } from '@rit/shared'
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { TrainingDetail as TrainingDetailData } from '@rit/shared';
+import { roleAtLeast } from '@rit/shared';
 import {
   Archive,
   ArchiveRestore,
@@ -24,7 +24,7 @@ import {
   Radio,
   RotateCcw,
   Users,
-} from 'lucide-react'
+} from 'lucide-react';
 import {
   archiveTraining,
   getTraining,
@@ -36,13 +36,13 @@ import {
   unarchiveTraining,
   unpublishTraining,
   updateTrainingAccess,
-} from '@/features/training/api'
-import { useActiveRole } from '@/features/auth/useActiveRole'
-import { ScopePicker, scopeDisplayLabel, useTenantTree } from '@/features/tenancy/ScopePicker'
-import type { ScopeSelection } from '@/features/tenancy/ScopePicker'
-import { QueryProvider } from '@/lib/QueryProvider'
-import { BlockView, CompletionCard } from '@/features/training/TrainingContent'
-import { TrainingTranslationPanel } from '@/features/training/TrainingTranslationPanel'
+} from '@/features/training/api';
+import { useActiveRole } from '@/features/auth/useActiveRole';
+import { ScopePicker, scopeDisplayLabel, useTenantTree } from '@/features/tenancy/ScopePicker';
+import type { ScopeSelection } from '@/features/tenancy/ScopePicker';
+import { QueryProvider } from '@/lib/QueryProvider';
+import { BlockView, CompletionCard } from '@/features/training/TrainingContent';
+import { TrainingTranslationPanel } from '@/features/training/TrainingTranslationPanel';
 import {
   Badge,
   ErrorNote,
@@ -51,27 +51,30 @@ import {
   inputClass,
   primaryButtonClass,
   subtleButtonClass,
-} from '@/components/ui'
+} from '@/components/ui';
 
 function CompletionsPanel({ trainingId }: { trainingId: string }) {
   const { data, error, isLoading } = useQuery({
     queryKey: ['trainings', ...trainingsScopeKey(), 'completions', trainingId],
     queryFn: async () => {
-      const result = await listCompletions(trainingId)
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await listCompletions(trainingId);
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
-  })
+  });
 
-  if (isLoading) return <Skeleton className="h-20" />
-  if (error) return <ErrorNote>{error.message}</ErrorNote>
+  if (isLoading) return <Skeleton className="h-20" />;
+  if (error) return <ErrorNote>{error.message}</ErrorNote>;
   if (!data || data.length === 0)
-    return <p className="py-3 text-sm text-salt-600">No one has completed this training yet.</p>
+    return <p className="py-3 text-sm text-salt-600">No one has completed this training yet.</p>;
 
   return (
     <ul className="divide-y divide-salt-200">
       {data.map((row) => (
-        <li key={`${row.userId}-${row.locationId ?? 'org'}`} className="flex items-center gap-3 py-2.5">
+        <li
+          key={`${row.userId}-${row.locationId ?? 'org'}`}
+          className="flex items-center gap-3 py-2.5"
+        >
           <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-basil-50 text-basil-600 ring-1 ring-basil-200 ring-inset">
             <CheckCircle2 className="size-4" aria-hidden />
           </span>
@@ -86,42 +89,41 @@ function CompletionsPanel({ trainingId }: { trainingId: string }) {
         </li>
       ))}
     </ul>
-  )
+  );
 }
 
 function ManagePanel({ training }: { training: TrainingDetailData }) {
-  const queryClient = useQueryClient()
-  const [error, setError] = useState<string | null>(null)
-  const [showRoster, setShowRoster] = useState(false)
+  const queryClient = useQueryClient();
+  const [error, setError] = useState<string | null>(null);
+  const [showRoster, setShowRoster] = useState(false);
 
   // A hook, called unconditionally three times below — same order every render.
   const useAction = (fn: () => ReturnType<typeof publishTraining>) =>
     useMutation({
       mutationFn: async () => {
-        const result = await fn()
-        if (result.error) throw new Error(result.error.message)
-        return result.data
+        const result = await fn();
+        if (result.error) throw new Error(result.error.message);
+        return result.data;
       },
       onSuccess: () => queryClient.invalidateQueries({ queryKey: ['trainings'] }),
       onError: (err: Error) => setError(err.message),
-    })
+    });
 
-  const publish = useAction(() => publishTraining(training._id))
-  const unpublish = useAction(() => unpublishTraining(training._id))
-  const unarchive = useAction(() => unarchiveTraining(training._id))
+  const publish = useAction(() => publishTraining(training._id));
+  const unpublish = useAction(() => unpublishTraining(training._id));
+  const unarchive = useAction(() => unarchiveTraining(training._id));
 
   const archive = useMutation({
     mutationFn: async () => {
-      const result = await archiveTraining(training._id)
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await archiveTraining(training._id);
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['trainings'] }),
     onError: (err: Error) => setError(err.message),
-  })
+  });
 
-  const busy =
-    publish.isPending || unpublish.isPending || archive.isPending || unarchive.isPending
+  const busy = publish.isPending || unpublish.isPending || archive.isPending || unarchive.isPending;
 
   return (
     <section className={`${cardClass} space-y-4 rounded-3xl p-5`}>
@@ -139,62 +141,65 @@ function ManagePanel({ training }: { training: TrainingDetailData }) {
 
       <div className="grid gap-2">
         <div className="grid gap-2">
-        {training.status !== 'archived' && (
-          <a href={`/training/${training._id}/edit`} className={`${subtleButtonClass} w-full justify-start`}>
-            <Pencil className="size-4" aria-hidden />
-            Edit content
-          </a>
-        )}
+          {training.status !== 'archived' && (
+            <a
+              href={`/training/${training._id}/edit`}
+              className={`${subtleButtonClass} w-full justify-start`}
+            >
+              <Pencil className="size-4" aria-hidden />
+              Edit content
+            </a>
+          )}
 
-        {training.status === 'draft' && (
-          <button
-            type="button"
-            onClick={() => publish.mutate()}
-            disabled={busy || training.blockCount === 0}
-            className={`${primaryButtonClass} w-full justify-start`}
-            title={training.blockCount === 0 ? 'Add content before publishing' : undefined}
-          >
-            <Radio className="size-4" aria-hidden />
-            {publish.isPending ? 'Publishing…' : 'Publish to staff'}
-          </button>
-        )}
-        {training.status === 'published' && (
-          <button
-            type="button"
-            onClick={() => unpublish.mutate()}
-            disabled={busy}
-            className={`${subtleButtonClass} w-full justify-start`}
-          >
-            <RotateCcw className="size-4" aria-hidden />
-            {unpublish.isPending ? 'Unpublishing…' : 'Unpublish'}
-          </button>
-        )}
+          {training.status === 'draft' && (
+            <button
+              type="button"
+              onClick={() => publish.mutate()}
+              disabled={busy || training.blockCount === 0}
+              className={`${primaryButtonClass} w-full justify-start`}
+              title={training.blockCount === 0 ? 'Add content before publishing' : undefined}
+            >
+              <Radio className="size-4" aria-hidden />
+              {publish.isPending ? 'Publishing…' : 'Publish to staff'}
+            </button>
+          )}
+          {training.status === 'published' && (
+            <button
+              type="button"
+              onClick={() => unpublish.mutate()}
+              disabled={busy}
+              className={`${subtleButtonClass} w-full justify-start`}
+            >
+              <RotateCcw className="size-4" aria-hidden />
+              {unpublish.isPending ? 'Unpublishing…' : 'Unpublish'}
+            </button>
+          )}
 
-        {training.status === 'archived' ? (
-          <button
-            type="button"
-            onClick={() => unarchive.mutate()}
-            disabled={busy}
-            className={`${subtleButtonClass} w-full justify-start`}
-          >
-            <ArchiveRestore className="size-4" aria-hidden />
-            {unarchive.isPending ? 'Restoring…' : 'Unarchive'}
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => {
-              if (window.confirm('Archive this training? Staff will no longer see it.')) {
-                archive.mutate()
-              }
-            }}
-            disabled={busy}
-            className={`${subtleButtonClass} w-full justify-start`}
-          >
-            <Archive className="size-4" aria-hidden />
-            {archive.isPending ? 'Archiving…' : 'Archive'}
-          </button>
-        )}
+          {training.status === 'archived' ? (
+            <button
+              type="button"
+              onClick={() => unarchive.mutate()}
+              disabled={busy}
+              className={`${subtleButtonClass} w-full justify-start`}
+            >
+              <ArchiveRestore className="size-4" aria-hidden />
+              {unarchive.isPending ? 'Restoring…' : 'Unarchive'}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm('Archive this training? Staff will no longer see it.')) {
+                  archive.mutate();
+                }
+              }}
+              disabled={busy}
+              className={`${subtleButtonClass} w-full justify-start`}
+            >
+              <Archive className="size-4" aria-hidden />
+              {archive.isPending ? 'Archiving…' : 'Archive'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -223,7 +228,7 @@ function ManagePanel({ training }: { training: TrainingDetailData }) {
         </div>
       )}
     </section>
-  )
+  );
 }
 
 /**
@@ -232,38 +237,38 @@ function ManagePanel({ training }: { training: TrainingDetailData }) {
  * allow-list) and rewrites every denormalised copy.
  */
 function PlacementPanel({ training }: { training: TrainingDetailData }) {
-  const queryClient = useQueryClient()
-  const [editing, setEditing] = useState(false)
-  const [scope, setScope] = useState<ScopeSelection>({ propertyId: '', locationId: '' })
-  const [error, setError] = useState<string | null>(null)
-  const { data: tree } = useTenantTree()
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [scope, setScope] = useState<ScopeSelection>({ propertyId: '', locationId: '' });
+  const [error, setError] = useState<string | null>(null);
+  const { data: tree } = useTenantTree();
 
   const move = useMutation({
     mutationFn: async () => {
       const result = await moveTraining(training._id, {
         propertyId: scope.propertyId || null,
         locationId: scope.locationId || null,
-      })
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      });
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['trainings'] })
-      setEditing(false)
+      queryClient.invalidateQueries({ queryKey: ['trainings'] });
+      setEditing(false);
     },
     onError: (err: Error) => setError(err.message),
-  })
+  });
 
   function startEditing() {
     setScope({
       propertyId: training.scope.propertyId ?? '',
       locationId: training.scope.locationId ?? '',
-    })
-    setError(null)
-    setEditing(true)
+    });
+    setError(null);
+    setEditing(true);
   }
 
-  const label = scopeDisplayLabel(training.scope, tree) ?? 'the whole organization'
+  const label = scopeDisplayLabel(training.scope, tree) ?? 'the whole organization';
 
   return (
     <section className={`${cardClass} space-y-3 p-5`}>
@@ -283,8 +288,8 @@ function PlacementPanel({ training }: { training: TrainingDetailData }) {
 
       {!editing && (
         <p className="text-sm text-salt-600">
-          Lives at <strong className="font-semibold text-steel-800">{label}</strong> — every
-          kitchen there (and members above it) sees it.
+          Lives at <strong className="font-semibold text-steel-800">{label}</strong> — every kitchen
+          there (and members above it) sees it.
         </p>
       )}
 
@@ -302,9 +307,10 @@ function PlacementPanel({ training }: { training: TrainingDetailData }) {
             <button
               type="button"
               onClick={() => {
-                if (!window.confirm('Move this training? Who can see it changes immediately.')) return
-                setError(null)
-                move.mutate()
+                if (!window.confirm('Move this training? Who can see it changes immediately.'))
+                  return;
+                setError(null);
+                move.mutate();
               }}
               disabled={move.isPending}
               className={primaryButtonClass}
@@ -319,7 +325,7 @@ function PlacementPanel({ training }: { training: TrainingDetailData }) {
         </div>
       )}
     </section>
-  )
+  );
 }
 
 /**
@@ -328,64 +334,64 @@ function PlacementPanel({ training }: { training: TrainingDetailData }) {
  * deliberately not shown who else is trusted.
  */
 function AccessPanel({ training }: { training: TrainingDetailData }) {
-  const queryClient = useQueryClient()
-  const [editing, setEditing] = useState(false)
-  const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [filter, setFilter] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [filter, setFilter] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   // Fetched lazily — the roster is only needed once the picker opens.
   const { data: candidates, isLoading } = useQuery({
     queryKey: ['trainings', ...trainingsScopeKey(), 'access-candidates', training._id],
     queryFn: async () => {
-      const result = await listTrainingAccessCandidates(training._id)
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await listTrainingAccessCandidates(training._id);
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     enabled: editing,
-  })
+  });
 
   const save = useMutation({
     mutationFn: async (access: { userIds: string[] } | null) => {
-      const result = await updateTrainingAccess(training._id, { access })
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await updateTrainingAccess(training._id, { access });
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['trainings'] })
-      setEditing(false)
+      queryClient.invalidateQueries({ queryKey: ['trainings'] });
+      setEditing(false);
     },
     onError: (err: Error) => setError(err.message),
-  })
+  });
 
   function startEditing() {
-    setSelected(new Set(training.access?.userIds ?? []))
-    setFilter('')
-    setError(null)
-    setEditing(true)
+    setSelected(new Set(training.access?.userIds ?? []));
+    setFilter('');
+    setError(null);
+    setEditing(true);
   }
 
   function toggle(userId: string) {
     setSelected((current) => {
-      const next = new Set(current)
-      if (next.has(userId)) next.delete(userId)
-      else next.add(userId)
-      return next
-    })
+      const next = new Set(current);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
   }
 
-  const listedUsers = training.access?.users ?? []
+  const listedUsers = training.access?.users ?? [];
   // Stored ids that no longer resolve to an account — kept server-side so a
   // save never silently drops them, surfaced here so someone prunes them.
-  const formerCount = (training.access?.userIds.length ?? 0) - listedUsers.length
-  const needle = filter.trim().toLowerCase()
+  const formerCount = (training.access?.userIds.length ?? 0) - listedUsers.length;
+  const needle = filter.trim().toLowerCase();
   const shown = (candidates ?? []).filter(
     (candidate) =>
       !needle ||
       `${candidate.name.first} ${candidate.name.last} ${candidate.email}`
         .toLowerCase()
-        .includes(needle)
-  )
+        .includes(needle),
+  );
 
   return (
     <section className={`${cardClass} space-y-3 p-5`}>
@@ -440,8 +446,8 @@ function AccessPanel({ training }: { training: TrainingDetailData }) {
           <button
             type="button"
             onClick={() => {
-              setError(null)
-              save.mutate(null)
+              setError(null);
+              save.mutate(null);
             }}
             disabled={save.isPending}
             className={subtleButtonClass}
@@ -485,7 +491,9 @@ function AccessPanel({ training }: { training: TrainingDetailData }) {
                           <span className="font-normal text-salt-500"> · {candidate.jobTitle}</span>
                         )}
                       </span>
-                      <span className="block truncate text-xs text-salt-500">{candidate.email}</span>
+                      <span className="block truncate text-xs text-salt-500">
+                        {candidate.email}
+                      </span>
                     </span>
                   </label>
                 </li>
@@ -497,8 +505,8 @@ function AccessPanel({ training }: { training: TrainingDetailData }) {
             <button
               type="button"
               onClick={() => {
-                setError(null)
-                save.mutate({ userIds: [...selected] })
+                setError(null);
+                save.mutate({ userIds: [...selected] });
               }}
               disabled={save.isPending}
               className={primaryButtonClass}
@@ -513,22 +521,26 @@ function AccessPanel({ training }: { training: TrainingDetailData }) {
         </div>
       )}
     </section>
-  )
+  );
 }
 
 function Detail({ trainingId }: { trainingId: string }) {
-  const { role } = useActiveRole()
-  const [translationOpen, setTranslationOpen] = useState(false)
-  const { data: training, error, isLoading } = useQuery({
+  const { role } = useActiveRole();
+  const [translationOpen, setTranslationOpen] = useState(false);
+  const {
+    data: training,
+    error,
+    isLoading,
+  } = useQuery({
     queryKey: ['trainings', ...trainingsScopeKey(), 'detail', trainingId],
     queryFn: async () => {
-      const result = await getTraining(trainingId)
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await getTraining(trainingId);
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
-  })
+  });
 
-  if (error) return <ErrorNote>{error.message}</ErrorNote>
+  if (error) return <ErrorNote>{error.message}</ErrorNote>;
   if (isLoading || !training)
     return (
       <div className="mx-auto max-w-3xl space-y-4">
@@ -536,12 +548,12 @@ function Detail({ trainingId }: { trainingId: string }) {
         <Skeleton className="h-5 w-1/2" />
         <Skeleton className="h-64" />
       </div>
-    )
+    );
 
   const visibleBlocks = training.blocks.filter(
-    (block) => block.kind === 'text' || block.kind === 'embed' || block.media != null
-  )
-  const isManager = role != null && roleAtLeast(role, 'manager')
+    (block) => block.kind === 'text' || block.kind === 'embed' || block.media != null,
+  );
+  const isManager = role != null && roleAtLeast(role, 'manager');
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 tablet:space-y-8">
@@ -555,44 +567,44 @@ function Detail({ trainingId }: { trainingId: string }) {
           className="pointer-events-none absolute -bottom-20 left-[-4rem] size-56 rounded-full bg-ember-100/50 blur-3xl"
         />
         <div className="relative space-y-3">
-        <div className="flex flex-wrap items-center gap-2.5">
-          <p className="text-xs font-semibold tracking-widest text-ember-600 uppercase">
-            Training module
-          </p>
-          {(training.canManage || training.status !== 'published') && (
-            <Badge value={training.status} />
+          <div className="flex flex-wrap items-center gap-2.5">
+            <p className="text-xs font-semibold tracking-widest text-ember-600 uppercase">
+              Training module
+            </p>
+            {(training.canManage || training.status !== 'published') && (
+              <Badge value={training.status} />
+            )}
+            {training.myCompletion != null && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-basil-50 px-2.5 py-1 text-2xs font-semibold tracking-wide text-basil-700 uppercase ring-1 ring-basil-200 ring-inset">
+                <CheckCircle2 className="size-3.5" aria-hidden />
+                Completed
+              </span>
+            )}
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight text-steel-900 tablet:text-4xl">
+            {training.title}
+          </h1>
+          {training.description && (
+            <p className="max-w-3xl text-sm leading-relaxed text-salt-700 tablet:text-base">
+              {training.description}
+            </p>
           )}
-          {training.myCompletion != null && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-basil-50 px-2.5 py-1 text-2xs font-semibold tracking-wide text-basil-700 uppercase ring-1 ring-basil-200 ring-inset">
-              <CheckCircle2 className="size-3.5" aria-hidden />
-              Completed
-            </span>
-          )}
-        </div>
-        <h1 className="text-3xl font-bold tracking-tight text-steel-900 tablet:text-4xl">
-          {training.title}
-        </h1>
-        {training.description && (
-          <p className="max-w-3xl text-sm leading-relaxed text-salt-700 tablet:text-base">
-            {training.description}
-          </p>
-        )}
-        <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-salt-500">
-          <span className="inline-flex items-center gap-1.5">
-            <Layers className="size-3.5" aria-hidden />
-            {visibleBlocks.length} {visibleBlocks.length === 1 ? 'section' : 'sections'}
-          </span>
-          {training.videoCount > 0 && (
+          <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-salt-500">
             <span className="inline-flex items-center gap-1.5">
-              <Film className="size-3.5" aria-hidden />
-              {training.videoCount} {training.videoCount === 1 ? 'video' : 'videos'}
+              <Layers className="size-3.5" aria-hidden />
+              {visibleBlocks.length} {visibleBlocks.length === 1 ? 'section' : 'sections'}
             </span>
-          )}
-          <span className="inline-flex items-center gap-1.5">
-            <Clock className="size-3.5" aria-hidden />
-            Updated {new Date(training.modifiedAt).toLocaleDateString()}
-          </span>
-        </p>
+            {training.videoCount > 0 && (
+              <span className="inline-flex items-center gap-1.5">
+                <Film className="size-3.5" aria-hidden />
+                {training.videoCount} {training.videoCount === 1 ? 'video' : 'videos'}
+              </span>
+            )}
+            <span className="inline-flex items-center gap-1.5">
+              <Clock className="size-3.5" aria-hidden />
+              Updated {new Date(training.modifiedAt).toLocaleDateString()}
+            </span>
+          </p>
         </div>
       </header>
 
@@ -655,7 +667,7 @@ function Detail({ trainingId }: { trainingId: string }) {
         </section>
       )}
     </div>
-  )
+  );
 }
 
 export function TrainingDetail({ trainingId }: { trainingId: string }) {
@@ -663,5 +675,5 @@ export function TrainingDetail({ trainingId }: { trainingId: string }) {
     <QueryProvider>
       <Detail trainingId={trainingId} />
     </QueryProvider>
-  )
+  );
 }

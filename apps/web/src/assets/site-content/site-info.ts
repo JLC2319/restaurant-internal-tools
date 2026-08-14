@@ -4,12 +4,12 @@
  * Everything user-facing reads from here so a rename is a one-file change.
  * Package names use the neutral `@rit/*` scope for the same reason.
  */
-export const siteName = 'Restaurant Internal Tools'
-export const siteShortName = 'RIT'
-export const siteTagline = 'Recipes, training and prep for the whole group'
+export const siteName = 'Restaurant Internal Tools';
+export const siteShortName = 'RIT';
+export const siteTagline = 'Recipes, training and prep for the whole group';
 
 export const navLinks = [
   { label: 'Recipes', href: '/recipes' },
   { label: 'Training', href: '/training' },
   { label: 'Reader', href: '/reader' },
-] as const
+] as const;

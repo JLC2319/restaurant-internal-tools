@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from 'vitest';
 import request from 'supertest';
-import mongoose from 'mongoose';
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { connectToTestDb, disconnectTestDb } from './db';
 
 /**
  * Full HTTP round-trips for /api/training and the streamed video uploads that
@@ -36,16 +35,12 @@ vi.mock('@aws-sdk/client-s3', () => ({
 
 const { app } = await import('../../app');
 
-let mongo: MongoMemoryServer;
-
 beforeAll(async () => {
-  mongo = await MongoMemoryServer.create();
-  await mongoose.connect(mongo.getUri());
+  await connectToTestDb('training');
 }, 120_000);
 
 afterAll(async () => {
-  await mongoose.disconnect();
-  await mongo?.stop();
+  await disconnectTestDb();
 });
 
 beforeEach(() => {
@@ -82,10 +77,26 @@ function mp4Bytes(majorBrand = 'isom', totalSize = 8 * 1024): Buffer {
 /** A WebM EBML header with DocType `webm`, padded like the MP4 fixture. */
 function webmBytes(totalSize = 8 * 1024): Buffer {
   const head = Buffer.from([
-    0x1a, 0x45, 0xdf, 0xa3, 0x9f,
-    0x42, 0x86, 0x81, 0x01,
-    0x42, 0xf7, 0x81, 0x01,
-    0x42, 0x82, 0x84, 0x77, 0x65, 0x62, 0x6d, // DocType 'webm'
+    0x1a,
+    0x45,
+    0xdf,
+    0xa3,
+    0x9f,
+    0x42,
+    0x86,
+    0x81,
+    0x01,
+    0x42,
+    0xf7,
+    0x81,
+    0x01,
+    0x42,
+    0x82,
+    0x84,
+    0x77,
+    0x65,
+    0x62,
+    0x6d, // DocType 'webm'
   ]);
   const buf = Buffer.alloc(totalSize);
   head.copy(buf, 0);
@@ -119,7 +130,7 @@ async function addMember(
   orgId: string,
   email: string,
   role: string,
-  scope: { propertyId?: string; locationId?: string } = {}
+  scope: { propertyId?: string; locationId?: string } = {},
 ): Promise<{ token: string; userId: string }> {
   const account = await registerAndLogin(email);
   const invited = await request(app)
@@ -145,7 +156,7 @@ async function createLocation(
   ownerToken: string,
   orgId: string,
   propertyId: string,
-  name: string
+  name: string,
 ): Promise<string> {
   const response = await request(app)
     .post('/api/tenancy/locations')
@@ -182,7 +193,7 @@ function uploadVideo(
   token: string,
   orgId: string,
   bytes: Buffer,
-  options: { filename?: string; contentType?: string; scope?: Scope } = {}
+  options: { filename?: string; contentType?: string; scope?: Scope } = {},
 ) {
   return as(token, orgId, options.scope ?? {})
     .post('/api/media/videos')
@@ -240,7 +251,7 @@ describe('streamed video upload', () => {
     // The real lib-storage Upload ran against the mocked client: the object
     // that reached "R2" carries the tenant-prefixed key and the sniffed type.
     const put = sendMock.mock.calls.find(
-      (call) => call[0]?.constructor?.name === 'PutObjectCommand'
+      (call) => call[0]?.constructor?.name === 'PutObjectCommand',
     )![0] as { input: { Key: string; ContentType: string } };
     expect(put.input.Key).toMatch(new RegExp(`^${orgId}/_/_/[0-9a-f]{32}\\.mp4$`));
     expect(put.input.Key).not.toContain('training.mp4');
@@ -320,7 +331,11 @@ describe('training authoring and publish gate', () => {
     const richDoc = {
       type: 'doc',
       content: [
-        { type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: 'Hold it right' }] },
+        {
+          type: 'heading',
+          attrs: { level: 1 },
+          content: [{ type: 'text', text: 'Hold it right' }],
+        },
         {
           type: 'paragraph',
           content: [
@@ -329,7 +344,9 @@ describe('training authoring and publish gate', () => {
             {
               type: 'text',
               text: 'the guide',
-              marks: [{ type: 'link', attrs: { href: 'https://example.com/knives', target: '_top' } }],
+              marks: [
+                { type: 'link', attrs: { href: 'https://example.com/knives', target: '_top' } },
+              ],
             },
           ],
         },
@@ -455,7 +472,7 @@ describe('training authoring and publish gate', () => {
 
   it('gates authoring on the chef role and archival on manager', async () => {
     expect(
-      (await as(staff.token, orgId).post('/api/training').send({ title: 'Staff Draft' })).status
+      (await as(staff.token, orgId).post('/api/training').send({ title: 'Staff Draft' })).status,
     ).toBe(403);
 
     const created = await as(chef.token, orgId).post('/api/training').send({ title: 'To Archive' });
@@ -466,7 +483,7 @@ describe('training authoring and publish gate', () => {
     // …while the org owner may archive, after which editing is blocked…
     expect((await as(owner.token, orgId).delete(`/api/training/${id}`)).status).toBe(204);
     expect(
-      (await as(chef.token, orgId).patch(`/api/training/${id}`).send({ title: 'Nope' })).status
+      (await as(chef.token, orgId).patch(`/api/training/${id}`).send({ title: 'Nope' })).status,
     ).toBe(409);
     // …and unarchiving lands on draft, never straight back to published.
     const restored = await as(owner.token, orgId).post(`/api/training/${id}/unarchive`);
@@ -555,9 +572,9 @@ describe('training completion', () => {
     });
 
     // Staff cannot read the roster.
-    expect((await as(staff.token, orgId).get(`/api/training/${trainingId}/completions`)).status).toBe(
-      403
-    );
+    expect(
+      (await as(staff.token, orgId).get(`/api/training/${trainingId}/completions`)).status,
+    ).toBe(403);
   });
 
   it('lets a member take their completion back', async () => {
@@ -600,7 +617,7 @@ describe('person-level access restriction', () => {
   async function restrict(
     token: string,
     trainingId: string,
-    userIds: string[]
+    userIds: string[],
   ): Promise<request.Response> {
     return as(token, orgId).put(`/api/training/${trainingId}/access`).send({ access: { userIds } });
   }
@@ -634,9 +651,9 @@ describe('person-level access restriction', () => {
       .send({ title: 'Secret Procedures', blocks: [textBlock('The safe combination.')] });
     expect(created.status).toBe(201);
     secretId = created.body._id;
-    expect((await as(chefCreator.token, orgId).post(`/api/training/${secretId}/publish`)).status).toBe(
-      200
-    );
+    expect(
+      (await as(chefCreator.token, orgId).post(`/api/training/${secretId}/publish`)).status,
+    ).toBe(200);
 
     const restricted = await restrict(chefCreator.token, secretId, [
       chefListed.userId,
@@ -655,7 +672,7 @@ describe('person-level access restriction', () => {
     const chefDetail = await as(chefListed.token, orgId).get(`/api/training/${secretId}`);
     expect(chefDetail.status).toBe(200);
     expect(chefDetail.body.access.userIds).toEqual(
-      expect.arrayContaining([chefListed.userId, staffListed.userId])
+      expect.arrayContaining([chefListed.userId, staffListed.userId]),
     );
 
     // Listed staff read it — blocks and all — but never learn who else is on
@@ -680,17 +697,19 @@ describe('person-level access restriction', () => {
         await as(chefOutsider.token, orgId)
           .patch(`/api/training/${secretId}`)
           .send({ title: 'Stolen Procedures' })
-      ).status
+      ).status,
     ).toBe(404);
     expect((await restrict(chefOutsider.token, secretId, [chefOutsider.userId])).status).toBe(404);
 
     const staffList = await as(staffOutsider.token, orgId).get('/api/training');
     expect(staffList.body.items.map((t: { _id: string }) => t._id)).not.toContain(secretId);
-    expect((await as(staffOutsider.token, orgId).get(`/api/training/${secretId}`)).status).toBe(404);
-    // A completion attempt reveals nothing either.
-    expect((await as(staffOutsider.token, orgId).post(`/api/training/${secretId}/complete`)).status).toBe(
-      404
+    expect((await as(staffOutsider.token, orgId).get(`/api/training/${secretId}`)).status).toBe(
+      404,
     );
+    // A completion attempt reveals nothing either.
+    expect(
+      (await as(staffOutsider.token, orgId).post(`/api/training/${secretId}/complete`)).status,
+    ).toBe(404);
   });
 
   it('does not answer title probes through ?q= for unlisted members', async () => {
@@ -704,7 +723,7 @@ describe('person-level access restriction', () => {
     const detail = await as(chefCreator.token, orgId).get(`/api/training/${secretId}`);
     expect(detail.status).toBe(200);
     expect(detail.body.access.userIds).toEqual(
-      expect.arrayContaining([chefListed.userId, staffListed.userId])
+      expect.arrayContaining([chefListed.userId, staffListed.userId]),
     );
     const rename = await as(chefCreator.token, orgId)
       .patch(`/api/training/${secretId}`)
@@ -762,7 +781,7 @@ describe('person-level access restriction', () => {
     const p1Module = created.body._id;
 
     const candidates = await as(owner.token, orgId).get(
-      `/api/training/${p1Module}/access/candidates`
+      `/api/training/${p1Module}/access/candidates`,
     );
     expect(candidates.status).toBe(200);
     const emails = candidates.body.map((c: { email: string }) => c.email);
@@ -773,12 +792,12 @@ describe('person-level access restriction', () => {
     // The endpoint is gated like any other read of the module…
     expect(
       (await as(chefOutsider.token, orgId).get(`/api/training/${secretId}/access/candidates`))
-        .status
+        .status,
     ).toBe(404);
     // …and by role.
     expect(
       (await as(staffListed.token, orgId).get(`/api/training/${secretId}/access/candidates`))
-        .status
+        .status,
     ).toBe(403);
   });
 
@@ -831,7 +850,7 @@ describe('placement', () => {
 
   async function createPublished(
     title: string,
-    body: Record<string, unknown> = {}
+    body: Record<string, unknown> = {},
   ): Promise<string> {
     const created = await as(chef.token, orgId)
       .post('/api/training')
@@ -878,11 +897,12 @@ describe('placement', () => {
   it('refuses the move below manager', async () => {
     const id = await createPublished('Immovable Module');
     expect(
-      (await as(chef.token, orgId).put(`/api/training/${id}/scope`).send({ propertyId: p1 })).status
+      (await as(chef.token, orgId).put(`/api/training/${id}/scope`).send({ propertyId: p1 }))
+        .status,
     ).toBe(403);
     expect(
       (await as(p1Staff.token, orgId).put(`/api/training/${id}/scope`).send({ propertyId: p1 }))
-        .status
+        .status,
     ).toBe(403);
   });
 
@@ -898,7 +918,7 @@ describe('placement', () => {
     // stranding question even comes up.
     expect(
       (await as(manager.token, orgId).put(`/api/training/${id}/scope`).send({ propertyId: p2 }))
-        .status
+        .status,
     ).toBe(404);
 
     // The owner bypasses, and hits the real refusal: a P2 home would strand
@@ -933,7 +953,7 @@ describe('placement', () => {
     // Location → own property: the asset widens to the property, not the org.
     expect(
       (await as(manager.token, orgId).put(`/api/training/${id}/scope`).send({ propertyId: p1 }))
-        .status
+        .status,
     ).toBe(200);
     let asset = await Media.findById(photo.body._id).lean();
     expect(String(asset!.scope.propertyId)).toBe(p1);
@@ -942,7 +962,7 @@ describe('placement', () => {
     // Property → sibling property: no common home below the org, so org-wide.
     expect(
       (await as(manager.token, orgId).put(`/api/training/${id}/scope`).send({ propertyId: p2 }))
-        .status
+        .status,
     ).toBe(200);
     asset = await Media.findById(photo.body._id).lean();
     expect(asset!.scope.propertyId).toBeNull();
@@ -974,7 +994,7 @@ describe('tenant isolation', () => {
     // Existence hiding: another org's training id answers 404, never 403.
     expect((await as(ownerB.token, orgB).get(`/api/training/${id}`)).status).toBe(404);
     expect(
-      (await as(ownerB.token, orgB).patch(`/api/training/${id}`).send({ title: 'Mine' })).status
+      (await as(ownerB.token, orgB).patch(`/api/training/${id}`).send({ title: 'Mine' })).status,
     ).toBe(404);
     expect((await as(ownerB.token, orgB).post(`/api/training/${id}/complete`)).status).toBe(404);
 

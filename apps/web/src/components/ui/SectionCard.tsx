@@ -1,6 +1,6 @@
-import type { LucideIcon } from 'lucide-react'
-import type { ReactNode } from 'react'
-import { cardClass } from './tokens'
+import type { LucideIcon } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { cardClass } from './tokens';
 
 /** A titled section card — the editor and detail pages are built from these. */
 export function SectionCard({
@@ -10,11 +10,11 @@ export function SectionCard({
   children,
   actions,
 }: {
-  icon?: LucideIcon
-  title: string
-  hint?: string
-  children: ReactNode
-  actions?: ReactNode
+  icon?: LucideIcon;
+  title: string;
+  hint?: string;
+  children: ReactNode;
+  actions?: ReactNode;
 }) {
   return (
     <section className={`${cardClass} p-5 tablet:p-6`}>
@@ -32,5 +32,5 @@ export function SectionCard({
       </header>
       {children}
     </section>
-  )
+  );
 }

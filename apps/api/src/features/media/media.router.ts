@@ -52,7 +52,7 @@ mediaRouter.post(
   requireRole('chef'),
   uploadRateLimiter,
   photoUpload.single('file'),
-  mediaController.uploadPhoto
+  mediaController.uploadPhoto,
 );
 
 mediaRouter.post(
@@ -61,7 +61,7 @@ mediaRouter.post(
   uploadRateLimiter,
   ensureConfigured,
   videoUpload.single('file'),
-  mediaController.uploadVideo
+  mediaController.uploadVideo,
 );
 
 mediaRouter.delete('/:id', requireRole('chef'), mediaController.deleteAsset);

@@ -1,10 +1,5 @@
 import type { Request, Response } from 'express';
-import type {
-  ChangePasswordInput,
-  LoginInput,
-  RegisterInput,
-  UpdateMeInput,
-} from '@rit/shared';
+import type { ChangePasswordInput, LoginInput, RegisterInput, UpdateMeInput } from '@rit/shared';
 import * as authService from './auth.service';
 
 export async function register(req: Request, res: Response): Promise<void> {

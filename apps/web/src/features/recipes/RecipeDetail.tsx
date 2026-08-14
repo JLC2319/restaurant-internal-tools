@@ -1,8 +1,8 @@
-import { useState } from 'react'
-import type { SubmitEvent } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { RecipeContentView, RecipeDetail as RecipeDetailData } from '@rit/shared'
-import { roleAtLeast } from '@rit/shared'
+import { useState } from 'react';
+import type { SubmitEvent } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { RecipeContentView, RecipeDetail as RecipeDetailData } from '@rit/shared';
+import { roleAtLeast } from '@rit/shared';
 import {
   Archive,
   ArchiveRestore,
@@ -25,7 +25,7 @@ import {
   ShieldCheck,
   Tablet,
   Timer,
-} from 'lucide-react'
+} from 'lucide-react';
 import {
   activateVersion,
   approveAllergens,
@@ -41,18 +41,18 @@ import {
   saveVersion,
   unarchiveRecipe,
   updateRecipeAccess,
-} from '@/features/recipes/api'
-import { useActiveRole } from '@/features/auth/useActiveRole'
+} from '@/features/recipes/api';
+import { useActiveRole } from '@/features/auth/useActiveRole';
 import {
   ScopePicker,
   defaultScopeSelection,
   scopeDisplayLabel,
   useTenantTree,
-} from '@/features/tenancy/ScopePicker'
-import type { ScopeSelection } from '@/features/tenancy/ScopePicker'
-import { PlatingGallery } from '@/features/recipes/PlatingGallery'
-import { QueryProvider } from '@/lib/QueryProvider'
-import { TranslationPanel } from '@/features/recipes/TranslationPanel'
+} from '@/features/tenancy/ScopePicker';
+import type { ScopeSelection } from '@/features/tenancy/ScopePicker';
+import { PlatingGallery } from '@/features/recipes/PlatingGallery';
+import { QueryProvider } from '@/lib/QueryProvider';
+import { TranslationPanel } from '@/features/recipes/TranslationPanel';
 import {
   Badge,
   ErrorNote,
@@ -62,7 +62,7 @@ import {
   inputClass,
   primaryButtonClass,
   subtleButtonClass,
-} from '@/components/ui'
+} from '@/components/ui';
 
 /**
  * Allergen chips are the design system's one sanctioned use of chili. A tag
@@ -70,7 +70,7 @@ import {
  * verified yet, and it must not look like one somebody has.
  */
 function AllergenChip({ allergen, status }: { allergen: string; status: string }) {
-  const approved = status === 'approved'
+  const approved = status === 'approved';
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ring-1 ring-inset ${
@@ -87,7 +87,7 @@ function AllergenChip({ allergen, status }: { allergen: string; status: string }
       {allergen.replace('_', ' ')}
       {!approved && <span className="text-2xs font-medium uppercase">unverified</span>}
     </span>
-  )
+  );
 }
 
 function StatTile({
@@ -95,9 +95,9 @@ function StatTile({
   label,
   value,
 }: {
-  icon: typeof Scale
-  label: string
-  value: string
+  icon: typeof Scale;
+  label: string;
+  value: string;
 }) {
   return (
     <div className="flex items-center gap-3 rounded-xl bg-salt-50 px-4 py-3 ring-1 ring-salt-200 ring-inset">
@@ -109,15 +109,15 @@ function StatTile({
         <p className="font-mono text-sm font-semibold text-steel-900">{value}</p>
       </div>
     </div>
-  )
+  );
 }
 
 function ContentSection({
   content,
   recipeName,
 }: {
-  content: RecipeContentView
-  recipeName: string
+  content: RecipeContentView;
+  recipeName: string;
 }) {
   return (
     <div className="space-y-6">
@@ -128,7 +128,11 @@ function ContentSection({
       )}
 
       <div className="grid gap-3 phablet:grid-cols-3">
-        <StatTile icon={Scale} label="Yield" value={`${content.yield.amount} ${content.yield.unit}`} />
+        <StatTile
+          icon={Scale}
+          label="Yield"
+          value={`${content.yield.amount} ${content.yield.unit}`}
+        />
         {content.times?.prepMinutes != null && (
           <StatTile icon={Timer} label="Prep" value={`${content.times.prepMinutes} min`} />
         )}
@@ -224,31 +228,31 @@ function ContentSection({
 
       <PlatingGallery photos={content.photos} recipeName={recipeName} />
     </div>
-  )
+  );
 }
 
 function SaveVersionForm({ recipeId, onDone }: { recipeId: string; onDone: () => void }) {
-  const queryClient = useQueryClient()
-  const [note, setNote] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient();
+  const [note, setNote] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   const save = useMutation({
     mutationFn: async () => {
-      const result = await saveVersion(recipeId, note ? { note } : {})
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await saveVersion(recipeId, note ? { note } : {});
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['recipes'] })
-      onDone()
+      queryClient.invalidateQueries({ queryKey: ['recipes'] });
+      onDone();
     },
     onError: (err: Error) => setError(err.message),
-  })
+  });
 
   function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setError(null)
-    save.mutate()
+    event.preventDefault();
+    setError(null);
+    save.mutate();
   }
 
   return (
@@ -278,14 +282,14 @@ function SaveVersionForm({ recipeId, onDone }: { recipeId: string; onDone: () =>
         </button>
       </div>
     </form>
-  )
+  );
 }
 
 function ForkForm({ recipe, onDone }: { recipe: RecipeDetailData; onDone: () => void }) {
-  const [name, setName] = useState(`${recipe.name} (fork)`)
+  const [name, setName] = useState(`${recipe.name} (fork)`);
   // Defaults to the caller's own scope — the one place they can always write.
-  const [scope, setScope] = useState<ScopeSelection>(defaultScopeSelection)
-  const [error, setError] = useState<string | null>(null)
+  const [scope, setScope] = useState<ScopeSelection>(defaultScopeSelection);
+  const [error, setError] = useState<string | null>(null);
 
   const fork = useMutation({
     mutationFn: async () => {
@@ -293,20 +297,20 @@ function ForkForm({ recipe, onDone }: { recipe: RecipeDetailData; onDone: () => 
         name,
         propertyId: scope.propertyId || null,
         locationId: scope.locationId || null,
-      })
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      });
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     onSuccess: (created) => {
-      window.location.href = `/recipes/${created._id}`
+      window.location.href = `/recipes/${created._id}`;
     },
     onError: (err: Error) => setError(err.message),
-  })
+  });
 
   function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setError(null)
-    fork.mutate()
+    event.preventDefault();
+    setError(null);
+    fork.mutate();
   }
 
   return (
@@ -318,8 +322,8 @@ function ForkForm({ recipe, onDone }: { recipe: RecipeDetailData; onDone: () => 
         </h3>
         <p className="mt-1 text-sm text-salt-600">
           Copies the{' '}
-          {recipe.activeVersion != null ? `live version (v${recipe.activeVersion})` : 'recipe'} into a
-          new, independent recipe at the scope you choose. Allergen tags start unverified — the
+          {recipe.activeVersion != null ? `live version (v${recipe.activeVersion})` : 'recipe'} into
+          a new, independent recipe at the scope you choose. Allergen tags start unverified — the
           receiving kitchen signs off for itself.
         </p>
       </div>
@@ -354,7 +358,7 @@ function ForkForm({ recipe, onDone }: { recipe: RecipeDetailData; onDone: () => 
         </button>
       </div>
     </form>
-  )
+  );
 }
 
 /**
@@ -363,38 +367,38 @@ function ForkForm({ recipe, onDone }: { recipe: RecipeDetailData; onDone: () => 
  * ways, photos, the allow-list) and rewrites every denormalised copy.
  */
 function PlacementPanel({ recipe }: { recipe: RecipeDetailData }) {
-  const queryClient = useQueryClient()
-  const [editing, setEditing] = useState(false)
-  const [scope, setScope] = useState<ScopeSelection>({ propertyId: '', locationId: '' })
-  const [error, setError] = useState<string | null>(null)
-  const { data: tree } = useTenantTree()
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [scope, setScope] = useState<ScopeSelection>({ propertyId: '', locationId: '' });
+  const [error, setError] = useState<string | null>(null);
+  const { data: tree } = useTenantTree();
 
   const move = useMutation({
     mutationFn: async () => {
       const result = await moveRecipe(recipe._id, {
         propertyId: scope.propertyId || null,
         locationId: scope.locationId || null,
-      })
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      });
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['recipes'] })
-      setEditing(false)
+      queryClient.invalidateQueries({ queryKey: ['recipes'] });
+      setEditing(false);
     },
     onError: (err: Error) => setError(err.message),
-  })
+  });
 
   function startEditing() {
     setScope({
       propertyId: recipe.scope.propertyId ?? '',
       locationId: recipe.scope.locationId ?? '',
-    })
-    setError(null)
-    setEditing(true)
+    });
+    setError(null);
+    setEditing(true);
   }
 
-  const label = scopeDisplayLabel(recipe.scope, tree) ?? 'the whole organization'
+  const label = scopeDisplayLabel(recipe.scope, tree) ?? 'the whole organization';
 
   return (
     <section className={`${cardClass} space-y-3 p-5`}>
@@ -414,8 +418,8 @@ function PlacementPanel({ recipe }: { recipe: RecipeDetailData }) {
 
       {!editing && (
         <p className="text-sm text-salt-600">
-          Lives at <strong className="font-semibold text-steel-800">{label}</strong> — every
-          kitchen there (and members above it) sees it.
+          Lives at <strong className="font-semibold text-steel-800">{label}</strong> — every kitchen
+          there (and members above it) sees it.
         </p>
       )}
 
@@ -425,17 +429,18 @@ function PlacementPanel({ recipe }: { recipe: RecipeDetailData }) {
             <ScopePicker idPrefix="move-recipe" value={scope} onChange={setScope} />
           </div>
           <p className="text-xs leading-relaxed text-salt-500">
-            Moving changes who sees this recipe everywhere — lists, reader, pickers — the moment
-            it lands. Sub-recipes, plating photos and the allow-list are all re-checked against
-            the new home first.
+            Moving changes who sees this recipe everywhere — lists, reader, pickers — the moment it
+            lands. Sub-recipes, plating photos and the allow-list are all re-checked against the new
+            home first.
           </p>
           <div className="flex gap-2">
             <button
               type="button"
               onClick={() => {
-                if (!window.confirm('Move this recipe? Who can see it changes immediately.')) return
-                setError(null)
-                move.mutate()
+                if (!window.confirm('Move this recipe? Who can see it changes immediately.'))
+                  return;
+                setError(null);
+                move.mutate();
               }}
               disabled={move.isPending}
               className={primaryButtonClass}
@@ -450,7 +455,7 @@ function PlacementPanel({ recipe }: { recipe: RecipeDetailData }) {
         </div>
       )}
     </section>
-  )
+  );
 }
 
 /**
@@ -459,64 +464,64 @@ function PlacementPanel({ recipe }: { recipe: RecipeDetailData }) {
  * deliberately not shown who else is trusted.
  */
 function AccessPanel({ recipe }: { recipe: RecipeDetailData }) {
-  const queryClient = useQueryClient()
-  const [editing, setEditing] = useState(false)
-  const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [filter, setFilter] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [filter, setFilter] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   // Fetched lazily — the roster is only needed once the picker opens.
   const { data: candidates, isLoading } = useQuery({
     queryKey: ['recipes', ...recipesScopeKey(), 'access-candidates', recipe._id],
     queryFn: async () => {
-      const result = await listAccessCandidates(recipe._id)
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await listAccessCandidates(recipe._id);
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     enabled: editing,
-  })
+  });
 
   const save = useMutation({
     mutationFn: async (access: { userIds: string[] } | null) => {
-      const result = await updateRecipeAccess(recipe._id, { access })
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await updateRecipeAccess(recipe._id, { access });
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['recipes'] })
-      setEditing(false)
+      queryClient.invalidateQueries({ queryKey: ['recipes'] });
+      setEditing(false);
     },
     onError: (err: Error) => setError(err.message),
-  })
+  });
 
   function startEditing() {
-    setSelected(new Set(recipe.access?.userIds ?? []))
-    setFilter('')
-    setError(null)
-    setEditing(true)
+    setSelected(new Set(recipe.access?.userIds ?? []));
+    setFilter('');
+    setError(null);
+    setEditing(true);
   }
 
   function toggle(userId: string) {
     setSelected((current) => {
-      const next = new Set(current)
-      if (next.has(userId)) next.delete(userId)
-      else next.add(userId)
-      return next
-    })
+      const next = new Set(current);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
   }
 
-  const listedUsers = recipe.access?.users ?? []
+  const listedUsers = recipe.access?.users ?? [];
   // Stored ids that no longer resolve to an account — kept server-side so a
   // save never silently drops them, surfaced here so someone prunes them.
-  const formerCount = (recipe.access?.userIds.length ?? 0) - listedUsers.length
-  const needle = filter.trim().toLowerCase()
+  const formerCount = (recipe.access?.userIds.length ?? 0) - listedUsers.length;
+  const needle = filter.trim().toLowerCase();
   const shown = (candidates ?? []).filter(
     (candidate) =>
       !needle ||
       `${candidate.name.first} ${candidate.name.last} ${candidate.email}`
         .toLowerCase()
-        .includes(needle)
-  )
+        .includes(needle),
+  );
 
   return (
     <section className={`${cardClass} space-y-3 p-5`}>
@@ -571,8 +576,8 @@ function AccessPanel({ recipe }: { recipe: RecipeDetailData }) {
           <button
             type="button"
             onClick={() => {
-              setError(null)
-              save.mutate(null)
+              setError(null);
+              save.mutate(null);
             }}
             disabled={save.isPending}
             className={subtleButtonClass}
@@ -616,7 +621,9 @@ function AccessPanel({ recipe }: { recipe: RecipeDetailData }) {
                           <span className="font-normal text-salt-500"> · {candidate.jobTitle}</span>
                         )}
                       </span>
-                      <span className="block truncate text-xs text-salt-500">{candidate.email}</span>
+                      <span className="block truncate text-xs text-salt-500">
+                        {candidate.email}
+                      </span>
                     </span>
                   </label>
                 </li>
@@ -628,8 +635,8 @@ function AccessPanel({ recipe }: { recipe: RecipeDetailData }) {
             <button
               type="button"
               onClick={() => {
-                setError(null)
-                save.mutate({ userIds: [...selected] })
+                setError(null);
+                save.mutate({ userIds: [...selected] });
               }}
               disabled={save.isPending}
               className={primaryButtonClass}
@@ -644,41 +651,41 @@ function AccessPanel({ recipe }: { recipe: RecipeDetailData }) {
         </div>
       )}
     </section>
-  )
+  );
 }
 
 function VersionTimeline({ recipe }: { recipe: RecipeDetailData }) {
-  const queryClient = useQueryClient()
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient();
+  const [error, setError] = useState<string | null>(null);
 
   const { data: versions, isLoading } = useQuery({
     queryKey: ['recipes', ...recipesScopeKey(), 'versions', recipe._id],
     queryFn: async () => {
-      const result = await listVersions(recipe._id)
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await listVersions(recipe._id);
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
-  })
+  });
 
   const activate = useMutation({
     mutationFn: async (versionId: string) => {
-      const result = await activateVersion(recipe._id, versionId)
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await activateVersion(recipe._id, versionId);
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['recipes'] }),
     onError: (err: Error) => setError(err.message),
-  })
+  });
 
   const restore = useMutation({
     mutationFn: async (versionId: string) => {
-      const result = await restoreVersion(recipe._id, versionId)
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await restoreVersion(recipe._id, versionId);
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['recipes'] }),
     onError: (err: Error) => setError(err.message),
-  })
+  });
 
   return (
     <section className={`${cardClass} p-5`}>
@@ -699,18 +706,19 @@ function VersionTimeline({ recipe }: { recipe: RecipeDetailData }) {
       )}
       {versions?.length === 0 && (
         <p className="text-sm text-salt-600">
-          No saved versions yet. Staff can only see this recipe once a version is saved and set live.
+          No saved versions yet. Staff can only see this recipe once a version is saved and set
+          live.
         </p>
       )}
       <ol className="relative space-y-1">
         {versions && versions.length > 0 && (
-          <span
-            aria-hidden
-            className="absolute top-3 bottom-3 left-1.75 w-px bg-salt-200"
-          />
+          <span aria-hidden className="absolute top-3 bottom-3 left-1.75 w-px bg-salt-200" />
         )}
         {versions?.map((v) => (
-          <li key={v._id} className="relative flex gap-3 rounded-xl p-2 transition-colors hover:bg-salt-50">
+          <li
+            key={v._id}
+            className="relative flex gap-3 rounded-xl p-2 transition-colors hover:bg-salt-50"
+          >
             <span
               aria-hidden
               className={`relative z-10 mt-1 size-3.75 shrink-0 rounded-full border-2 ${
@@ -747,10 +755,10 @@ function VersionTimeline({ recipe }: { recipe: RecipeDetailData }) {
                   onClick={() => {
                     if (
                       window.confirm(
-                        `Replace the working copy with v${v.version}? Unsaved working-copy changes are lost.`
+                        `Replace the working copy with v${v.version}? Unsaved working-copy changes are lost.`,
                       )
                     ) {
-                      restore.mutate(v._id)
+                      restore.mutate(v._id);
                     }
                   }}
                   disabled={restore.isPending}
@@ -765,7 +773,7 @@ function VersionTimeline({ recipe }: { recipe: RecipeDetailData }) {
         ))}
       </ol>
     </section>
-  )
+  );
 }
 
 function DetailSkeleton() {
@@ -778,69 +786,73 @@ function DetailSkeleton() {
         <Skeleton className="h-40" />
       </div>
     </div>
-  )
+  );
 }
 
 function Detail({ recipeId }: { recipeId: string }) {
-  const queryClient = useQueryClient()
-  const [view, setView] = useState<'working' | 'active'>('working')
-  const [openForm, setOpenForm] = useState<'none' | 'saveVersion' | 'fork'>('none')
-  const [translationOpen, setTranslationOpen] = useState(false)
-  const [actionError, setActionError] = useState<string | null>(null)
-  const { role } = useActiveRole()
-  const { data: tree } = useTenantTree()
+  const queryClient = useQueryClient();
+  const [view, setView] = useState<'working' | 'active'>('working');
+  const [openForm, setOpenForm] = useState<'none' | 'saveVersion' | 'fork'>('none');
+  const [translationOpen, setTranslationOpen] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const { role } = useActiveRole();
+  const { data: tree } = useTenantTree();
 
-  const { data: recipe, error, isLoading } = useQuery({
+  const {
+    data: recipe,
+    error,
+    isLoading,
+  } = useQuery({
     queryKey: ['recipes', ...recipesScopeKey(), 'detail', recipeId],
     queryFn: async () => {
-      const result = await getRecipe(recipeId)
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await getRecipe(recipeId);
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
-  })
+  });
 
   const mutationHandlers = {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['recipes'] }),
     onError: (err: Error) => setActionError(err.message),
-  }
+  };
 
   const deactivate = useMutation({
     mutationFn: async () => {
-      const result = await deactivateRecipe(recipeId)
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await deactivateRecipe(recipeId);
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     ...mutationHandlers,
-  })
+  });
 
   const unarchive = useMutation({
     mutationFn: async () => {
-      const result = await unarchiveRecipe(recipeId)
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await unarchiveRecipe(recipeId);
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     ...mutationHandlers,
-  })
+  });
 
   const approve = useMutation({
     mutationFn: async () => {
-      const result = await approveAllergens(recipeId, {})
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await approveAllergens(recipeId, {});
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     ...mutationHandlers,
-  })
+  });
 
   const archive = useMutation({
     mutationFn: async () => {
-      const result = await archiveRecipe(recipeId)
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await archiveRecipe(recipeId);
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     ...mutationHandlers,
-  })
+  });
 
-  if (isLoading) return <DetailSkeleton />
+  if (isLoading) return <DetailSkeleton />;
   if (error) {
     // The server answers 404 for anything the caller may not see — a recipe
     // restricted to specific people reads exactly like one that was removed.
@@ -855,18 +867,18 @@ function Detail({ recipeId }: { recipeId: string }) {
       </div>
     ) : (
       <ErrorNote>{error.message}</ErrorNote>
-    )
+    );
   }
-  if (!recipe) return null
+  if (!recipe) return null;
 
-  const isChefView = recipe.workingCopy != null
+  const isChefView = recipe.workingCopy != null;
   const content =
     isChefView && view === 'working'
       ? recipe.workingCopy
-      : (recipe.activeContent ?? recipe.workingCopy)
+      : (recipe.activeContent ?? recipe.workingCopy);
   const pendingAllergens =
-    recipe.workingCopy?.allergens.some((t) => t.status !== 'approved') ?? false
-  const isManager = role != null && roleAtLeast(role, 'manager')
+    recipe.workingCopy?.allergens.some((t) => t.status !== 'approved') ?? false;
+  const isManager = role != null && roleAtLeast(role, 'manager');
 
   /**
    * True when the content on screen is the published snapshot rather than the
@@ -875,7 +887,7 @@ function Detail({ recipeId }: { recipeId: string }) {
    * read — they do not. Derived from `activeContent` rather than `view` alone
    * so that taking a recipe offline while viewing it falls back correctly.
    */
-  const viewingLive = isChefView && view === 'active' && recipe.activeContent != null
+  const viewingLive = isChefView && view === 'active' && recipe.activeContent != null;
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 tablet:space-y-8">
@@ -889,46 +901,48 @@ function Detail({ recipeId }: { recipeId: string }) {
           className="pointer-events-none absolute -bottom-16 left-[-4rem] size-56 rounded-full bg-basil-100/45 blur-3xl"
         />
         <div className="relative space-y-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-3xl font-bold tracking-tight text-steel-900 tablet:text-4xl">{recipe.name}</h1>
-          {recipe.status === 'archived' && <Badge value="archived" />}
-          {recipe.activeVersion != null ? (
-            <Badge value="active" label={`v${recipe.activeVersion} live`} />
-          ) : (
-            <Badge value="unpublished" label="draft only" />
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-3xl font-bold tracking-tight text-steel-900 tablet:text-4xl">
+              {recipe.name}
+            </h1>
+            {recipe.status === 'archived' && <Badge value="archived" />}
+            {recipe.activeVersion != null ? (
+              <Badge value="active" label={`v${recipe.activeVersion} live`} />
+            ) : (
+              <Badge value="unpublished" label="draft only" />
+            )}
+            {recipe.scope.propertyId && (
+              <span
+                title="Only this part of the organization sees this recipe"
+                className="inline-flex items-center gap-1.5 rounded-full bg-salt-100 px-3 py-1.5 text-xs font-semibold text-steel-700 ring-1 ring-salt-300 ring-inset"
+              >
+                <Building2 className="size-3.5" aria-hidden />
+                {scopeDisplayLabel(recipe.scope, tree) ?? 'One property'}
+              </span>
+            )}
+            {recipe.restricted && (
+              <span
+                title="Restricted to specific people"
+                className="inline-flex items-center gap-1.5 rounded-full bg-salt-100 px-3 py-1.5 text-xs font-semibold text-steel-700 ring-1 ring-salt-300 ring-inset"
+              >
+                <Lock className="size-3.5" aria-hidden />
+                Restricted
+              </span>
+            )}
+          </div>
+          {recipe.forkedFrom && (
+            <p className="flex items-center gap-1.5 text-sm text-salt-600">
+              <GitFork className="size-4" aria-hidden />
+              Forked from{' '}
+              <a
+                href={`/recipes/${recipe.forkedFrom.recipeId}`}
+                className="font-semibold text-ember-600 transition-colors hover:text-ember-700"
+              >
+                this recipe
+              </a>{' '}
+              at v{recipe.forkedFrom.version}.
+            </p>
           )}
-          {recipe.scope.propertyId && (
-            <span
-              title="Only this part of the organization sees this recipe"
-              className="inline-flex items-center gap-1.5 rounded-full bg-salt-100 px-3 py-1.5 text-xs font-semibold text-steel-700 ring-1 ring-salt-300 ring-inset"
-            >
-              <Building2 className="size-3.5" aria-hidden />
-              {scopeDisplayLabel(recipe.scope, tree) ?? 'One property'}
-            </span>
-          )}
-          {recipe.restricted && (
-            <span
-              title="Restricted to specific people"
-              className="inline-flex items-center gap-1.5 rounded-full bg-salt-100 px-3 py-1.5 text-xs font-semibold text-steel-700 ring-1 ring-salt-300 ring-inset"
-            >
-              <Lock className="size-3.5" aria-hidden />
-              Restricted
-            </span>
-          )}
-        </div>
-        {recipe.forkedFrom && (
-          <p className="flex items-center gap-1.5 text-sm text-salt-600">
-            <GitFork className="size-4" aria-hidden />
-            Forked from{' '}
-            <a
-              href={`/recipes/${recipe.forkedFrom.recipeId}`}
-              className="font-semibold text-ember-600 transition-colors hover:text-ember-700"
-            >
-              this recipe
-            </a>{' '}
-            at v{recipe.forkedFrom.version}.
-          </p>
-        )}
         </div>
       </header>
 
@@ -953,10 +967,10 @@ function Detail({ recipeId }: { recipeId: string }) {
                   ariaLabel="Content view"
                   value={view}
                   onChange={(next) => {
-                    setView(next)
+                    setView(next);
                     // The version form acts on the working copy; leaving it open
                     // over the live snapshot is the same lie as the Edit button.
-                    if (next === 'active') setOpenForm('none')
+                    if (next === 'active') setOpenForm('none');
                   }}
                   options={[
                     {
@@ -1000,7 +1014,9 @@ function Detail({ recipeId }: { recipeId: string }) {
                       </a>
                       <button
                         type="button"
-                        onClick={() => setOpenForm(openForm === 'saveVersion' ? 'none' : 'saveVersion')}
+                        onClick={() =>
+                          setOpenForm(openForm === 'saveVersion' ? 'none' : 'saveVersion')
+                        }
                         className={`${subtleButtonClass} w-full justify-start`}
                       >
                         <GitCommitVertical className="size-4" aria-hidden />
@@ -1040,9 +1056,11 @@ function Detail({ recipeId }: { recipeId: string }) {
                       type="button"
                       onClick={() => {
                         if (
-                          window.confirm('Staff will immediately lose access to this recipe. Continue?')
+                          window.confirm(
+                            'Staff will immediately lose access to this recipe. Continue?',
+                          )
                         ) {
-                          deactivate.mutate()
+                          deactivate.mutate();
                         }
                       }}
                       disabled={deactivate.isPending}
@@ -1071,7 +1089,7 @@ function Detail({ recipeId }: { recipeId: string }) {
                           if (
                             window.confirm('Archive this recipe? It disappears from staff lists.')
                           ) {
-                            archive.mutate()
+                            archive.mutate();
                           }
                         }}
                         disabled={archive.isPending}
@@ -1161,7 +1179,7 @@ function Detail({ recipeId }: { recipeId: string }) {
         </section>
       )}
     </div>
-  )
+  );
 }
 
 export function RecipeDetail({ recipeId }: { recipeId: string }) {
@@ -1169,5 +1187,5 @@ export function RecipeDetail({ recipeId }: { recipeId: string }) {
     <QueryProvider>
       <Detail recipeId={recipeId} />
     </QueryProvider>
-  )
+  );
 }

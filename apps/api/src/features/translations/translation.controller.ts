@@ -7,7 +7,7 @@ export async function getTranslationState(req: Request, res: Response): Promise<
   const state = await translationService.getTranslationState(
     req.tenant!,
     pathParam(req, 'recipeId'),
-    (req.validatedQuery as TranslationLocaleInput).locale
+    (req.validatedQuery as TranslationLocaleInput).locale,
   );
   res.status(200).json(state);
 }
@@ -17,7 +17,7 @@ export async function requestTranslation(req: Request, res: Response): Promise<v
     req.tenant!,
     req.userId!,
     pathParam(req, 'recipeId'),
-    (req.body as TranslationLocaleInput).locale
+    (req.body as TranslationLocaleInput).locale,
   );
   res.status(200).json(translation);
 }
@@ -28,7 +28,7 @@ export async function updateTranslation(req: Request, res: Response): Promise<vo
     req.tenant!,
     pathParam(req, 'recipeId'),
     input.locale,
-    input.payload
+    input.payload,
   );
   res.status(200).json(translation);
 }
@@ -38,7 +38,7 @@ export async function approveTranslation(req: Request, res: Response): Promise<v
     req.tenant!,
     req.userId!,
     pathParam(req, 'recipeId'),
-    (req.body as TranslationLocaleInput).locale
+    (req.body as TranslationLocaleInput).locale,
   );
   res.status(200).json(translation);
 }
@@ -47,7 +47,7 @@ export async function rejectTranslation(req: Request, res: Response): Promise<vo
   const translation = await translationService.rejectTranslation(
     req.tenant!,
     pathParam(req, 'recipeId'),
-    (req.body as TranslationLocaleInput).locale
+    (req.body as TranslationLocaleInput).locale,
   );
   res.status(200).json(translation);
 }

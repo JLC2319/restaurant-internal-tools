@@ -6,4 +6,4 @@ export const TRANSLATING_MESSAGES = [
   'Leaving “beurre blanc” well alone…',
   'Lining up every step, one to one…',
   'Un momento — casi listo…',
-] as const
+] as const;

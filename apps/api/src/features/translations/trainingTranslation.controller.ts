@@ -7,7 +7,7 @@ export async function getTrainingTranslationState(req: Request, res: Response): 
   const state = await trainingTranslationService.getTrainingTranslationState(
     req.tenant!,
     pathParam(req, 'trainingId'),
-    (req.validatedQuery as TranslationLocaleInput).locale
+    (req.validatedQuery as TranslationLocaleInput).locale,
   );
   res.status(200).json(state);
 }
@@ -17,7 +17,7 @@ export async function requestTrainingTranslation(req: Request, res: Response): P
     req.tenant!,
     req.userId!,
     pathParam(req, 'trainingId'),
-    (req.body as TranslationLocaleInput).locale
+    (req.body as TranslationLocaleInput).locale,
   );
   res.status(200).json(translation);
 }
@@ -28,7 +28,7 @@ export async function updateTrainingTranslation(req: Request, res: Response): Pr
     req.tenant!,
     pathParam(req, 'trainingId'),
     input.locale,
-    input.payload
+    input.payload,
   );
   res.status(200).json(translation);
 }
@@ -38,7 +38,7 @@ export async function approveTrainingTranslation(req: Request, res: Response): P
     req.tenant!,
     req.userId!,
     pathParam(req, 'trainingId'),
-    (req.body as TranslationLocaleInput).locale
+    (req.body as TranslationLocaleInput).locale,
   );
   res.status(200).json(translation);
 }
@@ -47,7 +47,7 @@ export async function rejectTrainingTranslation(req: Request, res: Response): Pr
   const translation = await trainingTranslationService.rejectTrainingTranslation(
     req.tenant!,
     pathParam(req, 'trainingId'),
-    (req.body as TranslationLocaleInput).locale
+    (req.body as TranslationLocaleInput).locale,
   );
   res.status(200).json(translation);
 }

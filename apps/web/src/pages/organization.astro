@@ -14,8 +14,10 @@ import { OrgSettings } from '@/features/settings/OrgSettings';
     subtitle="Company details, publishing, structure and membership. What you can change depends on your role."
   />
 
-  {/* One island: the settings shell owns the section nav, and every section
-      shares its QueryProvider cache rather than refetching per card. */}
+  {
+    /* One island: the settings shell owns the section nav, and every section
+      shares its QueryProvider cache rather than refetching per card. */
+  }
   <div class="mt-6 max-w-5xl tablet:mt-8">
     <OrgSettings client:load />
   </div>

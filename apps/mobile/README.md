@@ -35,24 +35,24 @@ PHONE_SIM="iPhone 17e" TABLET_SIM="iPad mini (A17 Pro)" pnpm dev:mobile:sims
 compiled types and enums, exactly like the web app does.
 
 The iOS simulator needs full Xcode selected as the active developer directory
-(`sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`) — a Mac
-with only the Command Line Tools can install Expo Go on nothing.
+(`sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`) — a Mac with
+only the Command Line Tools can install Expo Go on nothing.
 
 ## What's here
 
-| Screen | File | Web counterpart |
-|---|---|---|
-| Sign in | `src/app/login.tsx` | `/login` |
-| Workspace picker | `src/app/scope.tsx` | `ScopeSwitcher` |
-| Shelves (recipes + training) | `src/app/index.tsx` | `ReaderBrowser` |
-| Recipe (Español toggle) | `src/app/recipes/[id].tsx` | `ReaderRecipe` |
-| Training (mark complete) | `src/app/training/[id].tsx` | `ReaderTraining` |
+| Screen                       | File                        | Web counterpart  |
+| ---------------------------- | --------------------------- | ---------------- |
+| Sign in                      | `src/app/login.tsx`         | `/login`         |
+| Workspace picker             | `src/app/scope.tsx`         | `ScopeSwitcher`  |
+| Shelves (recipes + training) | `src/app/index.tsx`         | `ReaderBrowser`  |
+| Recipe (Español toggle)      | `src/app/recipes/[id].tsx`  | `ReaderRecipe`   |
+| Training (mark complete)     | `src/app/training/[id].tsx` | `ReaderTraining` |
 
 Deliberate differences from the web reader:
 
 - **Infinite scroll** instead of Previous/Next paging — same 24-a-page API.
-- **Scope switching clears the query cache** (`queryClient.clear()`) instead
-  of the web's full page reload; same reason, native mechanism.
+- **Scope switching clears the query cache** (`queryClient.clear()`) instead of
+  the web's full page reload; same reason, native mechanism.
 - **Session lives in module memory** backed by AsyncStorage
   (`src/api/client.ts`), because native storage is async and the fetch layer
   reads the token synchronously. `hydrateSession()` runs before any route
@@ -61,10 +61,10 @@ Deliberate differences from the web reader:
 ## Conventions
 
 - Styling is NativeWind with the same tokens as the web (`src/theme/colors.js`
-  is the single source both `tailwind.config.js` and icon code read).
-  `chili` stays reserved for allergens and danger.
-- Font weights are separate families (`font-sans-semibold`, not
-  `font-semibold`) — Android needs one fontFamily per loaded weight.
+  is the single source both `tailwind.config.js` and icon code read). `chili`
+  stays reserved for allergens and danger.
+- Font weights are separate families (`font-sans-semibold`, not `font-semibold`)
+  — Android needs one fontFamily per loaded weight.
 - Anything tappable gets `min-h-touch` (44px) — gloved hands.
 - Named breakpoints only (`tablet:` = iPad portrait); phone-first, more grid
   columns on tablets.

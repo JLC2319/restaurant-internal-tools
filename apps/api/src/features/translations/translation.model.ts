@@ -21,7 +21,7 @@ const scopeSchema = new Schema<IScope>(
     propertyId: { type: Schema.Types.ObjectId, ref: 'Property', default: null },
     locationId: { type: Schema.Types.ObjectId, ref: 'Location', default: null },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const payloadSchema = new Schema(
@@ -34,12 +34,12 @@ const payloadSchema = new Schema(
           name: { type: String, trim: true, maxlength: 160, default: null },
           note: { type: String, trim: true, maxlength: 400, default: null },
         },
-        { _id: false }
+        { _id: false },
       ),
     ],
     steps: [{ type: String, trim: true, maxlength: 3000 }],
   },
-  { _id: false }
+  { _id: false },
 );
 
 const recipeTranslationSchema = new Schema<IRecipeTranslation>(
@@ -64,7 +64,7 @@ const recipeTranslationSchema = new Schema<IRecipeTranslation>(
     // so every render path can badge the text as unreviewed.
     autoApproved: { type: Boolean, default: false },
   },
-  { timestamps: { createdAt: 'createdAt', updatedAt: 'modifiedAt' } }
+  { timestamps: { createdAt: 'createdAt', updatedAt: 'modifiedAt' } },
 );
 
 // One translation per recipe per locale — re-translating updates in place.
@@ -75,5 +75,5 @@ recipeTranslationSchema.index({ 'scope.orgId': 1, recipeId: 1 });
 
 export const RecipeTranslation = model<IRecipeTranslation>(
   'RecipeTranslation',
-  recipeTranslationSchema
+  recipeTranslationSchema,
 );

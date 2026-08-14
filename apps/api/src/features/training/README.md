@@ -12,16 +12,16 @@ per-user-per-location completion records. Mounted at `/api/training`.
   chef) see published modules only, 404 otherwise — existence hiding as
   everywhere else.
 - **Blocks are polymorphic** (`kind: text | image | video | embed`), one loose
-  Mongoose sub-schema discriminated by Zod at the boundary — the same pattern
-  as recipe ingredient lines. `text` blocks carry a rich-text document
-  (ProseMirror JSON from the web editor) validated by `richTextDocSchema` in
-  `@rit/shared` — an allow-list that strips unknown nodes, marks and
-  attributes, so what is stored is the sanitised copy and the reader renders
-  it without ever touching `innerHTML`. Media blocks store asset ids, never
-  binaries; every id is checked against the module's scope with the same
-  at-or-above rule sub-recipes and plating photos follow. `embed` URLs pass
-  the `parseVideoEmbed` allow-list — the iframe src clients render is always
-  rebuilt server-side from the extracted video id.
+  Mongoose sub-schema discriminated by Zod at the boundary — the same pattern as
+  recipe ingredient lines. `text` blocks carry a rich-text document (ProseMirror
+  JSON from the web editor) validated by `richTextDocSchema` in `@rit/shared` —
+  an allow-list that strips unknown nodes, marks and attributes, so what is
+  stored is the sanitised copy and the reader renders it without ever touching
+  `innerHTML`. Media blocks store asset ids, never binaries; every id is checked
+  against the module's scope with the same at-or-above rule sub-recipes and
+  plating photos follow. `embed` URLs pass the `parseVideoEmbed` allow-list —
+  the iframe src clients render is always rebuilt server-side from the extracted
+  video id.
 - **`TrainingCompletion`** — one row per user per location context, unique on
   `{trainingId, userId, locationId}`, recorded by an idempotent upsert. These
   are the seed of the Phase 2 productivity tracking; the tenant ids are flat
@@ -58,11 +58,10 @@ Wired through the `translations` feature (`trainingTranslation.service`), the
 same five-route contract as recipes at `/api/translations/trainings/:id`.
 Modules have no versions, so staleness is a content hash of the translatable
 projection (title + description + per-block text/captions) — any edit to a
-published module hides its approved Spanish until re-translated or
-re-approved. Publishing (or editing while published) fires the same detached
-auto-translate pattern recipes use, with the `autoTranslation` marker living
-on the module. Text blocks translate as plain text — formatting does not
-survive translation.
+published module hides its approved Spanish until re-translated or re-approved.
+Publishing (or editing while published) fires the same detached auto-translate
+pattern recipes use, with the `autoTranslation` marker living on the module.
+Text blocks translate as plain text — formatting does not survive translation.
 
 ## AI drafting
 

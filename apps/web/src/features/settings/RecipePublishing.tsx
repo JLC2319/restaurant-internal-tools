@@ -1,16 +1,16 @@
-import { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import type { OrganizationProfile, RecipePublishMode } from '@rit/shared'
-import { recipePublishModeValues, resolveRecipePublishMode } from '@rit/shared'
-import { GitCommitVertical, Rocket, ShieldCheck, Zap } from 'lucide-react'
-import { tenancyScopeKey, updateOrganization } from '@/features/tenancy/api'
-import type { ModeMeta } from '@/features/settings/PublishModeSettings'
+import { useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import type { OrganizationProfile, RecipePublishMode } from '@rit/shared';
+import { recipePublishModeValues, resolveRecipePublishMode } from '@rit/shared';
+import { GitCommitVertical, Rocket, ShieldCheck, Zap } from 'lucide-react';
+import { tenancyScopeKey, updateOrganization } from '@/features/tenancy/api';
+import type { ModeMeta } from '@/features/settings/PublishModeSettings';
 import {
   ModeRadioGroup,
   OverrideRows,
   PublishModeBody,
-} from '@/features/settings/PublishModeSettings'
-import { ErrorNote, SavedTick, SectionCard } from '@/components/ui'
+} from '@/features/settings/PublishModeSettings';
+import { ErrorNote, SavedTick, SectionCard } from '@/components/ui';
 
 /**
  * How much ceremony stands between writing a brand-new recipe and staff being
@@ -50,43 +50,45 @@ const MODE_META: Record<RecipePublishMode, ModeMeta> = {
     detail:
       'As above, but the shortcut refuses to publish until a chef has verified the allergen tags in the same step. The slower two-step route is still there for anything not ready for that.',
   },
-}
+};
 
 function tone(mode: RecipePublishMode): string {
-  return mode === 'publish_on_save_verified' ? 'ring-basil-300 bg-basil-50/40' : 'ring-salt-300 bg-white'
+  return mode === 'publish_on_save_verified'
+    ? 'ring-basil-300 bg-basil-50/40'
+    : 'ring-salt-300 bg-white';
 }
 
 function selectedTone(mode: RecipePublishMode): string {
   return mode === 'publish_on_save_verified'
     ? 'ring-2 ring-basil-400 bg-basil-50 shadow-sm'
-    : 'ring-2 ring-ember-400 bg-ember-50/50 shadow-sm'
+    : 'ring-2 ring-ember-400 bg-ember-50/50 shadow-sm';
 }
 
 function iconTone(mode: RecipePublishMode): string {
   return mode === 'publish_on_save_verified'
     ? 'bg-basil-100 text-basil-700 ring-basil-200'
-    : 'bg-salt-100 text-steel-600 ring-salt-200'
+    : 'bg-salt-100 text-steel-600 ring-salt-200';
 }
 
 // ── The org-wide default ──────────────────────────────────────────────────────
 
 function OrgDefault({ org, canEdit }: { org: OrganizationProfile; canEdit: boolean }) {
-  const queryClient = useQueryClient()
-  const [error, setError] = useState<string | null>(null)
-  const [saved, setSaved] = useState(false)
+  const queryClient = useQueryClient();
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
 
   const save = useMutation({
     mutationFn: async (next: RecipePublishMode) => {
-      const result = await updateOrganization({ settings: { recipePublishMode: next } })
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await updateOrganization({ settings: { recipePublishMode: next } });
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     onSuccess: (updated) => {
-      queryClient.setQueryData(['org', 'profile', ...tenancyScopeKey()], updated)
-      setSaved(true)
+      queryClient.setQueryData(['org', 'profile', ...tenancyScopeKey()], updated);
+      setSaved(true);
     },
     onError: (err: Error) => setError(err.message),
-  })
+  });
 
   return (
     <div className="space-y-4">
@@ -99,9 +101,9 @@ function OrgDefault({ org, canEdit }: { org: OrganizationProfile; canEdit: boole
         value={org.settings.recipePublishMode}
         disabled={!canEdit || save.isPending}
         onSelect={(next) => {
-          setError(null)
-          setSaved(false)
-          save.mutate(next)
+          setError(null);
+          setSaved(false);
+          save.mutate(next);
         }}
         tone={tone}
         selectedTone={selectedTone}
@@ -113,7 +115,7 @@ function OrgDefault({ org, canEdit }: { org: OrganizationProfile; canEdit: boole
         {save.isPending && <span className="text-sm text-salt-500">Saving…</span>}
       </div>
     </div>
-  )
+  );
 }
 
 // ── The card ──────────────────────────────────────────────────────────────────
@@ -123,9 +125,9 @@ export function RecipePublishingCard({
   canEditOrg,
   canEditOverrides,
 }: {
-  org: OrganizationProfile
-  canEditOrg: boolean
-  canEditOverrides: boolean
+  org: OrganizationProfile;
+  canEditOrg: boolean;
+  canEditOverrides: boolean;
 }) {
   return (
     <SectionCard
@@ -155,5 +157,5 @@ export function RecipePublishingCard({
         }
       />
     </SectionCard>
-  )
+  );
 }

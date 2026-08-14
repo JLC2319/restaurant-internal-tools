@@ -1,4 +1,4 @@
-import { QueryClient } from '@tanstack/react-query'
+import { QueryClient } from '@tanstack/react-query';
 
 /**
  * One QueryClient for the whole app, importable outside React so the scope
@@ -14,4 +14,4 @@ export const queryClient = new QueryClient({
       staleTime: 30_000,
     },
   },
-})
+});

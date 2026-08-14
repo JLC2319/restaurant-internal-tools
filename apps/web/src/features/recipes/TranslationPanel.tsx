@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   RecipeDetail as RecipeDetailData,
   RecipeTranslationView,
   TranslationPayloadInput,
   TranslationPublishMode,
-} from '@rit/shared'
+} from '@rit/shared';
 import {
   Bot,
   Check,
@@ -16,17 +16,17 @@ import {
   ShieldAlert,
   Sparkles,
   X,
-} from 'lucide-react'
+} from 'lucide-react';
 import {
   approveRecipeTranslation,
   getRecipeTranslation,
   machineTranslateRecipe,
   rejectRecipeTranslation,
   updateRecipeTranslation,
-} from '@/features/translations/api'
-import { recipesScopeKey } from '@/features/recipes/api'
-import { TRANSLATING_MESSAGES } from '@/features/translations/messages'
-import { WorkingOverlay } from '@/components/ui/WorkingOverlay'
+} from '@/features/translations/api';
+import { recipesScopeKey } from '@/features/recipes/api';
+import { TRANSLATING_MESSAGES } from '@/features/translations/messages';
+import { WorkingOverlay } from '@/components/ui/WorkingOverlay';
 import {
   Badge,
   ErrorNote,
@@ -35,7 +35,7 @@ import {
   inputClass,
   primaryButtonClass,
   subtleButtonClass,
-} from '@/components/ui'
+} from '@/components/ui';
 
 /**
  * The Spanish review gate, on the recipe page. Machine translation lands here
@@ -51,7 +51,7 @@ function payloadToDraft(payload: RecipeTranslationView['payload']): TranslationP
     description: payload.description,
     ingredients: payload.ingredients.map((ing) => ({ name: ing.name, note: ing.note })),
     steps: [...payload.steps],
-  }
+  };
 }
 
 /**
@@ -64,31 +64,31 @@ const PUBLISH_MODE_HINT: Record<TranslationPublishMode, string | null> = {
     'This scope translates automatically when a version goes live. It still waits here for your review.',
   auto_publish:
     'This scope translates automatically when a version goes live and publishes it to staff without review.',
-}
+};
 
 /**
  * How often to ask whether the background translation has landed. Fast enough
  * that the Spanish appears to arrive on its own, slow enough to be nothing on a
  * page a chef leaves open — and it only runs while a run is actually in flight.
  */
-const AUTO_POLL_MS = 2500
+const AUTO_POLL_MS = 2500;
 
-const fieldLabel = 'text-2xs font-semibold tracking-wide text-salt-500 uppercase'
-const sourceText = 'text-sm leading-relaxed text-salt-600'
-const areaClass = `${inputClass} min-h-0 resize-y py-2 text-sm leading-relaxed`
+const fieldLabel = 'text-2xs font-semibold tracking-wide text-salt-500 uppercase';
+const sourceText = 'text-sm leading-relaxed text-salt-600';
+const areaClass = `${inputClass} min-h-0 resize-y py-2 text-sm leading-relaxed`;
 
 export function TranslationPanel({ recipe }: { recipe: RecipeDetailData }) {
-  const queryClient = useQueryClient()
-  const [error, setError] = useState<string | null>(null)
-  const [draft, setDraft] = useState<TranslationPayloadInput | null>(null)
+  const queryClient = useQueryClient();
+  const [error, setError] = useState<string | null>(null);
+  const [draft, setDraft] = useState<TranslationPayloadInput | null>(null);
 
-  const queryKey = ['translations', ...recipesScopeKey(), recipe._id, 'es']
+  const queryKey = ['translations', ...recipesScopeKey(), recipe._id, 'es'];
   const { data: state, isLoading } = useQuery({
     queryKey,
     queryFn: async () => {
-      const result = await getRecipeTranslation(recipe._id, 'es')
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await getRecipeTranslation(recipe._id, 'es');
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     /**
      * Publishing kicks the translation off in the background, so a chef who
@@ -98,43 +98,43 @@ export function TranslationPanel({ recipe }: { recipe: RecipeDetailData }) {
      * failure, and on a run whose process died, so this always terminates.
      */
     refetchInterval: (query) => (query.state.data?.autoTranslating ? AUTO_POLL_MS : false),
-  })
+  });
 
-  const translation = state?.translation ?? null
+  const translation = state?.translation ?? null;
 
   // Reset the editable draft whenever the server document changes.
   useEffect(() => {
-    setDraft(translation ? payloadToDraft(translation.payload) : null)
-  }, [translation?._id, translation?.modifiedAt])
+    setDraft(translation ? payloadToDraft(translation.payload) : null);
+  }, [translation?._id, translation?.modifiedAt]);
 
   const dirty = useMemo(
     () =>
       translation != null &&
       draft != null &&
       JSON.stringify(draft) !== JSON.stringify(payloadToDraft(translation.payload)),
-    [draft, translation]
-  )
+    [draft, translation],
+  );
 
   const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: ['translations'] })
-  }
+    queryClient.invalidateQueries({ queryKey: ['translations'] });
+  };
   const mutationHandlers = {
     onSuccess: refresh,
     onError: (err: Error) => setError(err.message),
-  }
+  };
 
   const translate = useMutation({
     mutationFn: async () => {
-      const result = await machineTranslateRecipe(recipe._id, 'es')
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await machineTranslateRecipe(recipe._id, 'es');
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     ...mutationHandlers,
-  })
+  });
 
   const save = useMutation({
     mutationFn: async () => {
-      if (!draft) throw new Error('Nothing to save')
+      if (!draft) throw new Error('Nothing to save');
       const cleaned: TranslationPayloadInput = {
         name: draft.name.trim(),
         description: draft.description.trim(),
@@ -143,33 +143,33 @@ export function TranslationPanel({ recipe }: { recipe: RecipeDetailData }) {
           note: ing.note?.trim() ? ing.note.trim() : null,
         })),
         steps: draft.steps.map((step) => step.trim()),
-      }
-      const result = await updateRecipeTranslation(recipe._id, cleaned, 'es')
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      };
+      const result = await updateRecipeTranslation(recipe._id, cleaned, 'es');
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     ...mutationHandlers,
-  })
+  });
 
   const approve = useMutation({
     mutationFn: async () => {
-      const result = await approveRecipeTranslation(recipe._id, 'es')
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await approveRecipeTranslation(recipe._id, 'es');
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     ...mutationHandlers,
-  })
+  });
 
   const reject = useMutation({
     mutationFn: async () => {
-      const result = await rejectRecipeTranslation(recipe._id, 'es')
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await rejectRecipeTranslation(recipe._id, 'es');
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     ...mutationHandlers,
-  })
+  });
 
-  const busy = translate.isPending || save.isPending || approve.isPending || reject.isPending
+  const busy = translate.isPending || save.isPending || approve.isPending || reject.isPending;
 
   // Translation follows the live version — nothing to do before one exists.
   if (!recipe.activeVersionId) {
@@ -180,11 +180,11 @@ export function TranslationPanel({ recipe }: { recipe: RecipeDetailData }) {
         hint="Translation follows the live version staff read. Set a version live first."
       >
         <p className="text-sm text-salt-600">
-          Once this recipe has a live version, you can machine-translate it here, review the
-          Spanish side by side, and approve it for the reader.
+          Once this recipe has a live version, you can machine-translate it here, review the Spanish
+          side by side, and approve it for the reader.
         </p>
       </SectionCard>
-    )
+    );
   }
 
   if (isLoading) {
@@ -195,25 +195,25 @@ export function TranslationPanel({ recipe }: { recipe: RecipeDetailData }) {
           <Skeleton className="h-24" />
         </div>
       </SectionCard>
-    )
+    );
   }
 
   // The English column mirrors the live snapshot the translation was made from.
-  const source = recipe.activeContent
+  const source = recipe.activeContent;
   const aligned =
     translation != null &&
     source != null &&
     translation.payload.ingredients.length === source.ingredients.length &&
-    translation.payload.steps.length === source.steps.length
-  const editable = translation != null && !translation.stale && aligned
-  const modeHint = state ? PUBLISH_MODE_HINT[state.publishMode] : null
+    translation.payload.steps.length === source.steps.length;
+  const editable = translation != null && !translation.stale && aligned;
+  const modeHint = state ? PUBLISH_MODE_HINT[state.publishMode] : null;
   // SAFETY: approved, current, and nobody read it — the one state the review
   // gate does not cover, because the org opted out of it.
   const liveUnreviewed =
     translation != null &&
     translation.autoApproved &&
     translation.status === 'approved' &&
-    !translation.stale
+    !translation.stale;
 
   return (
     <SectionCard
@@ -291,8 +291,8 @@ export function TranslationPanel({ recipe }: { recipe: RecipeDetailData }) {
                 <button
                   type="button"
                   onClick={() => {
-                    setError(null)
-                    translate.mutate()
+                    setError(null);
+                    translate.mutate();
                   }}
                   disabled={busy}
                   className={primaryButtonClass}
@@ -335,8 +335,8 @@ export function TranslationPanel({ recipe }: { recipe: RecipeDetailData }) {
               <p className="flex items-start gap-2.5 rounded-xl bg-citron-50 px-4 py-3 text-sm text-citron-700 ring-1 ring-citron-200 ring-inset">
                 <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
                 <span>
-                  Awaiting review. Read every line — a mistranslated temperature or allergen note
-                  is a food-safety incident, not a typo. Approving publishes it to the reader.
+                  Awaiting review. Read every line — a mistranslated temperature or allergen note is
+                  a food-safety incident, not a typo. Approving publishes it to the reader.
                 </span>
               </p>
             )}
@@ -389,8 +389,8 @@ export function TranslationPanel({ recipe }: { recipe: RecipeDetailData }) {
                   <p className={fieldLabel}>Ingredients</p>
                   <ul className="divide-y divide-salt-100 overflow-hidden rounded-xl ring-1 ring-salt-200">
                     {source.ingredients.map((line, index) => {
-                      const ing = draft.ingredients[index]
-                      const subRecipe = line.kind === 'recipe'
+                      const ing = draft.ingredients[index];
+                      const subRecipe = line.kind === 'recipe';
                       return (
                         <li key={index} className="grid gap-2 bg-white p-3 tablet:grid-cols-2">
                           <div className="flex items-baseline gap-2 text-sm">
@@ -412,7 +412,7 @@ export function TranslationPanel({ recipe }: { recipe: RecipeDetailData }) {
                                 setDraft({
                                   ...draft,
                                   ingredients: draft.ingredients.map((v, i) =>
-                                    i === index ? { ...v, name: e.target.value } : v
+                                    i === index ? { ...v, name: e.target.value } : v,
                                   ),
                                 })
                               }
@@ -429,7 +429,7 @@ export function TranslationPanel({ recipe }: { recipe: RecipeDetailData }) {
                                   setDraft({
                                     ...draft,
                                     ingredients: draft.ingredients.map((v, i) =>
-                                      i === index ? { ...v, note: e.target.value } : v
+                                      i === index ? { ...v, note: e.target.value } : v,
                                     ),
                                   })
                                 }
@@ -438,7 +438,7 @@ export function TranslationPanel({ recipe }: { recipe: RecipeDetailData }) {
                             )}
                           </div>
                         </li>
-                      )
+                      );
                     })}
                   </ul>
                 </div>
@@ -477,30 +477,32 @@ export function TranslationPanel({ recipe }: { recipe: RecipeDetailData }) {
             <div className="flex flex-wrap items-center gap-2 border-t border-salt-100 pt-4">
               {/* An auto-published translation is already `approved`, but no
                   one has signed it off — the button stays so a chef can. */}
-              {editable && (translation.status !== 'approved' || translation.autoApproved) && !dirty && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setError(null)
-                    approve.mutate()
-                  }}
-                  disabled={busy}
-                  className={primaryButtonClass}
-                >
-                  <Check className="size-4" aria-hidden />
-                  {approve.isPending
-                    ? 'Approving…'
-                    : liveUnreviewed
-                      ? 'Confirm reviewed'
-                      : 'Approve for staff'}
-                </button>
-              )}
+              {editable &&
+                (translation.status !== 'approved' || translation.autoApproved) &&
+                !dirty && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setError(null);
+                      approve.mutate();
+                    }}
+                    disabled={busy}
+                    className={primaryButtonClass}
+                  >
+                    <Check className="size-4" aria-hidden />
+                    {approve.isPending
+                      ? 'Approving…'
+                      : liveUnreviewed
+                        ? 'Confirm reviewed'
+                        : 'Approve for staff'}
+                  </button>
+                )}
               {dirty && (
                 <button
                   type="button"
                   onClick={() => {
-                    setError(null)
-                    save.mutate()
+                    setError(null);
+                    save.mutate();
                   }}
                   disabled={busy}
                   className={primaryButtonClass}
@@ -513,8 +515,8 @@ export function TranslationPanel({ recipe }: { recipe: RecipeDetailData }) {
                 <button
                   type="button"
                   onClick={() => {
-                    setError(null)
-                    translate.mutate()
+                    setError(null);
+                    translate.mutate();
                   }}
                   disabled={busy}
                   className={subtleButtonClass}
@@ -527,8 +529,8 @@ export function TranslationPanel({ recipe }: { recipe: RecipeDetailData }) {
                 <button
                   type="button"
                   onClick={() => {
-                    setError(null)
-                    reject.mutate()
+                    setError(null);
+                    reject.mutate();
                   }}
                   disabled={busy}
                   className={subtleButtonClass}
@@ -537,18 +539,20 @@ export function TranslationPanel({ recipe }: { recipe: RecipeDetailData }) {
                   Reject
                 </button>
               )}
-              {translation.status === 'approved' && !translation.stale && !translation.autoApproved && (
-                <p className="text-sm text-basil-700">
-                  Live in the reader
-                  {translation.approvedAt &&
-                    ` — approved ${new Date(translation.approvedAt).toLocaleDateString()}`}
-                  .
-                </p>
-              )}
+              {translation.status === 'approved' &&
+                !translation.stale &&
+                !translation.autoApproved && (
+                  <p className="text-sm text-basil-700">
+                    Live in the reader
+                    {translation.approvedAt &&
+                      ` — approved ${new Date(translation.approvedAt).toLocaleDateString()}`}
+                    .
+                  </p>
+                )}
             </div>
           </>
         )}
       </div>
     </SectionCard>
-  )
+  );
 }

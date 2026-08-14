@@ -1,6 +1,11 @@
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { MAX_DRAFT_TOTAL_BYTES, allergenValues, dietaryValues, unitValues } from '@rit/shared';
-import type { DraftRecipesResponse, ImageMime, RecipeDraftProposal, TenantContext } from '@rit/shared';
+import type {
+  DraftRecipesResponse,
+  ImageMime,
+  RecipeDraftProposal,
+  TenantContext,
+} from '@rit/shared';
 import { z } from 'zod';
 import { env } from '../../config/env';
 import { anthropic } from '../../lib/anthropic';
@@ -42,7 +47,7 @@ const llmDraftRecipeSchema = z.object({
       name: z.string(),
       quantity: llmQuantitySchema,
       note: z.string().nullable(),
-    })
+    }),
   ),
   steps: z.array(z.string()),
   allergens: z.array(z.enum(allergenValues)),
@@ -74,9 +79,10 @@ Rules:
 
 const clamp = (value: string, max: number): string => value.trim().slice(0, max);
 
-function saneQuantity(
-  q: z.infer<typeof llmQuantitySchema>
-): { quantity: { amount: number; unit: (typeof unitValues)[number] }; unclear: boolean } {
+function saneQuantity(q: z.infer<typeof llmQuantitySchema>): {
+  quantity: { amount: number; unit: (typeof unitValues)[number] };
+  unclear: boolean;
+} {
   const valid = Number.isFinite(q.amount) && q.amount > 0;
   return {
     quantity: { amount: valid ? q.amount : 1, unit: q.unit },
@@ -117,7 +123,10 @@ export function shapeProposal(raw: z.infer<typeof llmDraftRecipeSchema>): Recipe
     description: clamp(raw.description, 2000),
     yield: yieldQ.quantity,
     ingredients,
-    steps: raw.steps.map((step) => clamp(step, 2000)).filter((step) => step.length > 0).slice(0, 100),
+    steps: raw.steps
+      .map((step) => clamp(step, 2000))
+      .filter((step) => step.length > 0)
+      .slice(0, 100),
     allergens: [...new Set(raw.allergens)],
     dietary: [...new Set(raw.dietary)],
     times:
@@ -137,7 +146,7 @@ export function shapeProposal(raw: z.infer<typeof llmDraftRecipeSchema>): Recipe
 export async function draftRecipesFromPhotos(
   ctx: TenantContext,
   files: UploadedPhoto[] | undefined,
-  hint: string | undefined
+  hint: string | undefined,
 ): Promise<DraftRecipesResponse> {
   assertRole(ctx, 'chef');
   if (!env.aiDraftingEnabled) {

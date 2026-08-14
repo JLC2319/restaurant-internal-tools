@@ -12,7 +12,7 @@ export async function draftRecipes(req: Request, res: Response): Promise<void> {
   const result = await draftService.draftRecipesFromPhotos(
     req.tenant!,
     req.files as Express.Multer.File[] | undefined,
-    (req.body as DraftRecipesInput).hint
+    (req.body as DraftRecipesInput).hint,
   );
   res.status(200).json(result);
 }
@@ -21,7 +21,7 @@ export async function draftTrainings(req: Request, res: Response): Promise<void>
   const result = await trainingDraftService.draftTrainingsFromMaterials(
     req.tenant!,
     req.files as Express.Multer.File[] | undefined,
-    (req.body as DraftTrainingsInput).description
+    (req.body as DraftTrainingsInput).description,
   );
   res.status(200).json(result);
 }

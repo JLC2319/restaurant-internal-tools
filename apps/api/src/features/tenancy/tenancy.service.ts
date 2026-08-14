@@ -44,7 +44,9 @@ import type { IOrganization, IUser } from '../../types/index';
 
 type Lean<T> = T & { _id: unknown };
 
-export function shapeOrg(org: Lean<{ name: string; slug: string; status: string }>): OrganizationSummary {
+export function shapeOrg(
+  org: Lean<{ name: string; slug: string; status: string }>,
+): OrganizationSummary {
   return {
     _id: String(org._id),
     name: org.name,
@@ -69,7 +71,7 @@ function shapeSettings(settings: Partial<TenantSettings> | null | undefined): Te
 
 /** The same, for a tier that inherits: an unset field stays `null`. */
 function shapeSettingsOverride(
-  settings: Partial<TenantSettingsOverride> | null | undefined
+  settings: Partial<TenantSettingsOverride> | null | undefined,
 ): TenantSettingsOverride {
   return {
     translationPublishMode: settings?.translationPublishMode ?? null,
@@ -102,7 +104,7 @@ export async function resolveRecipePublishModeForScope(scope: {
   return resolveRecipePublishMode(
     org?.settings?.recipePublishMode ?? DEFAULT_RECIPE_PUBLISH_MODE,
     property?.settings?.recipePublishMode ?? null,
-    location?.settings?.recipePublishMode ?? null
+    location?.settings?.recipePublishMode ?? null,
   );
 }
 
@@ -113,7 +115,7 @@ export function shapeProperty(
     slug: string;
     status: string;
     settings?: Partial<TenantSettingsOverride> | null;
-  }>
+  }>,
 ): PropertySummary {
   return {
     _id: String(p._id),
@@ -134,7 +136,7 @@ export function shapeLocation(
     timezone: string;
     status: string;
     settings?: Partial<TenantSettingsOverride> | null;
-  }>
+  }>,
 ): LocationSummary {
   return {
     _id: String(l._id),
@@ -158,7 +160,7 @@ export function shapeLocation(
  */
 function applySettingsPatch(
   update: Record<string, unknown>,
-  settings: Record<string, unknown> | undefined
+  settings: Record<string, unknown> | undefined,
 ): void {
   delete update.settings;
   if (!settings) return;
@@ -184,7 +186,7 @@ function assertMayChangeSettings(ctx: TenantContext, settings: unknown): void {
  */
 async function uniqueSlug(
   base: string,
-  exists: (candidate: string) => Promise<boolean>
+  exists: (candidate: string) => Promise<boolean>,
 ): Promise<string> {
   const root = base || 'untitled';
   let candidate = root;
@@ -205,15 +207,13 @@ async function uniqueSlug(
  */
 export async function createOrganization(
   userId: string,
-  input: CreateOrganizationInput
+  input: CreateOrganizationInput,
 ): Promise<OrganizationSummary> {
   const slug = await uniqueSlug(input.slug ?? toSlug(input.name), async (candidate) =>
-    Boolean(await Organization.exists({ slug: candidate }))
+    Boolean(await Organization.exists({ slug: candidate })),
   );
 
-  const locales: Locale[] = input.locales.includes('en')
-    ? input.locales
-    : ['en', ...input.locales];
+  const locales: Locale[] = input.locales.includes('en') ? input.locales : ['en', ...input.locales];
 
   const org = await Organization.create({ name: input.name, slug, locales });
 
@@ -273,7 +273,7 @@ export async function getOrganization(ctx: TenantContext): Promise<OrganizationP
 
 export async function updateOrganization(
   ctx: TenantContext,
-  input: UpdateOrganizationInput
+  input: UpdateOrganizationInput,
 ): Promise<OrganizationProfile> {
   assertRole(ctx, 'admin');
   // Org settings are org-wide by definition — a property-scoped admin has no
@@ -334,9 +334,7 @@ export async function getTenantTree(ctx: TenantContext): Promise<TenantTree> {
     org: shapeOrg(org),
     properties: properties.map((p) => ({
       ...shapeProperty(p),
-      locations: locations
-        .filter((l) => String(l.propertyId) === String(p._id))
-        .map(shapeLocation),
+      locations: locations.filter((l) => String(l.propertyId) === String(p._id)).map(shapeLocation),
     })),
   };
 }
@@ -345,13 +343,13 @@ export async function getTenantTree(ctx: TenantContext): Promise<TenantTree> {
 
 export async function createProperty(
   ctx: TenantContext,
-  input: CreatePropertyInput
+  input: CreatePropertyInput,
 ): Promise<PropertySummary> {
   assertRole(ctx, 'admin');
   if (ctx.propertyId) throw new AppError('Forbidden', 403);
 
   const slug = await uniqueSlug(input.slug ?? toSlug(input.name), async (candidate) =>
-    Boolean(await Property.exists({ orgId: ctx.orgId, slug: candidate }))
+    Boolean(await Property.exists({ orgId: ctx.orgId, slug: candidate })),
   );
 
   const property = await Property.create({ orgId: ctx.orgId, name: input.name, slug });
@@ -368,7 +366,7 @@ export async function listProperties(ctx: TenantContext): Promise<PropertySummar
 export async function updateProperty(
   ctx: TenantContext,
   propertyId: string,
-  input: UpdatePropertyInput
+  input: UpdatePropertyInput,
 ): Promise<PropertySummary> {
   assertRole(ctx, 'admin');
   if (ctx.propertyId && ctx.propertyId !== propertyId) throw new AppError('Not found', 404);
@@ -388,7 +386,7 @@ export async function updateProperty(
 
 export async function createLocation(
   ctx: TenantContext,
-  input: CreateLocationInput
+  input: CreateLocationInput,
 ): Promise<LocationSummary> {
   assertRole(ctx, 'admin');
   if (ctx.propertyId && ctx.propertyId !== input.propertyId) throw new AppError('Not found', 404);
@@ -401,7 +399,7 @@ export async function createLocation(
   if (!property) throw new AppError('Not found', 404);
 
   const slug = await uniqueSlug(input.slug ?? toSlug(input.name), async (candidate) =>
-    Boolean(await Location.exists({ orgId: ctx.orgId, slug: candidate }))
+    Boolean(await Location.exists({ orgId: ctx.orgId, slug: candidate })),
   );
 
   const location = await Location.create({
@@ -418,7 +416,7 @@ export async function createLocation(
 
 export async function listLocations(
   ctx: TenantContext,
-  propertyId?: string
+  propertyId?: string,
 ): Promise<LocationSummary[]> {
   const filter: Record<string, unknown> = { orgId: ctx.orgId };
   if (ctx.propertyId) filter.propertyId = ctx.propertyId;
@@ -432,7 +430,7 @@ export async function listLocations(
 export async function updateLocation(
   ctx: TenantContext,
   locationId: string,
-  input: UpdateLocationInput
+  input: UpdateLocationInput,
 ): Promise<LocationSummary> {
   assertRole(ctx, 'manager');
   assertMayChangeSettings(ctx, input.settings);
@@ -487,7 +485,7 @@ export async function listMembershipsForUser(userId: string): Promise<Membership
 export async function listMembers(
   ctx: TenantContext,
   page = 1,
-  limit = 25
+  limit = 25,
 ): Promise<PaginatedResponse<OrgMemberRow>> {
   assertRole(ctx, 'manager');
 
@@ -546,7 +544,7 @@ export async function listMembers(
 export async function inviteMember(
   ctx: TenantContext,
   actorId: string,
-  input: InviteMemberInput
+  input: InviteMemberInput,
 ): Promise<{ membershipId: string; userExists: boolean }> {
   assertRole(ctx, 'admin');
 
@@ -579,7 +577,7 @@ export async function inviteMember(
     // silently dropping the invite.
     throw new AppError(
       'No account exists for that email. Pending-invite emails are not implemented yet.',
-      501
+      501,
     );
   }
 
@@ -610,7 +608,7 @@ export async function inviteMember(
 export async function updateMembership(
   ctx: TenantContext,
   membershipId: string,
-  input: UpdateMembershipInput
+  input: UpdateMembershipInput,
 ): Promise<void> {
   assertRole(ctx, 'admin');
 

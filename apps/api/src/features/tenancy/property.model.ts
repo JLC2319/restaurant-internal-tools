@@ -17,7 +17,7 @@ const propertySchema = new Schema<IProperty>(
     /** Overrides of the org's settings; `null` fields inherit from the org. */
     settings: { type: settingsOverrideSchema, default: () => ({}) },
   },
-  { timestamps: { createdAt: 'createdAt', updatedAt: 'modifiedAt' } }
+  { timestamps: { createdAt: 'createdAt', updatedAt: 'modifiedAt' } },
 );
 
 // Slugs are unique per org, not globally — two orgs may both have a "flagship".

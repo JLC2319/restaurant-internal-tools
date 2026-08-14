@@ -42,7 +42,7 @@ function assertObjectId(value: string, label: string): void {
 export async function resolveTenant(
   req: Request,
   _res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> {
   if (!req.userId) {
     throw new AppError('Missing or invalid authorization header', 401);
@@ -72,9 +72,7 @@ export async function resolveTenant(
     .lean();
 
   // Broadest first: an org-wide row beats a property row beats a location row.
-  const entitlement = memberships.sort(
-    (a, b) => scopeWidth(a) - scopeWidth(b)
-  )[0];
+  const entitlement = memberships.sort((a, b) => scopeWidth(a) - scopeWidth(b))[0];
 
   if (!entitlement && !isPlatformAdmin) {
     // Existence hiding: an outsider learns nothing about which orgs exist.

@@ -1,8 +1,8 @@
-import { useRef, useState } from 'react'
-import type { SubmitEvent } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { OrganizationProfile, UpdateOrganizationInput } from '@rit/shared'
-import { roleAtLeast } from '@rit/shared'
+import { useRef, useState } from 'react';
+import type { SubmitEvent } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { OrganizationProfile, UpdateOrganizationInput } from '@rit/shared';
+import { roleAtLeast } from '@rit/shared';
 import {
   Building2,
   Contact,
@@ -14,20 +14,25 @@ import {
   Trash2,
   Upload,
   Users,
-} from 'lucide-react'
-import { getOrganization, getTenantTree, tenancyScopeKey, updateOrganization } from '@/features/tenancy/api'
-import { uploadPhoto } from '@/lib/api/media'
-import { getScope } from '@/lib/api/client'
-import { useActiveRole } from '@/features/auth/useActiveRole'
-import { QueryProvider } from '@/lib/QueryProvider'
+} from 'lucide-react';
+import {
+  getOrganization,
+  getTenantTree,
+  tenancyScopeKey,
+  updateOrganization,
+} from '@/features/tenancy/api';
+import { uploadPhoto } from '@/lib/api/media';
+import { getScope } from '@/lib/api/client';
+import { useActiveRole } from '@/features/auth/useActiveRole';
+import { QueryProvider } from '@/lib/QueryProvider';
 import {
   TrainingTranslationPublishingCard,
   TranslationPublishingCard,
-} from '@/features/settings/TranslationPublishing'
-import { RecipePublishingCard } from '@/features/settings/RecipePublishing'
-import { OrgMembersSection } from '@/features/settings/OrgMembers'
-import { SettingsShell } from '@/components/ui/SettingsShell'
-import type { SettingsSection } from '@/components/ui/SettingsShell'
+} from '@/features/settings/TranslationPublishing';
+import { RecipePublishingCard } from '@/features/settings/RecipePublishing';
+import { OrgMembersSection } from '@/features/settings/OrgMembers';
+import { SettingsShell } from '@/components/ui/SettingsShell';
+import type { SettingsSection } from '@/components/ui/SettingsShell';
 import {
   Badge,
   ErrorNote,
@@ -39,29 +44,29 @@ import {
   inputClass,
   primaryButtonClass,
   subtleButtonClass,
-} from '@/components/ui'
+} from '@/components/ui';
 
 /** '' → null so a cleared field clears the stored value instead of failing Zod. */
 function orNull(value: string): string | null {
-  const trimmed = value.trim()
-  return trimmed === '' ? null : trimmed
+  const trimmed = value.trim();
+  return trimmed === '' ? null : trimmed;
 }
 
 /** One mutation shape shared by every card below: PATCH then refresh the cache. */
 function useOrgMutation(onDone: () => void, onError: (message: string) => void) {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (input: UpdateOrganizationInput) => {
-      const result = await updateOrganization(input)
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await updateOrganization(input);
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     onSuccess: (updated) => {
-      queryClient.setQueryData(['org', 'profile', ...tenancyScopeKey()], updated)
-      onDone()
+      queryClient.setQueryData(['org', 'profile', ...tenancyScopeKey()], updated);
+      onDone();
     },
     onError: (err: Error) => onError(err.message),
-  })
+  });
 }
 
 function OrgHeader({ org }: { org: OrganizationProfile }) {
@@ -89,25 +94,25 @@ function OrgHeader({ org }: { org: OrganizationProfile }) {
         </span>
       </div>
     </div>
-  )
+  );
 }
 
 function DetailsForm({ org, canEdit }: { org: OrganizationProfile; canEdit: boolean }) {
-  const [name, setName] = useState(org.name)
-  const [spanish, setSpanish] = useState(org.locales.includes('es'))
-  const [error, setError] = useState<string | null>(null)
-  const [saved, setSaved] = useState(false)
+  const [name, setName] = useState(org.name);
+  const [spanish, setSpanish] = useState(org.locales.includes('es'));
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
 
-  const save = useOrgMutation(() => setSaved(true), setError)
+  const save = useOrgMutation(() => setSaved(true), setError);
 
   function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setError(null)
-    setSaved(false)
+    event.preventDefault();
+    setError(null);
+    setSaved(false);
     save.mutate({
       name: name.trim(),
       locales: spanish ? ['en', 'es'] : ['en'],
-    })
+    });
   }
 
   return (
@@ -161,31 +166,31 @@ function DetailsForm({ org, canEdit }: { org: OrganizationProfile; canEdit: bool
         )}
       </form>
     </SectionCard>
-  )
+  );
 }
 
 function LogoSection({ org, canEdit }: { org: OrganizationProfile; canEdit: boolean }) {
-  const fileInput = useRef<HTMLInputElement>(null)
-  const queryClient = useQueryClient()
-  const [error, setError] = useState<string | null>(null)
+  const fileInput = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
+  const [error, setError] = useState<string | null>(null);
 
   const change = useMutation({
     mutationFn: async (file: File | null) => {
-      let logoMediaId: string | null = null
+      let logoMediaId: string | null = null;
       if (file) {
-        const uploaded = await uploadPhoto(file)
-        if (uploaded.error) throw new Error(uploaded.error.message)
-        logoMediaId = uploaded.data._id
+        const uploaded = await uploadPhoto(file);
+        if (uploaded.error) throw new Error(uploaded.error.message);
+        logoMediaId = uploaded.data._id;
       }
-      const result = await updateOrganization({ logoMediaId })
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await updateOrganization({ logoMediaId });
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     onSuccess: (updated) => {
-      queryClient.setQueryData(['org', 'profile', ...tenancyScopeKey()], updated)
+      queryClient.setQueryData(['org', 'profile', ...tenancyScopeKey()], updated);
     },
     onError: (err: Error) => setError(err.message),
-  })
+  });
 
   return (
     <SectionCard icon={ImageIcon} title="Logo" hint="Shown across the app and on printed sheets">
@@ -213,12 +218,12 @@ function LogoSection({ org, canEdit }: { org: OrganizationProfile; canEdit: bool
                 accept="image/jpeg,image/png,image/webp"
                 className="hidden"
                 onChange={(e) => {
-                  const file = e.target.files?.[0]
+                  const file = e.target.files?.[0];
                   if (file) {
-                    setError(null)
-                    change.mutate(file)
+                    setError(null);
+                    change.mutate(file);
                   }
-                  e.target.value = ''
+                  e.target.value = '';
                 }}
               />
               <button
@@ -235,8 +240,8 @@ function LogoSection({ org, canEdit }: { org: OrganizationProfile; canEdit: bool
                   type="button"
                   disabled={change.isPending}
                   onClick={() => {
-                    setError(null)
-                    change.mutate(null)
+                    setError(null);
+                    change.mutate(null);
                   }}
                   className={subtleButtonClass}
                 >
@@ -247,41 +252,43 @@ function LogoSection({ org, canEdit }: { org: OrganizationProfile; canEdit: bool
             </div>
           )}
         </div>
-        <p className="text-xs text-salt-500">JPEG, PNG or WebP, up to 10MB. Square crops look best.</p>
+        <p className="text-xs text-salt-500">
+          JPEG, PNG or WebP, up to 10MB. Square crops look best.
+        </p>
       </div>
     </SectionCard>
-  )
+  );
 }
 
 function AddressContactForm({ org, canEdit }: { org: OrganizationProfile; canEdit: boolean }) {
-  const [line1, setLine1] = useState(org.address?.line1 ?? '')
-  const [line2, setLine2] = useState(org.address?.line2 ?? '')
-  const [city, setCity] = useState(org.address?.city ?? '')
-  const [region, setRegion] = useState(org.address?.region ?? '')
-  const [postalCode, setPostalCode] = useState(org.address?.postalCode ?? '')
-  const [country, setCountry] = useState(org.address?.country ?? '')
-  const [phone, setPhone] = useState(org.contact.phone ?? '')
-  const [email, setEmail] = useState(org.contact.email ?? '')
-  const [website, setWebsite] = useState(org.contact.website ?? '')
-  const [error, setError] = useState<string | null>(null)
-  const [saved, setSaved] = useState(false)
+  const [line1, setLine1] = useState(org.address?.line1 ?? '');
+  const [line2, setLine2] = useState(org.address?.line2 ?? '');
+  const [city, setCity] = useState(org.address?.city ?? '');
+  const [region, setRegion] = useState(org.address?.region ?? '');
+  const [postalCode, setPostalCode] = useState(org.address?.postalCode ?? '');
+  const [country, setCountry] = useState(org.address?.country ?? '');
+  const [phone, setPhone] = useState(org.contact.phone ?? '');
+  const [email, setEmail] = useState(org.contact.email ?? '');
+  const [website, setWebsite] = useState(org.contact.website ?? '');
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
 
-  const save = useOrgMutation(() => setSaved(true), setError)
+  const save = useOrgMutation(() => setSaved(true), setError);
 
   function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setError(null)
-    setSaved(false)
+    event.preventDefault();
+    setError(null);
+    setSaved(false);
 
-    const parts = { line1, line2, city, region, postalCode, country }
-    const hasAddress = Object.values(parts).some((v) => v.trim() !== '')
+    const parts = { line1, line2, city, region, postalCode, country };
+    const hasAddress = Object.values(parts).some((v) => v.trim() !== '');
 
     save.mutate({
       address: hasAddress
         ? Object.fromEntries(
             Object.entries(parts)
               .map(([k, v]) => [k, v.trim()])
-              .filter(([, v]) => v !== '')
+              .filter(([, v]) => v !== ''),
           )
         : null,
       contact: {
@@ -289,11 +296,11 @@ function AddressContactForm({ org, canEdit }: { org: OrganizationProfile; canEdi
         email: orNull(email.toLowerCase()),
         website: orNull(website),
       },
-    })
+    });
   }
 
-  const disabled = !canEdit
-  const fieldClass = `${inputClass} ${disabled ? 'opacity-60' : ''}`
+  const disabled = !canEdit;
+  const fieldClass = `${inputClass} ${disabled ? 'opacity-60' : ''}`;
 
   return (
     <SectionCard
@@ -309,37 +316,89 @@ function AddressContactForm({ org, canEdit }: { org: OrganizationProfile; canEdi
             <label htmlFor="org-line1" className="mb-1.5 block text-sm font-medium text-steel-700">
               Address line 1
             </label>
-            <input id="org-line1" type="text" maxLength={160} value={line1} disabled={disabled} onChange={(e) => setLine1(e.target.value)} className={fieldClass} />
+            <input
+              id="org-line1"
+              type="text"
+              maxLength={160}
+              value={line1}
+              disabled={disabled}
+              onChange={(e) => setLine1(e.target.value)}
+              className={fieldClass}
+            />
           </div>
           <div className="tablet:col-span-2">
             <label htmlFor="org-line2" className="mb-1.5 block text-sm font-medium text-steel-700">
               Address line 2 <span className="font-normal text-salt-500">(optional)</span>
             </label>
-            <input id="org-line2" type="text" maxLength={160} value={line2} disabled={disabled} onChange={(e) => setLine2(e.target.value)} className={fieldClass} />
+            <input
+              id="org-line2"
+              type="text"
+              maxLength={160}
+              value={line2}
+              disabled={disabled}
+              onChange={(e) => setLine2(e.target.value)}
+              className={fieldClass}
+            />
           </div>
           <div>
             <label htmlFor="org-city" className="mb-1.5 block text-sm font-medium text-steel-700">
               City
             </label>
-            <input id="org-city" type="text" maxLength={80} value={city} disabled={disabled} onChange={(e) => setCity(e.target.value)} className={fieldClass} />
+            <input
+              id="org-city"
+              type="text"
+              maxLength={80}
+              value={city}
+              disabled={disabled}
+              onChange={(e) => setCity(e.target.value)}
+              className={fieldClass}
+            />
           </div>
           <div>
             <label htmlFor="org-region" className="mb-1.5 block text-sm font-medium text-steel-700">
               State / region
             </label>
-            <input id="org-region" type="text" maxLength={80} value={region} disabled={disabled} onChange={(e) => setRegion(e.target.value)} className={fieldClass} />
+            <input
+              id="org-region"
+              type="text"
+              maxLength={80}
+              value={region}
+              disabled={disabled}
+              onChange={(e) => setRegion(e.target.value)}
+              className={fieldClass}
+            />
           </div>
           <div>
             <label htmlFor="org-postal" className="mb-1.5 block text-sm font-medium text-steel-700">
               Postal code
             </label>
-            <input id="org-postal" type="text" maxLength={20} value={postalCode} disabled={disabled} onChange={(e) => setPostalCode(e.target.value)} className={fieldClass} />
+            <input
+              id="org-postal"
+              type="text"
+              maxLength={20}
+              value={postalCode}
+              disabled={disabled}
+              onChange={(e) => setPostalCode(e.target.value)}
+              className={fieldClass}
+            />
           </div>
           <div>
-            <label htmlFor="org-country" className="mb-1.5 block text-sm font-medium text-steel-700">
+            <label
+              htmlFor="org-country"
+              className="mb-1.5 block text-sm font-medium text-steel-700"
+            >
               Country <span className="font-normal text-salt-500">(2-letter code)</span>
             </label>
-            <input id="org-country" type="text" maxLength={2} placeholder="US" value={country} disabled={disabled} onChange={(e) => setCountry(e.target.value.toUpperCase())} className={`${fieldClass} font-mono uppercase`} />
+            <input
+              id="org-country"
+              type="text"
+              maxLength={2}
+              placeholder="US"
+              value={country}
+              disabled={disabled}
+              onChange={(e) => setCountry(e.target.value.toUpperCase())}
+              className={`${fieldClass} font-mono uppercase`}
+            />
           </div>
         </div>
 
@@ -352,19 +411,46 @@ function AddressContactForm({ org, canEdit }: { org: OrganizationProfile; canEdi
             <label htmlFor="org-phone" className="mb-1.5 block text-sm font-medium text-steel-700">
               Phone
             </label>
-            <input id="org-phone" type="tel" maxLength={40} value={phone} disabled={disabled} onChange={(e) => setPhone(e.target.value)} className={fieldClass} />
+            <input
+              id="org-phone"
+              type="tel"
+              maxLength={40}
+              value={phone}
+              disabled={disabled}
+              onChange={(e) => setPhone(e.target.value)}
+              className={fieldClass}
+            />
           </div>
           <div>
             <label htmlFor="org-email" className="mb-1.5 block text-sm font-medium text-steel-700">
               Email
             </label>
-            <input id="org-email" type="email" value={email} disabled={disabled} onChange={(e) => setEmail(e.target.value)} className={fieldClass} />
+            <input
+              id="org-email"
+              type="email"
+              value={email}
+              disabled={disabled}
+              onChange={(e) => setEmail(e.target.value)}
+              className={fieldClass}
+            />
           </div>
           <div>
-            <label htmlFor="org-website" className="mb-1.5 block text-sm font-medium text-steel-700">
+            <label
+              htmlFor="org-website"
+              className="mb-1.5 block text-sm font-medium text-steel-700"
+            >
               Website
             </label>
-            <input id="org-website" type="url" maxLength={200} placeholder="https://…" value={website} disabled={disabled} onChange={(e) => setWebsite(e.target.value)} className={fieldClass} />
+            <input
+              id="org-website"
+              type="url"
+              maxLength={200}
+              placeholder="https://…"
+              value={website}
+              disabled={disabled}
+              onChange={(e) => setWebsite(e.target.value)}
+              className={fieldClass}
+            />
           </div>
         </div>
 
@@ -378,18 +464,18 @@ function AddressContactForm({ org, canEdit }: { org: OrganizationProfile; canEdi
         )}
       </form>
     </SectionCard>
-  )
+  );
 }
 
 function TreeSection() {
   const { data, error, isLoading } = useQuery({
     queryKey: ['tenancy', 'tree', ...tenancyScopeKey()],
     queryFn: async () => {
-      const result = await getTenantTree()
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await getTenantTree();
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
-  })
+  });
 
   return (
     <SectionCard
@@ -407,7 +493,10 @@ function TreeSection() {
       {data && data.properties.length > 0 && (
         <ul className="space-y-3">
           {data.properties.map((property) => (
-            <li key={property._id} className="rounded-xl bg-salt-50 p-4 ring-1 ring-salt-200 ring-inset">
+            <li
+              key={property._id}
+              className="rounded-xl bg-salt-50 p-4 ring-1 ring-salt-200 ring-inset"
+            >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-medium text-steel-900">{property.name}</span>
                 <Badge value={property.status} />
@@ -430,29 +519,29 @@ function TreeSection() {
         </ul>
       )}
     </SectionCard>
-  )
+  );
 }
 
 function Settings() {
-  const { role, isLoading: roleLoading } = useActiveRole()
-  const [translationView, setTranslationView] = useState<'recipes' | 'training'>('recipes')
-  const scope = getScope()
+  const { role, isLoading: roleLoading } = useActiveRole();
+  const [translationView, setTranslationView] = useState<'recipes' | 'training'>('recipes');
+  const scope = getScope();
   // The API refuses org edits from a property- or location-scoped membership,
   // so the controls only render for an org-wide admin. Cosmetic — the server
   // is the enforcement.
-  const orgWideScope = !scope?.propertyId && !scope?.locationId
-  const canEdit = role != null && roleAtLeast(role, 'admin') && orgWideScope
+  const orgWideScope = !scope?.propertyId && !scope?.locationId;
+  const canEdit = role != null && roleAtLeast(role, 'admin') && orgWideScope;
 
   const { data, error, isLoading } = useQuery({
     queryKey: ['org', 'profile', ...tenancyScopeKey()],
     queryFn: async () => {
-      const result = await getOrganization()
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await getOrganization();
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
-  })
+  });
 
-  if (error) return <ErrorNote>{error.message}</ErrorNote>
+  if (error) return <ErrorNote>{error.message}</ErrorNote>;
 
   if (isLoading || roleLoading || !data) {
     return (
@@ -460,10 +549,10 @@ function Settings() {
         <Skeleton className="h-24 w-full rounded-2xl" />
         <Skeleton className="h-64 w-full rounded-2xl" />
       </div>
-    )
+    );
   }
 
-  const isAdmin = role != null && roleAtLeast(role, 'admin')
+  const isAdmin = role != null && roleAtLeast(role, 'admin');
 
   /**
    * The page, as data. Every tenant-level setting the product grows lands as
@@ -532,11 +621,7 @@ function Settings() {
           </div>
 
           {translationView === 'recipes' ? (
-            <TranslationPublishingCard
-              org={data}
-              canEditOrg={canEdit}
-              canEditOverrides={isAdmin}
-            />
+            <TranslationPublishingCard org={data} canEditOrg={canEdit} canEditOverrides={isAdmin} />
           ) : (
             <TrainingTranslationPublishingCard
               org={data}
@@ -547,7 +632,7 @@ function Settings() {
         </div>
       ),
     },
-  ]
+  ];
 
   return (
     <SettingsShell
@@ -565,7 +650,7 @@ function Settings() {
         </div>
       }
     />
-  )
+  );
 }
 
 export function OrgSettings() {
@@ -573,5 +658,5 @@ export function OrgSettings() {
     <QueryProvider>
       <Settings />
     </QueryProvider>
-  )
+  );
 }

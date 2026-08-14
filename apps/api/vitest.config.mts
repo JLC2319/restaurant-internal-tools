@@ -13,6 +13,10 @@ export default defineConfig({
     environment: 'node',
     include: ['src/__tests__/**/*.test.ts'],
     setupFiles: ['src/__tests__/setup.ts'],
+    // Boots one mongod for the whole run and hands its URI to every worker.
+    // Each integration file connects to its own database on it — see the note
+    // in globalSetup.ts for the port race this replaced.
+    globalSetup: ['src/__tests__/globalSetup.ts'],
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],

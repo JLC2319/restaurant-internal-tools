@@ -1,18 +1,24 @@
-import type { ApiResult, AuthUser, LoginInput, LoginResponse, MembershipSummary } from '@rit/shared'
-import { apiRequest } from './client'
+import type {
+  ApiResult,
+  AuthUser,
+  LoginInput,
+  LoginResponse,
+  MembershipSummary,
+} from '@rit/shared';
+import { apiRequest } from './client';
 
 export function login(input: LoginInput): Promise<ApiResult<LoginResponse>> {
   return apiRequest<LoginResponse>('/api/auth/login', {
     method: 'POST',
     body: JSON.stringify(input),
     scoped: false,
-  })
+  });
 }
 
 export function getMe(): Promise<ApiResult<AuthUser>> {
-  return apiRequest<AuthUser>('/api/auth/me', { scoped: false })
+  return apiRequest<AuthUser>('/api/auth/me', { scoped: false });
 }
 
 export function getMyMemberships(): Promise<ApiResult<MembershipSummary[]>> {
-  return apiRequest<MembershipSummary[]>('/api/auth/me/memberships', { scoped: false })
+  return apiRequest<MembershipSummary[]>('/api/auth/me/memberships', { scoped: false });
 }

@@ -31,7 +31,7 @@ export async function assertAccountActive(userId: string): Promise<void> {
 export async function authenticate(
   req: Request,
   _res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> {
   const authHeader = req.headers.authorization;
 

@@ -17,13 +17,18 @@
     "build:api": "pnpm --filter @rit/shared build && pnpm --filter @rit/api build",
     "build:web": "pnpm --filter @rit/shared build && pnpm --filter @rit/web build",
     "build:admin": "pnpm --filter @rit/shared build && pnpm --filter @rit/admin build",
-    "typecheck": "pnpm --filter @rit/shared typecheck && pnpm --filter @rit/api typecheck && pnpm --filter @rit/mobile typecheck",
-    "lint": "pnpm --filter @rit/web lint && pnpm --filter @rit/admin lint",
-    "test": "pnpm --filter @rit/shared test && pnpm --filter @rit/api test",
-    "test:coverage": "pnpm --filter @rit/shared test:coverage && pnpm --filter @rit/api test:coverage",
+    "verify": "pnpm format:check && pnpm typecheck && pnpm lint && pnpm test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "pnpm build:shared && pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "test": "pnpm build:shared && pnpm -r test",
+    "test:coverage": "pnpm build:shared && pnpm -r test:coverage",
     "script": "pnpm --filter @rit/scripts exec"
   },
   "devDependencies": {
+    "prettier": "^3.9.6",
+    "prettier-plugin-astro": "^0.14.1",
     "typescript": "^6.0.3"
   },
   "packageManager": "pnpm@11.10.0",

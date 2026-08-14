@@ -1,38 +1,38 @@
-import { useState } from 'react'
-import type { SubmitEvent } from 'react'
-import { login } from '../api/auth'
-import { setToken } from '../api/client'
-import { ErrorNote, inputClass, primaryButtonClass } from './ui'
+import { useState } from 'react';
+import type { SubmitEvent } from 'react';
+import { login } from '../api/auth';
+import { setToken } from '../api/client';
+import { ErrorNote, inputClass, primaryButtonClass } from './ui';
 
 export function AdminLoginForm({ next = '/' }: { next?: string }) {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setSubmitting(true)
-    setError(null)
+    event.preventDefault();
+    setSubmitting(true);
+    setError(null);
 
-    const result = await login({ email, password })
+    const result = await login({ email, password });
 
     if (result.error) {
-      setError(result.error.message)
-      setSubmitting(false)
-      return
+      setError(result.error.message);
+      setSubmitting(false);
+      return;
     }
 
     // The API will 404 every console route for a non-superAdmin anyway; the
     // check here just turns that dead end into an honest message.
     if (result.data.user.platformRole !== 'superAdmin') {
-      setError('This console is for platform staff only.')
-      setSubmitting(false)
-      return
+      setError('This console is for platform staff only.');
+      setSubmitting(false);
+      return;
     }
 
-    setToken(result.data.token)
-    window.location.href = next
+    setToken(result.data.token);
+    window.location.href = next;
   }
 
   return (
@@ -73,5 +73,5 @@ export function AdminLoginForm({ next = '/' }: { next?: string }) {
         {submitting ? 'Signing in…' : 'Sign in'}
       </button>
     </form>
-  )
+  );
 }

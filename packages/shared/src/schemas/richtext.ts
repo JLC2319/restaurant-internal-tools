@@ -172,7 +172,7 @@ const blockNodeSchema: z.ZodType<RichTextBlockNode> = z.lazy(() =>
     bulletListSchema,
     orderedListSchema,
     blockquoteSchema,
-  ])
+  ]),
 );
 
 const MAX_NESTING_DEPTH = 20;
@@ -205,7 +205,7 @@ function assertShallowEnough(value: unknown, ctx: z.RefinementCtx): void {
 /** Walks a parsed (so depth-capped) document once, for the limits below. */
 function measure(
   node: { text?: string; content?: unknown[] },
-  totals: { nodes: number; chars: number }
+  totals: { nodes: number; chars: number },
 ): void {
   totals.nodes += 1;
   if (typeof node.text === 'string') totals.chars += node.text.length;

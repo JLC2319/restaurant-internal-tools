@@ -1,6 +1,6 @@
-import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { RecipeContentView, RecipeTranslationView } from '@rit/shared'
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { RecipeContentView, RecipeTranslationView } from '@rit/shared';
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -15,15 +15,15 @@ import {
   ShieldAlert,
   ShieldCheck,
   Timer,
-} from 'lucide-react'
-import { getRecipe, recipesScopeKey } from '@/features/recipes/api'
-import { getRecipeTranslation, machineTranslateRecipe } from '@/features/translations/api'
-import { TRANSLATING_MESSAGES } from '@/features/translations/messages'
-import { allergenEs, dietaryEs, readerEs, unitEs } from '@/features/reader/es'
-import { PlatingGallery } from '@/features/recipes/PlatingGallery'
-import { QueryProvider } from '@/lib/QueryProvider'
-import { WorkingOverlay } from '@/components/ui/WorkingOverlay'
-import { EmptyState, ErrorNote, Skeleton, cardClass } from '@/components/ui'
+} from 'lucide-react';
+import { getRecipe, recipesScopeKey } from '@/features/recipes/api';
+import { getRecipeTranslation, machineTranslateRecipe } from '@/features/translations/api';
+import { TRANSLATING_MESSAGES } from '@/features/translations/messages';
+import { allergenEs, dietaryEs, readerEs, unitEs } from '@/features/reader/es';
+import { PlatingGallery } from '@/features/recipes/PlatingGallery';
+import { QueryProvider } from '@/lib/QueryProvider';
+import { WorkingOverlay } from '@/components/ui/WorkingOverlay';
+import { EmptyState, ErrorNote, Skeleton, cardClass } from '@/components/ui';
 
 /**
  * The recipe as the line reads it: the live version, whole and alone. The
@@ -43,23 +43,23 @@ import { EmptyState, ErrorNote, Skeleton, cardClass } from '@/components/ui'
  * claim or clearly flagged as incomplete (the citron banner).
  */
 
-type Lang = 'en' | 'es'
+type Lang = 'en' | 'es';
 
 /** The reader's chrome in the active language. */
 interface ReaderStrings {
-  ingredients: string
-  method: string
-  allergens: string
-  dietary: string
-  yield: string
-  prep: string
-  cook: string
-  live: string
-  noIngredients: string
-  noSteps: string
-  noVerifiedAllergens: string
-  openSubRecipe: string
-  allergenWarning: string
+  ingredients: string;
+  method: string;
+  allergens: string;
+  dietary: string;
+  yield: string;
+  prep: string;
+  cook: string;
+  live: string;
+  noIngredients: string;
+  noSteps: string;
+  noVerifiedAllergens: string;
+  openSubRecipe: string;
+  allergenWarning: string;
 }
 
 const EN_STRINGS: ReaderStrings = {
@@ -77,7 +77,7 @@ const EN_STRINGS: ReaderStrings = {
   openSubRecipe: 'Open',
   allergenWarning:
     'Allergen information on this recipe has not been fully verified. Do not answer guest allergen questions from it — ask a chef.',
-}
+};
 
 const ES_STRINGS: ReaderStrings = {
   ingredients: readerEs.ingredients,
@@ -93,15 +93,15 @@ const ES_STRINGS: ReaderStrings = {
   noVerifiedAllergens: readerEs.noVerifiedAllergens,
   openSubRecipe: readerEs.openSubRecipe,
   allergenWarning: readerEs.allergenWarning,
-}
+};
 
 /** One ingredient row, already localised for display. */
 interface DisplayLine {
-  name: string
-  note: string | null
-  quantityLabel: string
-  kind: 'item' | 'recipe'
-  recipeId: string | null
+  name: string;
+  note: string | null;
+  quantityLabel: string;
+  kind: 'item' | 'recipe';
+  recipeId: string | null;
 }
 
 /**
@@ -110,35 +110,33 @@ interface DisplayLine {
  * numbers always come from the source either way.
  */
 interface DisplayModel {
-  name: string
-  description: string
-  lines: DisplayLine[]
-  steps: string[]
-  allergenLabels: string[]
-  dietaryLabels: string[]
-  t: ReaderStrings
-  aiAssisted: boolean
+  name: string;
+  description: string;
+  lines: DisplayLine[];
+  steps: string[];
+  allergenLabels: string[];
+  dietaryLabels: string[];
+  t: ReaderStrings;
+  aiAssisted: boolean;
   /**
    * SAFETY: the Spanish on screen was machine-written and auto-published —
    * nobody read it. Staff are told, in Spanish, before they act on it.
    */
-  aiUnreviewed: boolean
+  aiUnreviewed: boolean;
 }
 
 function buildDisplay(
   name: string,
   content: RecipeContentView,
-  translation: RecipeTranslationView | null
+  translation: RecipeTranslationView | null,
 ): DisplayModel {
-  const es = translation != null
-  const approvedAllergens = content.allergens.filter((tag) => tag.status === 'approved')
+  const es = translation != null;
+  const approvedAllergens = content.allergens.filter((tag) => tag.status === 'approved');
   return {
     name: es ? translation.payload.name : name,
-    description: es
-      ? translation.payload.description || content.description
-      : content.description,
+    description: es ? translation.payload.description || content.description : content.description,
     lines: content.ingredients.map((line, index) => {
-      const translated = es ? translation.payload.ingredients[index] : null
+      const translated = es ? translation.payload.ingredients[index] : null;
       return {
         name: translated?.name ?? line.name,
         note: es ? (translated?.note ?? line.note) : line.note,
@@ -147,17 +145,17 @@ function buildDisplay(
         }`,
         kind: line.kind,
         recipeId: line.recipeId,
-      }
+      };
     }),
     steps: es ? translation.payload.steps : content.steps,
     allergenLabels: approvedAllergens.map((tag) =>
-      es ? allergenEs[tag.allergen] : tag.allergen.replace('_', ' ')
+      es ? allergenEs[tag.allergen] : tag.allergen.replace('_', ' '),
     ),
     dietaryLabels: content.dietary.map((tag) => (es ? dietaryEs[tag] : tag.replace('_', ' '))),
     t: es ? ES_STRINGS : EN_STRINGS,
     aiAssisted: es,
     aiUnreviewed: es && translation.autoApproved,
-  }
+  };
 }
 
 function StatTile({
@@ -165,9 +163,9 @@ function StatTile({
   label,
   value,
 }: {
-  icon: typeof Scale
-  label: string
-  value: string
+  icon: typeof Scale;
+  label: string;
+  value: string;
 }) {
   return (
     <div className="flex items-center gap-3 rounded-xl bg-salt-50 px-4 py-3.5 ring-1 ring-salt-200 ring-inset">
@@ -179,7 +177,7 @@ function StatTile({
         <p className="font-mono text-base font-semibold text-steel-900">{value}</p>
       </div>
     </div>
-  )
+  );
 }
 
 /** A round tap target that reads as a checkbox but is sized for gloves. */
@@ -193,19 +191,19 @@ function CheckDot({ checked }: { checked: boolean }) {
     >
       {checked && <Check className="size-4" strokeWidth={3} />}
     </span>
-  )
+  );
 }
 
 function Ingredients({ display }: { display: DisplayModel }) {
-  const [checked, setChecked] = useState<Set<number>>(new Set())
+  const [checked, setChecked] = useState<Set<number>>(new Set());
 
   const toggle = (index: number) =>
     setChecked((prev) => {
-      const next = new Set(prev)
-      if (next.has(index)) next.delete(index)
-      else next.add(index)
-      return next
-    })
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
 
   return (
     <section>
@@ -215,9 +213,12 @@ function Ingredients({ display }: { display: DisplayModel }) {
       ) : (
         <ul className="divide-y divide-salt-100 overflow-hidden rounded-xl ring-1 ring-salt-200">
           {display.lines.map((line, index) => {
-            const done = checked.has(index)
+            const done = checked.has(index);
             return (
-              <li key={index} className="flex items-center bg-white transition-colors hover:bg-salt-50">
+              <li
+                key={index}
+                className="flex items-center bg-white transition-colors hover:bg-salt-50"
+              >
                 <button
                   type="button"
                   role="checkbox"
@@ -246,24 +247,24 @@ function Ingredients({ display }: { display: DisplayModel }) {
                   </a>
                 )}
               </li>
-            )
+            );
           })}
         </ul>
       )}
     </section>
-  )
+  );
 }
 
 function Method({ display }: { display: DisplayModel }) {
-  const [checked, setChecked] = useState<Set<number>>(new Set())
+  const [checked, setChecked] = useState<Set<number>>(new Set());
 
   const toggle = (index: number) =>
     setChecked((prev) => {
-      const next = new Set(prev)
-      if (next.has(index)) next.delete(index)
-      else next.add(index)
-      return next
-    })
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
 
   return (
     <section>
@@ -273,7 +274,7 @@ function Method({ display }: { display: DisplayModel }) {
       ) : (
         <ol className="space-y-2">
           {display.steps.map((step, index) => {
-            const done = checked.has(index)
+            const done = checked.has(index);
             return (
               <li key={index}>
                 <button
@@ -297,12 +298,12 @@ function Method({ display }: { display: DisplayModel }) {
                   </p>
                 </button>
               </li>
-            )
+            );
           })}
         </ol>
       )}
     </section>
-  )
+  );
 }
 
 /**
@@ -315,38 +316,38 @@ function LanguageControl({
   lang,
   onLang,
 }: {
-  recipeId: string
-  lang: Lang
-  onLang: (next: Lang) => void
+  recipeId: string;
+  lang: Lang;
+  onLang: (next: Lang) => void;
 }) {
-  const queryClient = useQueryClient()
-  const [requestError, setRequestError] = useState<string | null>(null)
+  const queryClient = useQueryClient();
+  const [requestError, setRequestError] = useState<string | null>(null);
 
   const { data: state } = useQuery({
     queryKey: ['translations', ...recipesScopeKey(), 'reader', recipeId, 'es'],
     queryFn: async () => {
-      const result = await getRecipeTranslation(recipeId, 'es')
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await getRecipeTranslation(recipeId, 'es');
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
-  })
+  });
 
   const request = useMutation({
     mutationFn: async () => {
-      const result = await machineTranslateRecipe(recipeId, 'es')
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await machineTranslateRecipe(recipeId, 'es');
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['translations'] }),
     onError: (err: Error) => setRequestError(err.message),
-  })
+  });
 
-  if (!state) return null
+  if (!state) return null;
 
   const approved =
     state.translation != null &&
     state.translation.status === 'approved' &&
-    !state.translation.stale
+    !state.translation.stale;
 
   if (approved) {
     return (
@@ -372,7 +373,7 @@ function LanguageControl({
           </button>
         ))}
       </div>
-    )
+    );
   }
 
   // No approved Spanish yet. Reviewers can kick off a translation from here —
@@ -381,7 +382,7 @@ function LanguageControl({
     const pending =
       state.translation != null &&
       state.translation.status !== 'rejected' &&
-      !state.translation.stale
+      !state.translation.stale;
     return (
       <div className="flex flex-col items-end gap-1">
         <WorkingOverlay
@@ -401,8 +402,8 @@ function LanguageControl({
           <button
             type="button"
             onClick={() => {
-              setRequestError(null)
-              request.mutate()
+              setRequestError(null);
+              request.mutate();
             }}
             disabled={request.isPending}
             className="inline-flex min-h-touch cursor-pointer items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-sm font-semibold text-steel-700 ring-1 ring-salt-300 transition-all hover:bg-salt-50 disabled:opacity-60"
@@ -413,7 +414,7 @@ function LanguageControl({
         ) : null}
         {requestError && <p className="text-xs text-chili-600">{requestError}</p>}
       </div>
-    )
+    );
   }
 
   return (
@@ -424,29 +425,33 @@ function LanguageControl({
       <Languages className="size-4" aria-hidden />
       ES no disponible
     </span>
-  )
+  );
 }
 
 function Reader({ recipeId }: { recipeId: string }) {
-  const [lang, setLang] = useState<Lang>('en')
+  const [lang, setLang] = useState<Lang>('en');
 
-  const { data: recipe, error, isLoading } = useQuery({
+  const {
+    data: recipe,
+    error,
+    isLoading,
+  } = useQuery({
     queryKey: ['recipes', ...recipesScopeKey(), 'reader', 'detail', recipeId],
     queryFn: async () => {
-      const result = await getRecipe(recipeId)
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await getRecipe(recipeId);
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
-  })
+  });
 
   const { data: translationState } = useQuery({
     queryKey: ['translations', ...recipesScopeKey(), 'reader', recipeId, 'es'],
     queryFn: async () => {
-      const result = await getRecipeTranslation(recipeId, 'es')
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await getRecipeTranslation(recipeId, 'es');
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
-  })
+  });
 
   if (error) {
     // 404 covers everything the server hides: removed, out of scope, or
@@ -459,16 +464,19 @@ function Reader({ recipeId }: { recipeId: string }) {
             title="This recipe isn’t available"
             hint="It may be restricted to specific people or no longer on the shelf. Ask a chef or manager if you think you should have access."
             action={
-              <a href="/reader" className="inline-flex items-center gap-1.5 text-sm font-semibold text-ember-600 transition-colors hover:text-ember-700">
+              <a
+                href="/reader"
+                className="inline-flex items-center gap-1.5 text-sm font-semibold text-ember-600 transition-colors hover:text-ember-700"
+              >
                 <ArrowLeft className="size-4" aria-hidden />
                 Back to the reader
               </a>
             }
           />
         </div>
-      )
+      );
     }
-    return <ErrorNote>{error.message}</ErrorNote>
+    return <ErrorNote>{error.message}</ErrorNote>;
   }
   if (isLoading || !recipe)
     return (
@@ -477,9 +485,9 @@ function Reader({ recipeId }: { recipeId: string }) {
         <Skeleton className="h-20" />
         <Skeleton className="h-72" />
       </div>
-    )
+    );
 
-  const content = recipe.activeContent
+  const content = recipe.activeContent;
   // Chefs can reach an unpublished lineage by URL; staff get a 404 upstream.
   // Either way the reader has nothing it is allowed to show.
   if (recipe.status !== 'active' || !content) {
@@ -490,20 +498,23 @@ function Reader({ recipeId }: { recipeId: string }) {
           title="Not available in the reader"
           hint="This recipe has no live version. Once a chef sets one live, it appears here."
           action={
-            <a href="/reader" className="inline-flex items-center gap-1.5 text-sm font-semibold text-ember-600 transition-colors hover:text-ember-700">
+            <a
+              href="/reader"
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-ember-600 transition-colors hover:text-ember-700"
+            >
               <ArrowLeft className="size-4" aria-hidden />
               Back to the reader
             </a>
           }
         />
       </div>
-    )
+    );
   }
 
   // SAFETY: only an approved, current, correctly aligned translation may
   // render — for every role. The server already narrows what staff receive;
   // this repeats the check for reviewers, whose response carries drafts too.
-  const translation = translationState?.translation ?? null
+  const translation = translationState?.translation ?? null;
   const usableTranslation =
     translation != null &&
     translation.status === 'approved' &&
@@ -511,14 +522,14 @@ function Reader({ recipeId }: { recipeId: string }) {
     translation.payload.ingredients.length === content.ingredients.length &&
     translation.payload.steps.length === content.steps.length
       ? translation
-      : null
+      : null;
 
   const display = buildDisplay(
     recipe.name,
     content,
-    lang === 'es' && usableTranslation ? usableTranslation : null
-  )
-  const heroPhoto = content.photos[0]?.url ?? null
+    lang === 'es' && usableTranslation ? usableTranslation : null,
+  );
+  const heroPhoto = content.photos[0]?.url ?? null;
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 tablet:space-y-8">
@@ -542,15 +553,15 @@ function Reader({ recipeId }: { recipeId: string }) {
         />
         <div className="relative space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-          <a
-            href="/reader"
-            className="inline-flex min-h-touch items-center gap-1.5 text-sm font-semibold text-salt-600 transition-colors hover:text-steel-900"
-          >
-            <ArrowLeft className="size-4" aria-hidden />
-            Reader
-          </a>
-          <LanguageControl recipeId={recipeId} lang={lang} onLang={setLang} />
-        </div>
+            <a
+              href="/reader"
+              className="inline-flex min-h-touch items-center gap-1.5 text-sm font-semibold text-salt-600 transition-colors hover:text-steel-900"
+            >
+              <ArrowLeft className="size-4" aria-hidden />
+              Reader
+            </a>
+            <LanguageControl recipeId={recipeId} lang={lang} onLang={setLang} />
+          </div>
           <div className="flex flex-wrap items-center gap-3">
             <p className="text-xs font-semibold tracking-[0.18em] text-ember-700 uppercase">
               Active recipe
@@ -596,7 +607,9 @@ function Reader({ recipeId }: { recipeId: string }) {
         </p>
       )}
 
-      <div className={`${cardClass} animate-fade-up fade-delay-1 space-y-8 rounded-3xl p-5 tablet:p-9`}>
+      <div
+        className={`${cardClass} animate-fade-up fade-delay-1 space-y-8 rounded-3xl p-5 tablet:p-9`}
+      >
         <div className="grid gap-3 phablet:grid-cols-3 tablet:gap-4">
           <StatTile
             icon={Scale}
@@ -606,10 +619,18 @@ function Reader({ recipeId }: { recipeId: string }) {
             }`}
           />
           {content.times?.prepMinutes != null && (
-            <StatTile icon={Timer} label={display.t.prep} value={`${content.times.prepMinutes} min`} />
+            <StatTile
+              icon={Timer}
+              label={display.t.prep}
+              value={`${content.times.prepMinutes} min`}
+            />
           )}
           {content.times?.cookMinutes != null && (
-            <StatTile icon={Flame} label={display.t.cook} value={`${content.times.cookMinutes} min`} />
+            <StatTile
+              icon={Flame}
+              label={display.t.cook}
+              value={`${content.times.cookMinutes} min`}
+            />
           )}
         </div>
 
@@ -660,7 +681,7 @@ function Reader({ recipeId }: { recipeId: string }) {
         <PlatingGallery photos={content.photos} recipeName={display.name} />
       </div>
     </div>
-  )
+  );
 }
 
 export function ReaderRecipe({ recipeId }: { recipeId: string }) {
@@ -668,5 +689,5 @@ export function ReaderRecipe({ recipeId }: { recipeId: string }) {
     <QueryProvider>
       <Reader recipeId={recipeId} />
     </QueryProvider>
-  )
+  );
 }

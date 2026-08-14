@@ -1,9 +1,9 @@
-import type { LucideIcon } from 'lucide-react-native'
-import { AlertCircle } from 'lucide-react-native'
-import type { ReactNode } from 'react'
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
-import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated'
-import colors from '../theme/colors.js'
+import type { LucideIcon } from 'lucide-react-native';
+import { AlertCircle } from 'lucide-react-native';
+import type { ReactNode } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated';
+import colors from '../theme/colors.js';
 
 /**
  * The mobile twins of apps/web/src/components/ui/ (tokens.ts + the atom files) — same design language
@@ -16,7 +16,7 @@ import colors from '../theme/colors.js'
  */
 
 /** The one card surface. */
-export const cardClass = 'rounded-2xl bg-white border border-salt-200'
+export const cardClass = 'rounded-2xl bg-white border border-salt-200';
 
 export function ErrorNote({ children }: { children: ReactNode }) {
   return (
@@ -29,12 +29,12 @@ export function ErrorNote({ children }: { children: ReactNode }) {
       </View>
       <Text className="flex-1 font-sans text-sm leading-5 text-chili-700">{children}</Text>
     </View>
-  )
+  );
 }
 
 /** Shimmer placeholder (pulse on native). Size it with width/height classes. */
 export function Skeleton({ className = '' }: { className?: string }) {
-  return <View className={`animate-pulse rounded-lg bg-salt-200 ${className}`} />
+  return <View className={`animate-pulse rounded-lg bg-salt-200 ${className}`} />;
 }
 
 /**
@@ -47,10 +47,10 @@ export function EmptyState({
   hint,
   action,
 }: {
-  icon: LucideIcon
-  title: string
-  hint?: string
-  action?: ReactNode
+  icon: LucideIcon;
+  title: string;
+  hint?: string;
+  action?: ReactNode;
 }) {
   return (
     <View className={`items-center gap-3 px-6 py-14 ${cardClass}`}>
@@ -65,7 +65,8 @@ export function EmptyState({
       )}
       {action && <View className="mt-2">{action}</View>}
     </View>
-  )}
+  );
+}
 
 /**
  * One segmented option. The active pill is its own always-mounted layer whose
@@ -79,15 +80,15 @@ function SegmentedOption({
   label,
   icon: Icon,
 }: {
-  active: boolean
-  onPress: () => void
-  label: string
-  icon?: LucideIcon
+  active: boolean;
+  onPress: () => void;
+  label: string;
+  icon?: LucideIcon;
 }) {
   const pill = useAnimatedStyle(
     () => ({ opacity: withTiming(active ? 1 : 0, { duration: 160 }) }),
-    [active]
-  )
+    [active],
+  );
 
   return (
     <Pressable
@@ -114,7 +115,7 @@ function SegmentedOption({
         {label}
       </Text>
     </Pressable>
-  )
+  );
 }
 
 /** Segmented control — the recipes/training shelf toggle. */
@@ -123,9 +124,9 @@ export function Segmented<T extends string>({
   onChange,
   options,
 }: {
-  value: T
-  onChange: (next: T) => void
-  options: { id: T; label: string; icon?: LucideIcon }[]
+  value: T;
+  onChange: (next: T) => void;
+  options: { id: T; label: string; icon?: LucideIcon }[];
 }) {
   return (
     <View className="flex-row items-center gap-1 self-start rounded-xl border border-salt-200 bg-salt-100 p-1">
@@ -139,7 +140,7 @@ export function Segmented<T extends string>({
         />
       ))}
     </View>
-  )
+  );
 }
 
 /** Primary CTA — ember, filled, glove-sized. */
@@ -150,11 +151,11 @@ export function PrimaryButton({
   icon: Icon,
   children,
 }: {
-  onPress: () => void
-  disabled?: boolean
-  busy?: boolean
-  icon?: LucideIcon
-  children: string
+  onPress: () => void;
+  disabled?: boolean;
+  busy?: boolean;
+  icon?: LucideIcon;
+  children: string;
 }) {
   return (
     <Pressable
@@ -172,7 +173,7 @@ export function PrimaryButton({
       )}
       <Text className="font-sans-semibold text-base text-white">{children}</Text>
     </Pressable>
-  )
+  );
 }
 
 /** Quiet bordered button — secondary actions. */
@@ -183,11 +184,11 @@ export function SubtleButton({
   icon: Icon,
   children,
 }: {
-  onPress: () => void
-  disabled?: boolean
-  busy?: boolean
-  icon?: LucideIcon
-  children: string
+  onPress: () => void;
+  disabled?: boolean;
+  busy?: boolean;
+  icon?: LucideIcon;
+  children: string;
 }) {
   return (
     <Pressable
@@ -205,7 +206,7 @@ export function SubtleButton({
       )}
       <Text className="font-sans-medium text-sm text-steel-700">{children}</Text>
     </Pressable>
-  )
+  );
 }
 
 /**
@@ -217,9 +218,9 @@ export function Chip({
   icon: Icon,
   label,
 }: {
-  tone: 'basil' | 'citron' | 'steel' | 'chili'
-  icon?: LucideIcon
-  label: string
+  tone: 'basil' | 'citron' | 'steel' | 'chili';
+  icon?: LucideIcon;
+  label: string;
 }) {
   const tones = {
     basil: {
@@ -242,16 +243,18 @@ export function Chip({
       text: 'text-chili-700',
       icon: colors.chili[700],
     },
-  }[tone]
+  }[tone];
 
   return (
-    <View className={`flex-row items-center gap-1 self-start rounded-full border px-2 py-0.5 ${tones.box}`}>
+    <View
+      className={`flex-row items-center gap-1 self-start rounded-full border px-2 py-0.5 ${tones.box}`}
+    >
       {Icon && <Icon size={12} color={tones.icon} />}
       <Text className={`font-sans-semibold text-2xs uppercase tracking-wide ${tones.text}`}>
         {label}
       </Text>
     </View>
-  )
+  );
 }
 
 /**
@@ -266,5 +269,5 @@ export function WarningBanner({ icon: Icon, children }: { icon: LucideIcon; chil
       </View>
       <Text className="flex-1 font-sans text-sm leading-5 text-citron-700">{children}</Text>
     </View>
-  )
+  );
 }

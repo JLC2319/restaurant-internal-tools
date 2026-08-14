@@ -33,7 +33,7 @@ const organizationSchema = new Schema<IOrganization>(
       website: { type: String, trim: true, maxlength: 200, default: null },
     },
   },
-  { timestamps: { createdAt: 'createdAt', updatedAt: 'modifiedAt' } }
+  { timestamps: { createdAt: 'createdAt', updatedAt: 'modifiedAt' } },
 );
 
 export const Organization = model<IOrganization>('Organization', organizationSchema);

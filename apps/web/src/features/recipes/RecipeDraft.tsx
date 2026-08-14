@@ -1,12 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useEffect, useRef, useState } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import type {
   CreateRecipeInput,
   DraftRecipesResponse,
   RecipeDraftProposal,
   RecipePublishMode,
-} from '@rit/shared'
-import { MAX_DRAFT_PHOTOS, MAX_DRAFT_TOTAL_BYTES, roleAtLeast } from '@rit/shared'
+} from '@rit/shared';
+import { MAX_DRAFT_PHOTOS, MAX_DRAFT_TOTAL_BYTES, roleAtLeast } from '@rit/shared';
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -21,21 +21,21 @@ import {
   Sparkles,
   Tablet,
   X,
-} from 'lucide-react'
-import { getDraftConfig, draftRecipesFromPhotos } from '@/lib/api/drafts'
+} from 'lucide-react';
+import { getDraftConfig, draftRecipesFromPhotos } from '@/lib/api/drafts';
 import {
   createRecipe,
   getScopePublishMode,
   publishRecipe,
   recipesScopeKey,
-} from '@/features/recipes/api'
-import { useActiveRole } from '@/features/auth/useActiveRole'
-import { ScopePicker, defaultScopeSelection } from '@/features/tenancy/ScopePicker'
-import type { ScopeSelection } from '@/features/tenancy/ScopePicker'
-import { QueryProvider } from '@/lib/QueryProvider'
-import { PublishOnSaveControls, usePublishOnSave } from '@/features/recipes/PublishOnSave'
-import { DRAFTING_MESSAGES } from '@/features/recipes/draftingMessages'
-import { WorkingOverlay } from '@/components/ui/WorkingOverlay'
+} from '@/features/recipes/api';
+import { useActiveRole } from '@/features/auth/useActiveRole';
+import { ScopePicker, defaultScopeSelection } from '@/features/tenancy/ScopePicker';
+import type { ScopeSelection } from '@/features/tenancy/ScopePicker';
+import { QueryProvider } from '@/lib/QueryProvider';
+import { PublishOnSaveControls, usePublishOnSave } from '@/features/recipes/PublishOnSave';
+import { DRAFTING_MESSAGES } from '@/features/recipes/draftingMessages';
+import { WorkingOverlay } from '@/components/ui/WorkingOverlay';
 import {
   EmptyState,
   ErrorNote,
@@ -44,7 +44,7 @@ import {
   inputClass,
   primaryButtonClass,
   subtleButtonClass,
-} from '@/components/ui'
+} from '@/components/ui';
 
 /**
  * AI recipe drafting — review-first, by design. Photos go up, proposals come
@@ -55,18 +55,18 @@ import {
  */
 
 interface Picked {
-  file: File
-  url: string
+  file: File;
+  url: string;
 }
 
 function totalBytes(picked: Picked[]): number {
-  return picked.reduce((sum, p) => sum + p.file.size, 0)
+  return picked.reduce((sum, p) => sum + p.file.size, 0);
 }
 
 function proposalToContent(p: RecipeDraftProposal): CreateRecipeInput['content'] {
-  const times: { prepMinutes?: number; cookMinutes?: number } = {}
-  if (p.times?.prepMinutes != null) times.prepMinutes = p.times.prepMinutes
-  if (p.times?.cookMinutes != null) times.cookMinutes = p.times.cookMinutes
+  const times: { prepMinutes?: number; cookMinutes?: number } = {};
+  if (p.times?.prepMinutes != null) times.prepMinutes = p.times.prepMinutes;
+  if (p.times?.cookMinutes != null) times.cookMinutes = p.times.cookMinutes;
   return {
     description: p.description,
     yield: p.yield,
@@ -81,7 +81,7 @@ function proposalToContent(p: RecipeDraftProposal): CreateRecipeInput['content']
     dietary: p.dietary,
     photoIds: [],
     ...(Object.keys(times).length > 0 ? { times } : {}),
-  }
+  };
 }
 
 function ProposalCard({
@@ -92,18 +92,18 @@ function ProposalCard({
   scope,
   onPublishChange,
 }: {
-  proposal: RecipeDraftProposal
-  index: number
-  publishMode: RecipePublishMode
-  publish: boolean
-  scope: ScopeSelection
-  onPublishChange: (next: boolean) => void
+  proposal: RecipeDraftProposal;
+  index: number;
+  publishMode: RecipePublishMode;
+  publish: boolean;
+  scope: ScopeSelection;
+  onPublishChange: (next: boolean) => void;
 }) {
-  const [error, setError] = useState<string | null>(null)
-  const [createdId, setCreatedId] = useState<string | null>(null)
-  const [published, setPublished] = useState(false)
+  const [error, setError] = useState<string | null>(null);
+  const [createdId, setCreatedId] = useState<string | null>(null);
+  const [published, setPublished] = useState(false);
   // Per proposal, never remembered: each dish's allergens are their own claim.
-  const [signOff, setSignOff] = useState(false)
+  const [signOff, setSignOff] = useState(false);
 
   const create = useMutation({
     mutationFn: async () => {
@@ -112,28 +112,28 @@ function ProposalCard({
         content: proposalToContent(proposal),
         propertyId: scope.propertyId || null,
         locationId: scope.locationId || null,
-      })
-      if (result.error) throw new Error(result.error.message)
-      if (!publish) return { recipe: result.data, published: false }
+      });
+      if (result.error) throw new Error(result.error.message);
+      if (!publish) return { recipe: result.data, published: false };
 
       // Created first, published second. A failure here leaves the draft on the
       // recipe list rather than losing the proposal, and the chef can publish
       // it from the editor.
-      const live = await publishRecipe(result.data._id, { approveAllergens: signOff })
+      const live = await publishRecipe(result.data._id, { approveAllergens: signOff });
       if (live.error) {
-        setCreatedId(result.data._id)
-        throw new Error(`Created as a draft, but publishing failed: ${live.error.message}`)
+        setCreatedId(result.data._id);
+        throw new Error(`Created as a draft, but publishing failed: ${live.error.message}`);
       }
-      return { recipe: live.data, published: true }
+      return { recipe: live.data, published: true };
     },
     onSuccess: ({ recipe, published: didPublish }) => {
-      setCreatedId(recipe._id)
-      setPublished(didPublish)
+      setCreatedId(recipe._id);
+      setPublished(didPublish);
     },
     onError: (err: Error) => setError(err.message),
-  })
+  });
 
-  const signOffMissing = publish && publishMode === 'publish_on_save_verified' && !signOff
+  const signOffMissing = publish && publishMode === 'publish_on_save_verified' && !signOff;
 
   return (
     <article
@@ -169,8 +169,8 @@ function ProposalCard({
           <button
             type="button"
             onClick={() => {
-              setError(null)
-              create.mutate()
+              setError(null);
+              create.mutate();
             }}
             disabled={create.isPending || signOffMissing}
             className={primaryButtonClass}
@@ -293,26 +293,26 @@ function ProposalCard({
         </div>
       )}
     </article>
-  )
+  );
 }
 
 function Drafter() {
-  const { role } = useActiveRole()
-  const canDraft = role != null && roleAtLeast(role, 'chef')
-  const inputRef = useRef<HTMLInputElement>(null)
-  const [picked, setPicked] = useState<Picked[]>([])
-  const [hint, setHint] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [result, setResult] = useState<DraftRecipesResponse | null>(null)
+  const { role } = useActiveRole();
+  const canDraft = role != null && roleAtLeast(role, 'chef');
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [picked, setPicked] = useState<Picked[]>([]);
+  const [hint, setHint] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<DraftRecipesResponse | null>(null);
 
   const { data: config, isLoading: configLoading } = useQuery({
     queryKey: ['drafts', ...recipesScopeKey(), 'config'],
     queryFn: async () => {
-      const res = await getDraftConfig()
-      if (res.error) throw new Error(res.error.message)
-      return res.data
+      const res = await getDraftConfig();
+      if (res.error) throw new Error(res.error.message);
+      return res.data;
     },
-  })
+  });
 
   /**
    * The publish mode for the scope these proposals would be created in. Asked
@@ -322,57 +322,57 @@ function Drafter() {
   const { data: publishModeView } = useQuery({
     queryKey: ['recipes', ...recipesScopeKey(), 'publish-mode'],
     queryFn: async () => {
-      const res = await getScopePublishMode()
-      if (res.error) throw new Error(res.error.message)
-      return res.data
+      const res = await getScopePublishMode();
+      if (res.error) throw new Error(res.error.message);
+      return res.data;
     },
     enabled: canDraft,
-  })
-  const publishMode = publishModeView?.mode ?? 'manual'
+  });
+  const publishMode = publishModeView?.mode ?? 'manual';
   // One switch for the page, not one per proposal: a chef reviewing six cards
   // from one batch of photos is making a single decision about all of them.
-  const [publish, setPublish] = usePublishOnSave(publishMode !== 'manual')
+  const [publish, setPublish] = usePublishOnSave(publishMode !== 'manual');
   // Likewise one placement for the whole batch — photos of one book belong in
   // one place. NOTE: `publishMode` above is resolved for the caller's own
   // scope; picking a different home may make the publish shortcut fail there,
   // in which case the proposal is still created as a draft (the card says so).
-  const [scope, setScope] = useState<ScopeSelection>(defaultScopeSelection)
+  const [scope, setScope] = useState<ScopeSelection>(defaultScopeSelection);
 
   // Object URLs are revoked when their thumbnail is removed (below) and, as a
   // backstop, all together on unmount — via a ref so this cleanup runs once.
-  const pickedRef = useRef<Picked[]>(picked)
-  pickedRef.current = picked
-  useEffect(() => () => pickedRef.current.forEach((p) => URL.revokeObjectURL(p.url)), [])
+  const pickedRef = useRef<Picked[]>(picked);
+  pickedRef.current = picked;
+  useEffect(() => () => pickedRef.current.forEach((p) => URL.revokeObjectURL(p.url)), []);
 
   const draft = useMutation({
     mutationFn: async () => {
       const res = await draftRecipesFromPhotos(
         picked.map((p) => p.file),
-        hint.trim() || undefined
-      )
-      if (res.error) throw new Error(res.error.message)
-      return res.data
+        hint.trim() || undefined,
+      );
+      if (res.error) throw new Error(res.error.message);
+      return res.data;
     },
     onSuccess: (data) => setResult(data),
     onError: (err: Error) => setError(err.message),
-  })
+  });
 
   function addFiles(list: FileList | null) {
-    if (!list) return
-    setError(null)
-    const incoming = [...list].map((file) => ({ file, url: URL.createObjectURL(file) }))
+    if (!list) return;
+    setError(null);
+    const incoming = [...list].map((file) => ({ file, url: URL.createObjectURL(file) }));
     setPicked((prev) => {
-      const next = [...prev, ...incoming].slice(0, MAX_DRAFT_PHOTOS)
-      incoming.slice(next.length - prev.length).forEach((p) => URL.revokeObjectURL(p.url))
-      return next
-    })
+      const next = [...prev, ...incoming].slice(0, MAX_DRAFT_PHOTOS);
+      incoming.slice(next.length - prev.length).forEach((p) => URL.revokeObjectURL(p.url));
+      return next;
+    });
   }
 
   function removeAt(index: number) {
     setPicked((prev) => {
-      URL.revokeObjectURL(prev[index].url)
-      return prev.filter((_, i) => i !== index)
-    })
+      URL.revokeObjectURL(prev[index].url);
+      return prev.filter((_, i) => i !== index);
+    });
   }
 
   if (configLoading) {
@@ -381,7 +381,7 @@ function Drafter() {
         <Skeleton className="h-40" />
         <Skeleton className="h-12 w-64" />
       </div>
-    )
+    );
   }
 
   if (!canDraft) {
@@ -391,7 +391,7 @@ function Drafter() {
         title="Chefs draft recipes"
         hint="Drafting from photos creates recipes, which needs a chef role or above in this scope."
       />
-    )
+    );
   }
 
   if (config && !config.enabled) {
@@ -401,7 +401,7 @@ function Drafter() {
         title="AI drafting is not configured"
         hint="This server has no Anthropic API key set (or AI_DRAFTING_ENABLED is off). Add one to turn photos of recipe cards into drafts."
       />
-    )
+    );
   }
 
   if (result) {
@@ -416,9 +416,9 @@ function Drafter() {
           <button
             type="button"
             onClick={() => {
-              setResult(null)
-              setPicked([])
-              setHint('')
+              setResult(null);
+              setPicked([]);
+              setHint('');
             }}
             className={subtleButtonClass}
           >
@@ -466,11 +466,11 @@ function Drafter() {
           ))}
         </div>
       </div>
-    )
+    );
   }
 
-  const bytes = totalBytes(picked)
-  const overBudget = bytes > MAX_DRAFT_TOTAL_BYTES
+  const bytes = totalBytes(picked);
+  const overBudget = bytes > MAX_DRAFT_TOTAL_BYTES;
 
   return (
     <div className="space-y-5">
@@ -484,8 +484,8 @@ function Drafter() {
           multiple
           className="hidden"
           onChange={(e) => {
-            addFiles(e.target.files)
-            e.target.value = ''
+            addFiles(e.target.files);
+            e.target.value = '';
           }}
         />
 
@@ -500,15 +500,18 @@ function Drafter() {
             </span>
             <span className="font-semibold text-steel-900">Add photos</span>
             <span className="max-w-md text-sm text-salt-600">
-              Recipe cards, cookbook pages, printed sheets, whiteboards — even a plated dish.
-              Up to {MAX_DRAFT_PHOTOS} photos, 20MB total.
+              Recipe cards, cookbook pages, printed sheets, whiteboards — even a plated dish. Up to{' '}
+              {MAX_DRAFT_PHOTOS} photos, 20MB total.
             </span>
           </button>
         ) : (
           <div className="space-y-3">
             <div className="grid grid-cols-3 gap-3 phablet:grid-cols-4 tablet:grid-cols-6">
               {picked.map((p, index) => (
-                <div key={p.url} className="group relative aspect-square overflow-hidden rounded-xl ring-1 ring-salt-200">
+                <div
+                  key={p.url}
+                  className="group relative aspect-square overflow-hidden rounded-xl ring-1 ring-salt-200"
+                >
                   <img src={p.url} alt={`Photo ${index + 1}`} className="size-full object-cover" />
                   <button
                     type="button"
@@ -532,7 +535,9 @@ function Drafter() {
                 </button>
               )}
             </div>
-            <p className={`text-xs ${overBudget ? 'font-semibold text-chili-600' : 'text-salt-500'}`}>
+            <p
+              className={`text-xs ${overBudget ? 'font-semibold text-chili-600' : 'text-salt-500'}`}
+            >
               {picked.length} {picked.length === 1 ? 'photo' : 'photos'} ·{' '}
               {(bytes / (1024 * 1024)).toFixed(1)}MB of 20MB
               {overBudget && ' — remove a photo or two'}
@@ -559,8 +564,8 @@ function Drafter() {
           <button
             type="button"
             onClick={() => {
-              setError(null)
-              draft.mutate()
+              setError(null);
+              draft.mutate();
             }}
             disabled={picked.length === 0 || overBudget || draft.isPending}
             className={primaryButtonClass}
@@ -585,7 +590,7 @@ function Drafter() {
         </span>
       </p>
     </div>
-  )
+  );
 }
 
 export function RecipeDraft() {
@@ -593,5 +598,5 @@ export function RecipeDraft() {
     <QueryProvider>
       <Drafter />
     </QueryProvider>
-  )
+  );
 }

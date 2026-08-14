@@ -1,5 +1,5 @@
-import type { ApiError, ApiResult, MediaAssetView } from '@rit/shared'
-import { BASE_URL, apiRequest, buildAuthScopeHeaders, handleUnauthorized } from '@/lib/api/client'
+import type { ApiError, ApiResult, MediaAssetView } from '@rit/shared';
+import { BASE_URL, apiRequest, buildAuthScopeHeaders, handleUnauthorized } from '@/lib/api/client';
 
 /**
  * Media uploads. The API decides an upload's real format from its bytes, so
@@ -8,9 +8,9 @@ import { BASE_URL, apiRequest, buildAuthScopeHeaders, handleUnauthorized } from 
  */
 
 export function uploadPhoto(file: File): Promise<ApiResult<MediaAssetView>> {
-  const body = new FormData()
-  body.append('file', file)
-  return apiRequest<MediaAssetView>('/api/media/photos', { method: 'POST', body })
+  const body = new FormData();
+  body.append('file', file);
+  return apiRequest<MediaAssetView>('/api/media/photos', { method: 'POST', body });
 }
 
 /**
@@ -24,45 +24,45 @@ export function uploadPhoto(file: File): Promise<ApiResult<MediaAssetView>> {
  */
 export function uploadVideo(
   file: File,
-  onProgress: (fraction: number) => void
+  onProgress: (fraction: number) => void,
 ): Promise<ApiResult<MediaAssetView>> {
   return new Promise((resolve) => {
-    const xhr = new XMLHttpRequest()
-    xhr.open('POST', `${BASE_URL}/api/media/videos`)
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${BASE_URL}/api/media/videos`);
 
     for (const [name, value] of Object.entries(buildAuthScopeHeaders())) {
-      xhr.setRequestHeader(name, value)
+      xhr.setRequestHeader(name, value);
     }
 
     xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable) onProgress(event.loaded / event.total)
-    }
+      if (event.lengthComputable) onProgress(event.loaded / event.total);
+    };
 
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
-          resolve({ data: JSON.parse(xhr.responseText) as MediaAssetView, error: null })
+          resolve({ data: JSON.parse(xhr.responseText) as MediaAssetView, error: null });
         } catch {
-          resolve({ data: null, error: { message: 'Unexpected server response' } })
+          resolve({ data: null, error: { message: 'Unexpected server response' } });
         }
-        return
+        return;
       }
-      let error: ApiError = { message: `HTTP ${xhr.status}` }
+      let error: ApiError = { message: `HTTP ${xhr.status}` };
       try {
-        error = JSON.parse(xhr.responseText) as ApiError
+        error = JSON.parse(xhr.responseText) as ApiError;
       } catch {
         // Non-JSON error body — keep the status-code message.
       }
-      if (xhr.status === 401) handleUnauthorized()
-      resolve({ data: null, error })
-    }
-    xhr.onerror = () => resolve({ data: null, error: { message: 'Network error' } })
-    xhr.onabort = () => resolve({ data: null, error: { message: 'Upload cancelled' } })
+      if (xhr.status === 401) handleUnauthorized();
+      resolve({ data: null, error });
+    };
+    xhr.onerror = () => resolve({ data: null, error: { message: 'Network error' } });
+    xhr.onabort = () => resolve({ data: null, error: { message: 'Upload cancelled' } });
 
-    const body = new FormData()
-    body.append('file', file)
-    xhr.send(body)
-  })
+    const body = new FormData();
+    body.append('file', file);
+    xhr.send(body);
+  });
 }
 
 /**
@@ -70,5 +70,5 @@ export function uploadVideo(
  * a recipe is a recipe edit — this is for discarding an upload outright.
  */
 export function deleteAsset(id: string): Promise<ApiResult<null>> {
-  return apiRequest<null>(`/api/media/${id}`, { method: 'DELETE' })
+  return apiRequest<null>(`/api/media/${id}`, { method: 'DELETE' });
 }

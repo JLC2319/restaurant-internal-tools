@@ -1,8 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
-import mongoose from 'mongoose';
-import { MongoMemoryServer } from 'mongodb-memory-server';
 import { app } from '../../app';
+import { connectToTestDb, disconnectTestDb } from './db';
 import { Recipe } from '../../features/recipes/recipe.model';
 
 /**
@@ -11,16 +10,12 @@ import { Recipe } from '../../features/recipes/recipe.model';
  * rejection, fork scope stamping, and the allergen sign-off lifecycle.
  */
 
-let mongo: MongoMemoryServer;
-
 beforeAll(async () => {
-  mongo = await MongoMemoryServer.create();
-  await mongoose.connect(mongo.getUri());
+  await connectToTestDb('recipes');
 }, 120_000);
 
 afterAll(async () => {
-  await mongoose.disconnect();
-  await mongo?.stop();
+  await disconnectTestDb();
 });
 
 const PASSWORD = 'a-long-enough-password';
@@ -51,7 +46,7 @@ async function addMember(
   orgId: string,
   email: string,
   role: string,
-  scope: { propertyId?: string; locationId?: string } = {}
+  scope: { propertyId?: string; locationId?: string } = {},
 ): Promise<{ token: string; userId: string }> {
   const account = await registerAndLogin(email);
   const invited = await request(app)
@@ -77,7 +72,7 @@ async function createLocation(
   ownerToken: string,
   orgId: string,
   propertyId: string,
-  name: string
+  name: string,
 ): Promise<string> {
   const response = await request(app)
     .post('/api/tenancy/locations')
@@ -128,7 +123,7 @@ async function createRecipe(
   token: string,
   orgId: string,
   name: string,
-  body: Record<string, unknown> = {}
+  body: Record<string, unknown> = {},
 ): Promise<string> {
   const response = await as(token, orgId)
     .post('/api/recipes')
@@ -138,7 +133,7 @@ async function createRecipe(
 }
 
 describe('tenant isolation', () => {
-  it('never leaks one org\'s recipes to another', async () => {
+  it("never leaks one org's recipes to another", async () => {
     const ownerA = await registerAndLogin('iso-owner-a@example.com');
     const ownerB = await registerAndLogin('iso-owner-b@example.com');
     const orgA = await createOrg(ownerA.token, 'Isolation Org A');
@@ -220,7 +215,7 @@ describe('staff vs chef visibility', () => {
     const tags = update.body.workingCopy.allergens;
     expect(tags.find((t: { allergen: string }) => t.allergen === 'milk').status).toBe('approved');
     expect(tags.find((t: { allergen: string }) => t.allergen === 'sulphites').status).toBe(
-      'pending_review'
+      'pending_review',
     );
 
     const saved = await as(chef.token, orgId).post(`/api/recipes/${recipeId}/versions`).send({});
@@ -282,7 +277,7 @@ describe('versioning', () => {
     expect(update.status).toBe(200);
 
     const v1Detail = await as(chef.token, orgId).get(
-      `/api/recipes/${recipeId}/versions/${v1.body._id}`
+      `/api/recipes/${recipeId}/versions/${v1.body._id}`,
     );
     expect(v1Detail.status).toBe(200);
     expect(v1Detail.body.content.ingredients[0].name).toBe('San Marzano tomatoes');
@@ -417,13 +412,11 @@ describe('forking', () => {
 
   it('refuses to fork an unpublished recipe without a named version', async () => {
     const unpublished = await createRecipe(owner.token, orgId, 'Unpublished Idea');
-    const forked = await as(owner.token, orgId)
-      .post(`/api/recipes/${unpublished}/fork`)
-      .send({});
+    const forked = await as(owner.token, orgId).post(`/api/recipes/${unpublished}/fork`).send({});
     expect(forked.status).toBe(409);
   });
 
-  it('refuses a fork outside the caller\'s write scope', async () => {
+  it("refuses a fork outside the caller's write scope", async () => {
     const otherProperty = await createProperty(owner.token, orgId, 'Other Property');
     const locationChef = await addMember(owner.token, orgId, 'fork-loc-chef@example.com', 'chef', {
       propertyId,
@@ -498,9 +491,7 @@ describe('archival', () => {
     expect(archived.status).toBe(204);
 
     const activeList = await as(chef.token, orgId).get('/api/recipes');
-    expect(
-      activeList.body.items.find((r: { _id: string }) => r._id === sub)
-    ).toBeUndefined();
+    expect(activeList.body.items.find((r: { _id: string }) => r._id === sub)).toBeUndefined();
 
     const archivedList = await as(chef.token, orgId).get('/api/recipes?status=archived');
     expect(archivedList.body.items.map((r: { _id: string }) => r._id)).toContain(sub);
@@ -619,9 +610,9 @@ describe('publish on save', () => {
     const orgId = await createOrg(owner.token, 'Already Live Org');
 
     const recipeId = await createRecipe(owner.token, orgId, 'House Vinaigrette');
-    expect((await as(owner.token, orgId).post(`/api/recipes/${recipeId}/publish`).send({})).status).toBe(
-      200
-    );
+    expect(
+      (await as(owner.token, orgId).post(`/api/recipes/${recipeId}/publish`).send({})).status,
+    ).toBe(200);
 
     // Changing what a kitchen is already reading stays two deliberate acts.
     const second = await as(owner.token, orgId).post(`/api/recipes/${recipeId}/publish`).send({});
@@ -667,7 +658,7 @@ describe('publish on save', () => {
     expect(signed.body.allergensVerified).toBe(true);
   });
 
-  it('resolves the mode from the recipe\'s scope, not the caller\'s', async () => {
+  it("resolves the mode from the recipe's scope, not the caller's", async () => {
     const owner = await registerAndLogin('pub-scope@example.com');
     const orgId = await createOrg(owner.token, 'Scoped Publish Org');
     const propertyId = await createProperty(owner.token, orgId, 'Downtown');
@@ -760,7 +751,7 @@ describe('person-level access restriction', () => {
   async function restrict(
     token: string,
     recipeId: string,
-    userIds: string[]
+    userIds: string[],
   ): Promise<request.Response> {
     return as(token, orgId).put(`/api/recipes/${recipeId}/access`).send({ access: { userIds } });
   }
@@ -823,21 +814,21 @@ describe('person-level access restriction', () => {
 
     expect((await as(chefOutsider.token, orgId).get(`/api/recipes/${secretId}`)).status).toBe(404);
     expect(
-      (await as(chefOutsider.token, orgId).get(`/api/recipes/${secretId}/versions`)).status
+      (await as(chefOutsider.token, orgId).get(`/api/recipes/${secretId}/versions`)).status,
     ).toBe(404);
     expect(
       (await as(chefOutsider.token, orgId).get(`/api/recipes/${secretId}/versions/${secretV1}`))
-        .status
+        .status,
     ).toBe(404);
     expect(
       (
         await as(chefOutsider.token, orgId)
           .patch(`/api/recipes/${secretId}`)
           .send({ name: 'Stolen Demi' })
-      ).status
+      ).status,
     ).toBe(404);
     expect(
-      (await as(chefOutsider.token, orgId).post(`/api/recipes/${secretId}/fork`).send({})).status
+      (await as(chefOutsider.token, orgId).post(`/api/recipes/${secretId}/fork`).send({})).status,
     ).toBe(404);
     expect((await restrict(chefOutsider.token, secretId, [chefOutsider.userId])).status).toBe(404);
 
@@ -857,7 +848,7 @@ describe('person-level access restriction', () => {
     expect(detail.status).toBe(200);
     // The creator manages it, so the allow-list itself is visible to them.
     expect(detail.body.access.userIds).toEqual(
-      expect.arrayContaining([chefListed.userId, staffListed.userId])
+      expect.arrayContaining([chefListed.userId, staffListed.userId]),
     );
     const rename = await as(chefCreator.token, orgId)
       .patch(`/api/recipes/${secretId}`)
@@ -899,10 +890,7 @@ describe('person-level access restriction', () => {
 
     // A location member below the recipe's property, and an org-wide member,
     // are both genuinely covered — accepted.
-    const valid = await restrict(owner.token, p1Recipe, [
-      staffListed.userId,
-      chefOutsider.userId,
-    ]);
+    const valid = await restrict(owner.token, p1Recipe, [staffListed.userId, chefOutsider.userId]);
     expect(valid.status).toBe(200);
     expect(valid.body.access.userIds).toHaveLength(2);
   });
@@ -910,7 +898,7 @@ describe('person-level access restriction', () => {
   it('offers exactly the coverable people as picker candidates', async () => {
     const p1Recipe = await createRecipe(owner.token, orgId, 'P1 Staff Meal', { propertyId: p1 });
     const candidates = await as(owner.token, orgId).get(
-      `/api/recipes/${p1Recipe}/access/candidates`
+      `/api/recipes/${p1Recipe}/access/candidates`,
     );
     expect(candidates.status).toBe(200);
     const emails = candidates.body.map((c: { email: string }) => c.email);
@@ -921,12 +909,11 @@ describe('person-level access restriction', () => {
     // The endpoint is gated like any other read of the recipe…
     expect(
       (await as(chefOutsider.token, orgId).get(`/api/recipes/${secretId}/access/candidates`))
-        .status
+        .status,
     ).toBe(404);
     // …and by role.
     expect(
-      (await as(staffListed.token, orgId).get(`/api/recipes/${secretId}/access/candidates`))
-        .status
+      (await as(staffListed.token, orgId).get(`/api/recipes/${secretId}/access/candidates`)).status,
     ).toBe(403);
   });
 
@@ -953,9 +940,7 @@ describe('person-level access restriction', () => {
 
     // Anyone may read the fork now — but only readers of the source learn
     // where it came from; everyone else just sees "a fork of something".
-    const outsiderView = await as(chefOutsider.token, orgId).get(
-      `/api/recipes/${forked.body._id}`
-    );
+    const outsiderView = await as(chefOutsider.token, orgId).get(`/api/recipes/${forked.body._id}`);
     expect(outsiderView.status).toBe(200);
     expect(outsiderView.body.isFork).toBe(true);
     expect(outsiderView.body.forkedFrom).toBeNull();
@@ -975,7 +960,9 @@ describe('person-level access restriction', () => {
     // …so resaving Board Sauce keeps working for its unlisted editor,
     const resave = await as(chefOutsider.token, orgId)
       .patch(`/api/recipes/${board}`)
-      .send({ content: content({ ingredients: [subLine(glaze)], steps: ['Whisk, then combine.'] }) });
+      .send({
+        content: content({ ingredients: [subLine(glaze)], steps: ['Whisk, then combine.'] }),
+      });
     expect(resave.status).toBe(200);
 
     // the glaze's NAME still renders on the line (approved, name-only leak),
@@ -994,15 +981,12 @@ describe('person-level access restriction', () => {
 
   it('gates translation reads behind the same predicate', async () => {
     expect(
-      (
-        await as(chefOutsider.token, orgId).get(
-          `/api/translations/recipes/${secretId}?locale=es`
-        )
-      ).status
+      (await as(chefOutsider.token, orgId).get(`/api/translations/recipes/${secretId}?locale=es`))
+        .status,
     ).toBe(404);
     expect(
       (await as(chefListed.token, orgId).get(`/api/translations/recipes/${secretId}?locale=es`))
-        .status
+        .status,
     ).toBe(200);
   });
 
@@ -1021,9 +1005,7 @@ describe('person-level access restriction', () => {
   it('changes nothing about cross-org isolation', async () => {
     const otherOwner = await registerAndLogin('acl-other-org@example.com');
     const otherOrg = await createOrg(otherOwner.token, 'ACL Foreign Org');
-    expect((await as(otherOwner.token, otherOrg).get(`/api/recipes/${secretId}`)).status).toBe(
-      404
-    );
+    expect((await as(otherOwner.token, otherOrg).get(`/api/recipes/${secretId}`)).status).toBe(404);
   });
 
   it('accepts an allow-list at creation, validated the same way', async () => {
@@ -1036,9 +1018,9 @@ describe('person-level access restriction', () => {
       });
     expect(born.status).toBe(201);
     expect(born.body.restricted).toBe(true);
-    expect(
-      (await as(chefOutsider.token, orgId).get(`/api/recipes/${born.body._id}`)).status
-    ).toBe(404);
+    expect((await as(chefOutsider.token, orgId).get(`/api/recipes/${born.body._id}`)).status).toBe(
+      404,
+    );
 
     const invalid = await as(owner.token, orgId)
       .post('/api/recipes')
@@ -1074,7 +1056,7 @@ describe('moving a recipe between scopes', () => {
   function move(
     token: string,
     recipeId: string,
-    placement: { propertyId: string | null; locationId: string | null }
+    placement: { propertyId: string | null; locationId: string | null },
   ) {
     return as(token, orgId).put(`/api/recipes/${recipeId}/scope`).send(placement);
   }
@@ -1102,8 +1084,8 @@ describe('moving a recipe between scopes', () => {
 
     expect(
       (await as(p2Staff.token, orgId).get('/api/recipes')).body.items.map(
-        (r: { name: string }) => r.name
-      )
+        (r: { name: string }) => r.name,
+      ),
     ).toContain('Wandering Rub');
 
     const moved = await move(owner.token, id, { propertyId: p1, locationId: null });
@@ -1112,8 +1094,8 @@ describe('moving a recipe between scopes', () => {
 
     expect(
       (await as(p1Staff.token, orgId).get('/api/recipes')).body.items.map(
-        (r: { name: string }) => r.name
-      )
+        (r: { name: string }) => r.name,
+      ),
     ).toContain('Wandering Rub');
     const p2View = await as(p2Staff.token, orgId).get('/api/recipes');
     expect(p2View.body.items.map((r: { name: string }) => r.name)).not.toContain('Wandering Rub');
@@ -1185,7 +1167,7 @@ describe('moving a recipe between scopes', () => {
 
     // At their own property the same list is fine.
     expect((await move(owner.token, secret, { propertyId: p2, locationId: null })).status).toBe(
-      200
+      200,
     );
   });
 
@@ -1193,19 +1175,17 @@ describe('moving a recipe between scopes', () => {
     const id = await createRecipe(owner.token, orgId, 'Immovable Object', { propertyId: p2 });
 
     // Chef: right property, wrong role.
-    expect((await move(p2Chef.token, id, { propertyId: null, locationId: null })).status).toBe(
-      403
-    );
+    expect((await move(p2Chef.token, id, { propertyId: null, locationId: null })).status).toBe(403);
 
     const p2Manager = await addMember(owner.token, orgId, 'mv-p2-manager@example.com', 'manager', {
       propertyId: p2,
     });
     // Property manager: may not move it up to the org, nor sideways.
-    expect(
-      (await move(p2Manager.token, id, { propertyId: null, locationId: null })).status
-    ).toBe(403);
+    expect((await move(p2Manager.token, id, { propertyId: null, locationId: null })).status).toBe(
+      403,
+    );
     expect((await move(p2Manager.token, id, { propertyId: p1, locationId: null })).status).toBe(
-      403
+      403,
     );
   });
 });

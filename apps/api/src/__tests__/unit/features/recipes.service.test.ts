@@ -131,7 +131,7 @@ describe('assertNoCycle', () => {
     vi.mocked(Recipe.find).mockReturnValue(
       findChain([
         { _id: B, workingCopy: { ingredients: [recipeLine(A)] }, activeVersionId: null },
-      ]) as never
+      ]) as never,
     );
     await expect(assertNoCycle(ctx(), A, [recipeLine(B)])).rejects.toMatchObject({
       statusCode: 409,
@@ -144,15 +144,13 @@ describe('assertNoCycle', () => {
         findChain([
           { _id: B, workingCopy: { ingredients: [recipeLine(D)] }, activeVersionId: null },
           { _id: C, workingCopy: { ingredients: [recipeLine(D)] }, activeVersionId: null },
-        ]) as never
+        ]) as never,
       )
       .mockReturnValueOnce(
-        findChain([{ _id: D, workingCopy: { ingredients: [] }, activeVersionId: null }]) as never
+        findChain([{ _id: D, workingCopy: { ingredients: [] }, activeVersionId: null }]) as never,
       );
 
-    await expect(
-      assertNoCycle(ctx(), A, [recipeLine(B), recipeLine(C)])
-    ).resolves.toBeUndefined();
+    await expect(assertNoCycle(ctx(), A, [recipeLine(B), recipeLine(C)])).resolves.toBeUndefined();
   });
 
   // An active snapshot can reference recipes its current working copy no
@@ -161,10 +159,12 @@ describe('assertNoCycle', () => {
   it('finds a cycle hidden in an active version', async () => {
     const versionId = new Types.ObjectId();
     vi.mocked(Recipe.find).mockReturnValue(
-      findChain([{ _id: B, workingCopy: { ingredients: [] }, activeVersionId: versionId }]) as never
+      findChain([
+        { _id: B, workingCopy: { ingredients: [] }, activeVersionId: versionId },
+      ]) as never,
     );
     vi.mocked(RecipeVersion.find).mockReturnValue(
-      findChain([{ content: { ingredients: [recipeLine(A)] } }]) as never
+      findChain([{ content: { ingredients: [recipeLine(A)] } }]) as never,
     );
 
     await expect(assertNoCycle(ctx(), A, [recipeLine(B)])).rejects.toMatchObject({
@@ -235,10 +235,10 @@ describe('saveVersion', () => {
     expect(Recipe.findOneAndUpdate).toHaveBeenCalledWith(
       expect.objectContaining({ _id: A }),
       { $inc: { currentVersion: 1 } },
-      { new: true }
+      { new: true },
     );
     expect(RecipeVersion.create).toHaveBeenCalledWith(
-      expect.objectContaining({ version: 4, content: workingCopy, scope })
+      expect.objectContaining({ version: 4, content: workingCopy, scope }),
     );
     expect(summary).toMatchObject({ version: 4, note: 'richer stock', isActive: false });
   });
@@ -266,7 +266,15 @@ describe('publishRecipe', () => {
       currentVersion: 1,
       activeVersionId: B,
       activeVersion: 1,
-      workingCopy: { ingredients: [], allergens: [], photoIds: [], dietary: [], steps: [], description: '', yield: { amount: 1, unit: 'qt' } },
+      workingCopy: {
+        ingredients: [],
+        allergens: [],
+        photoIds: [],
+        dietary: [],
+        steps: [],
+        description: '',
+        yield: { amount: 1, unit: 'qt' },
+      },
       forkedFrom: null,
       createdBy: C,
       createdAt: new Date('2026-08-01'),

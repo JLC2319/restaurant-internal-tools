@@ -23,7 +23,7 @@ const scopeSchema = new Schema<IScope>(
     propertyId: { type: Schema.Types.ObjectId, ref: 'Property', default: null },
     locationId: { type: Schema.Types.ObjectId, ref: 'Location', default: null },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const recipeVersionSchema = new Schema<IRecipeVersion>(
@@ -36,7 +36,7 @@ const recipeVersionSchema = new Schema<IRecipeVersion>(
     scope: { type: scopeSchema, required: true },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   },
-  { timestamps: { createdAt: 'createdAt', updatedAt: 'modifiedAt' } }
+  { timestamps: { createdAt: 'createdAt', updatedAt: 'modifiedAt' } },
 );
 
 // Uniqueness is the concurrency backstop for version numbering: two racing

@@ -30,7 +30,7 @@ const locationSchema = new Schema<ILocation>(
     /** Overrides of the property's (then org's) settings; `null` fields inherit. */
     settings: { type: settingsOverrideSchema, default: () => ({}) },
   },
-  { timestamps: { createdAt: 'createdAt', updatedAt: 'modifiedAt' } }
+  { timestamps: { createdAt: 'createdAt', updatedAt: 'modifiedAt' } },
 );
 
 locationSchema.index({ orgId: 1, slug: 1 }, { unique: true });

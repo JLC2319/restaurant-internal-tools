@@ -1,11 +1,11 @@
-import { Fragment } from 'react'
-import type { ReactNode } from 'react'
+import { Fragment } from 'react';
+import type { ReactNode } from 'react';
 import type {
   RichTextBlockNode,
   RichTextDoc,
   RichTextInlineNode,
   RichTextTextNode,
-} from '@rit/shared'
+} from '@rit/shared';
 
 /**
  * The rich-text reader: renders a validated rich-text document (see
@@ -19,24 +19,24 @@ import type {
  */
 
 function renderText(node: RichTextTextNode, key: string): ReactNode {
-  let element: ReactNode = node.text
+  let element: ReactNode = node.text;
   for (const mark of node.marks ?? []) {
     switch (mark.type) {
       case 'bold':
-        element = <strong className="font-semibold text-steel-900">{element}</strong>
-        break
+        element = <strong className="font-semibold text-steel-900">{element}</strong>;
+        break;
       case 'italic':
-        element = <em>{element}</em>
-        break
+        element = <em>{element}</em>;
+        break;
       case 'underline':
-        element = <u className="underline decoration-steel-400 underline-offset-2">{element}</u>
-        break
+        element = <u className="underline decoration-steel-400 underline-offset-2">{element}</u>;
+        break;
       case 'strike':
-        element = <s className="text-steel-600">{element}</s>
-        break
+        element = <s className="text-steel-600">{element}</s>;
+        break;
       case 'link': {
-        const href = mark.attrs.href
-        if (!/^https?:\/\//i.test(href)) break
+        const href = mark.attrs.href;
+        if (!/^https?:\/\//i.test(href)) break;
         element = (
           <a
             href={href}
@@ -46,25 +46,25 @@ function renderText(node: RichTextTextNode, key: string): ReactNode {
           >
             {element}
           </a>
-        )
-        break
+        );
+        break;
       }
     }
   }
-  return <Fragment key={key}>{element}</Fragment>
+  return <Fragment key={key}>{element}</Fragment>;
 }
 
 function renderInline(content: RichTextInlineNode[] | undefined, keyBase: string): ReactNode[] {
   return (content ?? []).map((node, index) => {
-    const key = `${keyBase}-${index}`
-    if (node.type === 'hardBreak') return <br key={key} />
-    return renderText(node, key)
-  })
+    const key = `${keyBase}-${index}`;
+    if (node.type === 'hardBreak') return <br key={key} />;
+    return renderText(node, key);
+  });
 }
 
 function renderBlocks(nodes: RichTextBlockNode[], keyBase: string): ReactNode[] {
   return nodes.map((node, index) => {
-    const key = `${keyBase}-${index}`
+    const key = `${keyBase}-${index}`;
     switch (node.type) {
       case 'paragraph':
         // An empty paragraph is a deliberate blank line — keep it visible.
@@ -73,12 +73,12 @@ function renderBlocks(nodes: RichTextBlockNode[], keyBase: string): ReactNode[] 
             <p key={key}>
               <br />
             </p>
-          )
+          );
         }
-        return <p key={key}>{renderInline(node.content, key)}</p>
+        return <p key={key}>{renderInline(node.content, key)}</p>;
 
       case 'heading': {
-        const content = renderInline(node.content, key)
+        const content = renderInline(node.content, key);
         // The page's h1 is the module title; in-content headings start at h2.
         // `first:pt-0` keeps a section that opens on a heading flush with the
         // top of the reading column.
@@ -94,18 +94,18 @@ function renderBlocks(nodes: RichTextBlockNode[], keyBase: string): ReactNode[] 
               />
               {content}
             </h2>
-          )
+          );
         if (node.attrs.level === 2)
           return (
             <h3 key={key} className="pt-3 text-lg font-bold text-steel-900 first:pt-0">
               {content}
             </h3>
-          )
+          );
         return (
           <h4 key={key} className="pt-2 font-semibold text-steel-900 first:pt-0">
             {content}
           </h4>
-        )
+        );
       }
 
       case 'bulletList':
@@ -117,13 +117,17 @@ function renderBlocks(nodes: RichTextBlockNode[], keyBase: string): ReactNode[] 
               </li>
             ))}
           </ul>
-        )
+        );
 
       case 'orderedList':
         return (
           <ol
             key={key}
-            start={node.attrs?.start !== undefined && node.attrs.start !== 1 ? node.attrs.start : undefined}
+            start={
+              node.attrs?.start !== undefined && node.attrs.start !== 1
+                ? node.attrs.start
+                : undefined
+            }
             className="list-decimal space-y-2 pl-6 marker:font-semibold marker:text-steel-500"
           >
             {node.content.map((item, itemIndex) => (
@@ -132,7 +136,7 @@ function renderBlocks(nodes: RichTextBlockNode[], keyBase: string): ReactNode[] 
               </li>
             ))}
           </ol>
-        )
+        );
 
       case 'blockquote':
         return (
@@ -142,20 +146,20 @@ function renderBlocks(nodes: RichTextBlockNode[], keyBase: string): ReactNode[] 
           >
             {renderBlocks(node.content, key)}
           </blockquote>
-        )
+        );
     }
-  })
+  });
 }
 
 /** Drops trailing blank paragraphs — the editor keeps one for the caret. */
 function trimTrailingEmpty(nodes: RichTextBlockNode[]): RichTextBlockNode[] {
-  let end = nodes.length
+  let end = nodes.length;
   while (end > 0) {
-    const node = nodes[end - 1]
-    if (node.type === 'paragraph' && (!node.content || node.content.length === 0)) end -= 1
-    else break
+    const node = nodes[end - 1];
+    if (node.type === 'paragraph' && (!node.content || node.content.length === 0)) end -= 1;
+    else break;
   }
-  return nodes.slice(0, end)
+  return nodes.slice(0, end);
 }
 
 export function RichText({ doc }: { doc: RichTextDoc }) {
@@ -163,5 +167,5 @@ export function RichText({ doc }: { doc: RichTextDoc }) {
     <div className="space-y-4 text-base leading-7 text-steel-800">
       {renderBlocks(trimTrailingEmpty(doc.content), 'b')}
     </div>
-  )
+  );
 }

@@ -16,7 +16,7 @@ import { pathParam, queryParam } from '../../lib/params';
 export async function createOrganization(req: Request, res: Response): Promise<void> {
   const org = await tenancyService.createOrganization(
     req.userId!,
-    req.body as CreateOrganizationInput
+    req.body as CreateOrganizationInput,
   );
   res.status(201).json(org);
 }
@@ -29,7 +29,7 @@ export async function getOrganization(req: Request, res: Response): Promise<void
 export async function updateOrganization(req: Request, res: Response): Promise<void> {
   const org = await tenancyService.updateOrganization(
     req.tenant!,
-    req.body as UpdateOrganizationInput
+    req.body as UpdateOrganizationInput,
   );
   res.status(200).json(org);
 }
@@ -42,7 +42,7 @@ export async function getTenantTree(req: Request, res: Response): Promise<void> 
 export async function createProperty(req: Request, res: Response): Promise<void> {
   const property = await tenancyService.createProperty(
     req.tenant!,
-    req.body as CreatePropertyInput
+    req.body as CreatePropertyInput,
   );
   res.status(201).json(property);
 }
@@ -56,7 +56,7 @@ export async function updateProperty(req: Request, res: Response): Promise<void>
   const property = await tenancyService.updateProperty(
     req.tenant!,
     pathParam(req, 'id'),
-    req.body as UpdatePropertyInput
+    req.body as UpdatePropertyInput,
   );
   res.status(200).json(property);
 }
@@ -64,7 +64,7 @@ export async function updateProperty(req: Request, res: Response): Promise<void>
 export async function createLocation(req: Request, res: Response): Promise<void> {
   const location = await tenancyService.createLocation(
     req.tenant!,
-    req.body as CreateLocationInput
+    req.body as CreateLocationInput,
   );
   res.status(201).json(location);
 }
@@ -79,7 +79,7 @@ export async function updateLocation(req: Request, res: Response): Promise<void>
   const location = await tenancyService.updateLocation(
     req.tenant!,
     pathParam(req, 'id'),
-    req.body as UpdateLocationInput
+    req.body as UpdateLocationInput,
   );
   res.status(200).json(location);
 }
@@ -94,7 +94,7 @@ export async function inviteMember(req: Request, res: Response): Promise<void> {
   const result = await tenancyService.inviteMember(
     req.tenant!,
     req.userId!,
-    req.body as InviteMemberInput
+    req.body as InviteMemberInput,
   );
   res.status(201).json(result);
 }
@@ -103,7 +103,7 @@ export async function updateMembership(req: Request, res: Response): Promise<voi
   await tenancyService.updateMembership(
     req.tenant!,
     pathParam(req, 'id'),
-    req.body as UpdateMembershipInput
+    req.body as UpdateMembershipInput,
   );
   res.status(204).send();
 }

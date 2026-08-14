@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { ReactNode } from 'react';
 
 /**
  * Segmented control — the modern working/active, active/archived toggle.
@@ -10,10 +10,10 @@ export function Segmented<T extends string>({
   options,
   ariaLabel,
 }: {
-  value: T
-  onChange: (next: T) => void
-  options: { id: T; label: ReactNode }[]
-  ariaLabel: string
+  value: T;
+  onChange: (next: T) => void;
+  options: { id: T; label: ReactNode }[];
+  ariaLabel: string;
 }) {
   return (
     <div
@@ -37,5 +37,5 @@ export function Segmented<T extends string>({
         </button>
       ))}
     </div>
-  )
+  );
 }

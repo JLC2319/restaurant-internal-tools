@@ -1,16 +1,16 @@
-import { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import type { OrganizationProfile, TranslationPublishMode } from '@rit/shared'
-import { resolveTranslationPublishMode, translationPublishModeValues } from '@rit/shared'
-import { Languages, ShieldAlert, Sparkles, UserCheck } from 'lucide-react'
-import { tenancyScopeKey, updateOrganization } from '@/features/tenancy/api'
-import type { ModeMeta } from '@/features/settings/PublishModeSettings'
+import { useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import type { OrganizationProfile, TranslationPublishMode } from '@rit/shared';
+import { resolveTranslationPublishMode, translationPublishModeValues } from '@rit/shared';
+import { Languages, ShieldAlert, Sparkles, UserCheck } from 'lucide-react';
+import { tenancyScopeKey, updateOrganization } from '@/features/tenancy/api';
+import type { ModeMeta } from '@/features/settings/PublishModeSettings';
 import {
   ModeRadioGroup,
   OverrideRows,
   PublishModeBody,
-} from '@/features/settings/PublishModeSettings'
-import { ErrorNote, SavedTick, SectionCard } from '@/components/ui'
+} from '@/features/settings/PublishModeSettings';
+import { ErrorNote, SavedTick, SectionCard } from '@/components/ui';
 
 /**
  * Where a tenant decides what publishing does to the Spanish — one card for
@@ -27,17 +27,17 @@ import { ErrorNote, SavedTick, SectionCard } from '@/components/ui'
  * appears once it is actually chosen.
  */
 
-type TranslationSettingsKey = 'translationPublishMode' | 'trainingTranslationPublishMode'
+type TranslationSettingsKey = 'translationPublishMode' | 'trainingTranslationPublishMode';
 
 /** Everything that differs between the recipe card and the training card. */
 interface Variant {
-  settingsKey: TranslationSettingsKey
-  title: string
-  hint: string
-  ariaLabel: string
-  meta: Record<TranslationPublishMode, ModeMeta>
-  warning: string
-  labelFor: (name: string) => string
+  settingsKey: TranslationSettingsKey;
+  title: string;
+  hint: string;
+  ariaLabel: string;
+  meta: Record<TranslationPublishMode, ModeMeta>;
+  warning: string;
+  labelFor: (name: string) => string;
 }
 
 const RECIPE_VARIANT: Variant = {
@@ -71,7 +71,7 @@ const RECIPE_VARIANT: Variant = {
   warning:
     'Machine-translated text will reach kitchen staff with no human review. A mistranslated allergen note or temperature becomes a food-safety incident, not a typo. The reader marks these recipes as unreviewed, and any chef can still open one and correct it.',
   labelFor: (name) => `Recipe translation publishing for ${name}`,
-}
+};
 
 const TRAINING_VARIANT: Variant = {
   settingsKey: 'trainingTranslationPublishMode',
@@ -104,23 +104,23 @@ const TRAINING_VARIANT: Variant = {
   warning:
     'Machine-translated training will reach staff with no human review. A mistranslated safety procedure, temperature or hold time becomes an incident on the floor, not a typo. The reader marks these modules as unreviewed, and any chef can still open one and correct it.',
   labelFor: (name) => `Training translation publishing for ${name}`,
-}
+};
 
 /** The chrome for the option list. Citron reads “review” across the app. */
 function tone(mode: TranslationPublishMode): string {
-  return mode === 'auto_publish' ? 'ring-citron-300 bg-citron-50/40' : 'ring-salt-300 bg-white'
+  return mode === 'auto_publish' ? 'ring-citron-300 bg-citron-50/40' : 'ring-salt-300 bg-white';
 }
 
 function selectedTone(mode: TranslationPublishMode): string {
   return mode === 'auto_publish'
     ? 'ring-2 ring-citron-400 bg-citron-50 shadow-sm'
-    : 'ring-2 ring-ember-400 bg-ember-50/50 shadow-sm'
+    : 'ring-2 ring-ember-400 bg-ember-50/50 shadow-sm';
 }
 
 function iconTone(mode: TranslationPublishMode): string {
   return mode === 'auto_publish'
     ? 'bg-citron-100 text-citron-700 ring-citron-200'
-    : 'bg-salt-100 text-steel-600 ring-salt-200'
+    : 'bg-salt-100 text-steel-600 ring-salt-200';
 }
 
 /**
@@ -137,7 +137,7 @@ function AutoPublishWarning({ children }: { children: string }) {
       <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
       <span>{children}</span>
     </p>
-  )
+  );
 }
 
 // ── The org-wide default ──────────────────────────────────────────────────────
@@ -147,28 +147,28 @@ function OrgDefault({
   canEdit,
   variant,
 }: {
-  org: OrganizationProfile
-  canEdit: boolean
-  variant: Variant
+  org: OrganizationProfile;
+  canEdit: boolean;
+  variant: Variant;
 }) {
-  const queryClient = useQueryClient()
-  const [error, setError] = useState<string | null>(null)
-  const [saved, setSaved] = useState(false)
+  const queryClient = useQueryClient();
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
 
-  const mode = org.settings[variant.settingsKey]
+  const mode = org.settings[variant.settingsKey];
 
   const save = useMutation({
     mutationFn: async (next: TranslationPublishMode) => {
-      const result = await updateOrganization({ settings: { [variant.settingsKey]: next } })
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await updateOrganization({ settings: { [variant.settingsKey]: next } });
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     onSuccess: (updated) => {
-      queryClient.setQueryData(['org', 'profile', ...tenancyScopeKey()], updated)
-      setSaved(true)
+      queryClient.setQueryData(['org', 'profile', ...tenancyScopeKey()], updated);
+      setSaved(true);
     },
     onError: (err: Error) => setError(err.message),
-  })
+  });
 
   return (
     <div className="space-y-4">
@@ -181,9 +181,9 @@ function OrgDefault({
         value={mode}
         disabled={!canEdit || save.isPending}
         onSelect={(next) => {
-          setError(null)
-          setSaved(false)
-          save.mutate(next)
+          setError(null);
+          setSaved(false);
+          save.mutate(next);
         }}
         tone={tone}
         selectedTone={selectedTone}
@@ -197,7 +197,7 @@ function OrgDefault({
         {save.isPending && <span className="text-sm text-salt-500">Saving…</span>}
       </div>
     </div>
-  )
+  );
 }
 
 // ── The cards ─────────────────────────────────────────────────────────────────
@@ -208,12 +208,12 @@ function TranslationCard({
   canEditOverrides,
   variant,
 }: {
-  org: OrganizationProfile
-  canEditOrg: boolean
-  canEditOverrides: boolean
-  variant: Variant
+  org: OrganizationProfile;
+  canEditOrg: boolean;
+  canEditOverrides: boolean;
+  variant: Variant;
 }) {
-  const spanish = org.locales.includes('es')
+  const spanish = org.locales.includes('es');
 
   return (
     <SectionCard icon={Languages} title={variant.title} hint={variant.hint}>
@@ -240,21 +240,21 @@ function TranslationCard({
         }
       />
     </SectionCard>
-  )
+  );
 }
 
 export function TranslationPublishingCard(props: {
-  org: OrganizationProfile
-  canEditOrg: boolean
-  canEditOverrides: boolean
+  org: OrganizationProfile;
+  canEditOrg: boolean;
+  canEditOverrides: boolean;
 }) {
-  return <TranslationCard {...props} variant={RECIPE_VARIANT} />
+  return <TranslationCard {...props} variant={RECIPE_VARIANT} />;
 }
 
 export function TrainingTranslationPublishingCard(props: {
-  org: OrganizationProfile
-  canEditOrg: boolean
-  canEditOverrides: boolean
+  org: OrganizationProfile;
+  canEditOrg: boolean;
+  canEditOverrides: boolean;
 }) {
-  return <TranslationCard {...props} variant={TRAINING_VARIANT} />
+  return <TranslationCard {...props} variant={TRAINING_VARIANT} />;
 }

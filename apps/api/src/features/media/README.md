@@ -16,16 +16,16 @@ the bucket layout stays ours to change.
 
 ## Routes
 
-| Route | Role | Notes |
-|---|---|---|
-| `POST /api/media/photos` | chef+ | multipart, field name `file`, one per request |
+| Route                    | Role  | Notes                                                      |
+| ------------------------ | ----- | ---------------------------------------------------------- |
+| `POST /api/media/photos` | chef+ | multipart, field name `file`, one per request              |
 | `POST /api/media/videos` | chef+ | multipart, field name `file`; **streamed**, never buffered |
-| `DELETE /api/media/:id` | chef+ | removes the record, then the object |
+| `DELETE /api/media/:id`  | chef+ | removes the record, then the object                        |
 
 ## Photos buffer; videos stream
 
-A photo is a few MB, so multer's memory storage is fine: buffer, sniff, put.
-A video is up to `MAX_VIDEO_BYTES` (512MB), so the same path would let two
+A photo is a few MB, so multer's memory storage is fine: buffer, sniff, put. A
+video is up to `MAX_VIDEO_BYTES` (512MB), so the same path would let two
 concurrent uploads eat a gigabyte of API heap. `videoStorage.ts` is a custom
 multer storage engine that pipes the request body through a ~4KB sniff window
 straight into a multipart R2 upload (`@aws-sdk/lib-storage`, 8MB parts, two in
@@ -35,8 +35,8 @@ backpressure reaches the client socket.
 Playback needs no API involvement either: the R2 CDN origin answers HTTP range
 requests, which is exactly what `<video>` uses to start fast and seek. Videos
 are `ready` on insert — MP4/WebM are directly streamable, and there is no
-transcode pipeline yet for a `processing` state to wait on (QuickTime `.mov`
-is rejected at sniff for that reason).
+transcode pipeline yet for a `processing` state to wait on (QuickTime `.mov` is
+rejected at sniff for that reason).
 
 ## The rules that matter
 
@@ -49,9 +49,10 @@ is rejected at sniff for that reason).
   purpose: `sharp` is a native build, and this reads four integers.
   `lib/videoMeta.ts` (`sniffVideo`) applies the same rule to the first bytes of
   a video stream: MP4 and WebM pass, QuickTime and Matroska do not.
-- **Keys are tenant-prefixed** — `{orgId}/{propertyId|_}/{locationId|_}/{32 hex}.{ext}`
-  — so a misconfigured bucket policy fails closed per tenant rather than
-  globally. The basename is random; no part of the client's filename survives.
+- **Keys are tenant-prefixed** —
+  `{orgId}/{propertyId|_}/{locationId|_}/{32 hex}.{ext}` — so a misconfigured
+  bucket policy fails closed per tenant rather than globally. The basename is
+  random; no part of the client's filename survives.
 - **Attachment is scope-checked, not just existence-checked.**
   `assertPhotosAttachable` (recipes) and `assertAssetsAttachable` (training
   blocks, kind-aware) require an asset to sit at-or-above the scope of the
@@ -73,11 +74,11 @@ is rejected at sniff for that reason).
 All of `CLOUDFLARE_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`,
 `R2_BUCKET_NAME` and `R2_PUBLIC_URL` must be set for the feature to enable.
 
-Delivery is via a **public bucket URL / custom domain**, not presigned URLs.
-The tradeoff: object keys are unguessable (128 bits of randomness) but not
-access-controlled, in exchange for edge-cacheable images — which is what makes
-a recipe page usable on kitchen wifi. If plating photos ever need true
-per-request authorisation, swap `shapeAsset` for a presigned GET
+Delivery is via a **public bucket URL / custom domain**, not presigned URLs. The
+tradeoff: object keys are unguessable (128 bits of randomness) but not
+access-controlled, in exchange for edge-cacheable images — which is what makes a
+recipe page usable on kitchen wifi. If plating photos ever need true per-request
+authorisation, swap `shapeAsset` for a presigned GET
 (`@aws-sdk/s3-request-presigner`, not currently a dependency) and give the URLs
 a TTL the reader app can refresh against.
 

@@ -10,7 +10,8 @@
     "seed-demo-tenant": "tsx --tsconfig tsconfig.json src/scripts/seed-demo-tenant.ts",
     "create-user": "tsx --tsconfig tsconfig.json src/scripts/create-user.ts",
     "verify-email": "tsx --tsconfig tsconfig.json src/scripts/verify-email.ts",
-    "set-platform-role": "tsx --tsconfig tsconfig.json src/scripts/set-platform-role.ts"
+    "set-platform-role": "tsx --tsconfig tsconfig.json src/scripts/set-platform-role.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@rit/shared": "workspace:*",

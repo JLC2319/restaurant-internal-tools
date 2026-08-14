@@ -49,7 +49,7 @@ class R2VideoStorage implements StorageEngine {
   _handleFile(
     req: Request,
     file: Express.Multer.File,
-    cb: (error?: unknown, info?: Partial<Express.Multer.File>) => void
+    cb: (error?: unknown, info?: Partial<Express.Multer.File>) => void,
   ): void {
     const ctx = req.tenant;
     if (!ctx) {
@@ -145,7 +145,7 @@ class R2VideoStorage implements StorageEngine {
           }
           console.error('R2 video upload failed', err);
           fail(new AppError('Could not store that video. Please try again.', 502));
-        }
+        },
       );
 
       // A client disconnect surfaces as 'error' or as 'close' without 'end' —
@@ -171,11 +171,7 @@ class R2VideoStorage implements StorageEngine {
    * size limit tripped on the final chunk. Best-effort: an object the record
    * never points at is unreachable either way.
    */
-  _removeFile(
-    _req: Request,
-    file: Express.Multer.File,
-    cb: (error: Error | null) => void
-  ): void {
+  _removeFile(_req: Request, file: Express.Multer.File, cb: (error: Error | null) => void): void {
     if (!file.r2Key) {
       cb(null);
       return;
@@ -187,7 +183,7 @@ class R2VideoStorage implements StorageEngine {
         (err: unknown) => {
           console.error('R2 delete failed for key', file.r2Key, err);
           cb(null);
-        }
+        },
       );
   }
 }

@@ -42,10 +42,10 @@ export interface UploadedFile {
 export function isMediaConfigured(): boolean {
   return Boolean(
     env.r2AccountId &&
-      env.r2AccessKeyId &&
-      env.r2SecretAccessKey &&
-      env.r2BucketName &&
-      env.r2PublicUrl
+    env.r2AccessKeyId &&
+    env.r2SecretAccessKey &&
+    env.r2BucketName &&
+    env.r2PublicUrl,
   );
 }
 
@@ -119,7 +119,7 @@ export function shapeAsset(asset: LeanMedia): MediaAssetView {
 export async function uploadPhoto(
   ctx: TenantContext,
   userId: string,
-  file: UploadedFile | undefined
+  file: UploadedFile | undefined,
 ): Promise<MediaAssetView> {
   assertConfigured();
   assertRole(ctx, 'chef');
@@ -142,7 +142,7 @@ export async function uploadPhoto(
         ContentType: meta.mime,
         // Keys are random and never reused, so a stored object is immutable.
         CacheControl: 'public, max-age=31536000, immutable',
-      })
+      }),
     );
   } catch (err) {
     console.error('R2 upload failed', err);
@@ -178,7 +178,7 @@ export async function uploadPhoto(
 export async function recordVideoUpload(
   ctx: TenantContext,
   userId: string,
-  file: Express.Multer.File | undefined
+  file: Express.Multer.File | undefined,
 ): Promise<MediaAssetView> {
   if (!file?.r2Key || !file.r2Mime) throw new AppError('No file was uploaded', 400);
 
@@ -228,7 +228,7 @@ async function assertKindAttachable(
   ctx: TenantContext,
   targetScope: TenantScope,
   uniqueIds: string[],
-  kind: MediaKind
+  kind: MediaKind,
 ): Promise<void> {
   if (uniqueIds.length === 0) return;
 
@@ -254,7 +254,7 @@ async function assertKindAttachable(
     ) {
       throw new AppError(
         `That ${kind} is scoped below this document — it would not load for part of its audience`,
-        400
+        400,
       );
     }
   }
@@ -267,7 +267,7 @@ async function assertKindAttachable(
 export async function assertPhotosAttachable(
   ctx: TenantContext,
   targetScope: TenantScope,
-  ids: string[]
+  ids: string[],
 ): Promise<void> {
   const unique = [...new Set(ids)];
   if (unique.length !== ids.length) {
@@ -285,7 +285,7 @@ export async function assertAssetsAttachable(
   ctx: TenantContext,
   targetScope: TenantScope,
   ids: string[],
-  kind: MediaKind
+  kind: MediaKind,
 ): Promise<void> {
   await assertKindAttachable(ctx, targetScope, [...new Set(ids)], kind);
 }

@@ -17,7 +17,7 @@ const scopeSchema = new Schema<IScope>(
     propertyId: { type: Schema.Types.ObjectId, ref: 'Property', default: null },
     locationId: { type: Schema.Types.ObjectId, ref: 'Location', default: null },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const mediaSchema = new Schema<IMedia>(
@@ -34,7 +34,7 @@ const mediaSchema = new Schema<IMedia>(
     height: { type: Number, default: null },
     uploadedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   },
-  { timestamps: { createdAt: 'createdAt', updatedAt: 'modifiedAt' } }
+  { timestamps: { createdAt: 'createdAt', updatedAt: 'modifiedAt' } },
 );
 
 // The only query shape this collection serves: "resolve these ids, in my scope".

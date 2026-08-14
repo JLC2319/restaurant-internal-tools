@@ -85,13 +85,13 @@ describe('translation publish mode settings', () => {
   // would leave resolution with nothing to land on.
   it('refuses a null mode on the org but allows it on a property or location', () => {
     expect(
-      updateOrganizationSchema.safeParse({ settings: { translationPublishMode: null } }).success
+      updateOrganizationSchema.safeParse({ settings: { translationPublishMode: null } }).success,
     ).toBe(false);
     expect(
-      updatePropertySchema.safeParse({ settings: { translationPublishMode: null } }).success
+      updatePropertySchema.safeParse({ settings: { translationPublishMode: null } }).success,
     ).toBe(true);
     expect(
-      updateLocationSchema.safeParse({ settings: { translationPublishMode: null } }).success
+      updateLocationSchema.safeParse({ settings: { translationPublishMode: null } }).success,
     ).toBe(true);
   });
 
@@ -99,7 +99,7 @@ describe('translation publish mode settings', () => {
     // The `No changes supplied` refine must see the settings key, or the one
     // field a client can send alone would always 400.
     expect(
-      updatePropertySchema.safeParse({ settings: { translationPublishMode: 'manual' } }).success
+      updatePropertySchema.safeParse({ settings: { translationPublishMode: 'manual' } }).success,
     ).toBe(true);
   });
 });
@@ -107,7 +107,7 @@ describe('translation publish mode settings', () => {
 describe('resolveTranslationPublishMode', () => {
   it('takes the narrowest set value', () => {
     expect(resolveTranslationPublishMode('manual', 'auto_review', 'auto_publish')).toBe(
-      'auto_publish'
+      'auto_publish',
     );
     expect(resolveTranslationPublishMode('manual', 'auto_review', null)).toBe('auto_review');
     expect(resolveTranslationPublishMode('auto_publish', null, null)).toBe('auto_publish');
@@ -148,13 +148,13 @@ describe('recipe publish mode settings', () => {
 
   it('refuses a null mode on the org but allows it on a property or location', () => {
     expect(
-      updateOrganizationSchema.safeParse({ settings: { recipePublishMode: null } }).success
+      updateOrganizationSchema.safeParse({ settings: { recipePublishMode: null } }).success,
     ).toBe(false);
     expect(updatePropertySchema.safeParse({ settings: { recipePublishMode: null } }).success).toBe(
-      true
+      true,
     );
     expect(updateLocationSchema.safeParse({ settings: { recipePublishMode: null } }).success).toBe(
-      true
+      true,
     );
   });
 
@@ -162,19 +162,19 @@ describe('recipe publish mode settings', () => {
   // dot-notation keys precisely so a partial patch cannot clear its neighbour.
   it('accepts a patch naming either setting alone', () => {
     expect(
-      updateLocationSchema.safeParse({ settings: { recipePublishMode: 'manual' } }).success
+      updateLocationSchema.safeParse({ settings: { recipePublishMode: 'manual' } }).success,
     ).toBe(true);
     expect(
-      updateLocationSchema.safeParse({ settings: { translationPublishMode: 'manual' } }).success
+      updateLocationSchema.safeParse({ settings: { translationPublishMode: 'manual' } }).success,
     ).toBe(true);
   });
 });
 
 describe('resolveRecipePublishMode', () => {
   it('takes the narrowest set value', () => {
-    expect(
-      resolveRecipePublishMode('manual', 'publish_on_save', 'publish_on_save_verified')
-    ).toBe('publish_on_save_verified');
+    expect(resolveRecipePublishMode('manual', 'publish_on_save', 'publish_on_save_verified')).toBe(
+      'publish_on_save_verified',
+    );
     expect(resolveRecipePublishMode('manual', 'publish_on_save', null)).toBe('publish_on_save');
     expect(resolveRecipePublishMode('publish_on_save', null, null)).toBe('publish_on_save');
   });

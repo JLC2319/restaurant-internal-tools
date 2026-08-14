@@ -72,7 +72,8 @@ export async function login(input: LoginInput): Promise<LoginResponse> {
 
   // Compare against a dummy hash when the account does not exist so that a
   // missing account and a wrong password take the same time to answer.
-  const hash = user?.passwordHash ?? '$2a$12$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvalidin';
+  const hash =
+    user?.passwordHash ?? '$2a$12$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvalidin';
   const passwordMatches = await bcrypt.compare(input.password, hash);
 
   if (!user || !passwordMatches) {

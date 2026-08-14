@@ -1,8 +1,8 @@
-import { useState } from 'react'
-import type { SubmitEvent } from 'react'
-import { useMutation, useQuery } from '@tanstack/react-query'
-import type { RecipeStatus, RecipeSummary, Unit } from '@rit/shared'
-import { roleAtLeast } from '@rit/shared'
+import { useState } from 'react';
+import type { SubmitEvent } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import type { RecipeStatus, RecipeSummary, Unit } from '@rit/shared';
+import { roleAtLeast } from '@rit/shared';
 import {
   Archive,
   Building2,
@@ -16,18 +16,18 @@ import {
   ShieldCheck,
   Sparkles,
   X,
-} from 'lucide-react'
-import { createRecipe, listRecipes, recipesScopeKey } from '@/features/recipes/api'
-import { UnitSelect } from '@/features/recipes/UnitSelect'
+} from 'lucide-react';
+import { createRecipe, listRecipes, recipesScopeKey } from '@/features/recipes/api';
+import { UnitSelect } from '@/features/recipes/UnitSelect';
 import {
   ScopePicker,
   defaultScopeSelection,
   scopeDisplayLabel,
   useTenantTree,
-} from '@/features/tenancy/ScopePicker'
-import type { ScopeSelection } from '@/features/tenancy/ScopePicker'
-import { useActiveRole } from '@/features/auth/useActiveRole'
-import { QueryProvider } from '@/lib/QueryProvider'
+} from '@/features/tenancy/ScopePicker';
+import type { ScopeSelection } from '@/features/tenancy/ScopePicker';
+import { useActiveRole } from '@/features/auth/useActiveRole';
+import { QueryProvider } from '@/lib/QueryProvider';
 import {
   Badge,
   EmptyState,
@@ -40,14 +40,14 @@ import {
   inputClass,
   primaryButtonClass,
   subtleButtonClass,
-} from '@/components/ui'
+} from '@/components/ui';
 
 function NewRecipeForm({ onClose }: { onClose: () => void }) {
-  const [name, setName] = useState('')
-  const [yieldAmount, setYieldAmount] = useState('1')
-  const [yieldUnit, setYieldUnit] = useState<Unit>('qt')
-  const [scope, setScope] = useState<ScopeSelection>(defaultScopeSelection)
-  const [error, setError] = useState<string | null>(null)
+  const [name, setName] = useState('');
+  const [yieldAmount, setYieldAmount] = useState('1');
+  const [yieldUnit, setYieldUnit] = useState<Unit>('qt');
+  const [scope, setScope] = useState<ScopeSelection>(defaultScopeSelection);
+  const [error, setError] = useState<string | null>(null);
 
   const create = useMutation({
     mutationFn: async () => {
@@ -64,28 +64,31 @@ function NewRecipeForm({ onClose }: { onClose: () => void }) {
           dietary: [],
           photoIds: [],
         },
-      })
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      });
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     onSuccess: (recipe) => {
-      window.location.href = `/recipes/${recipe._id}/edit`
+      window.location.href = `/recipes/${recipe._id}/edit`;
     },
     onError: (err: Error) => setError(err.message),
-  })
+  });
 
   function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setError(null)
+    event.preventDefault();
+    setError(null);
     if (!(Number(yieldAmount) > 0)) {
-      setError('Yield must be a positive number')
-      return
+      setError('Yield must be a positive number');
+      return;
     }
-    create.mutate()
+    create.mutate();
   }
 
   return (
-    <form onSubmit={handleSubmit} className={`${cardClass} animate-fade-up space-y-4 p-5 tablet:p-6`}>
+    <form
+      onSubmit={handleSubmit}
+      className={`${cardClass} animate-fade-up space-y-4 p-5 tablet:p-6`}
+    >
       <div className="flex items-center justify-between gap-3">
         <h2 className="font-semibold text-steel-900">New recipe</h2>
         <button
@@ -147,7 +150,7 @@ function NewRecipeForm({ onClose }: { onClose: () => void }) {
         {create.isPending ? 'Creating…' : 'Create and edit'}
       </button>
     </form>
-  )
+  );
 }
 
 function RecipeCard({
@@ -155,11 +158,11 @@ function RecipeCard({
   belongsTo,
   index,
 }: {
-  recipe: RecipeSummary
-  belongsTo: string | null
-  index: number
+  recipe: RecipeSummary;
+  belongsTo: string | null;
+  index: number;
 }) {
-  const delay = ['', 'fade-delay-1', 'fade-delay-2', 'fade-delay-3'][index % 4]
+  const delay = ['', 'fade-delay-1', 'fade-delay-2', 'fade-delay-3'][index % 4];
   return (
     <li className={`animate-fade-up ${delay}`}>
       <a
@@ -241,7 +244,7 @@ function RecipeCard({
         </div>
       </a>
     </li>
-  )
+  );
 }
 
 function SkeletonGrid() {
@@ -255,38 +258,38 @@ function SkeletonGrid() {
         </li>
       ))}
     </ul>
-  )
+  );
 }
 
 function Browser() {
-  const [search, setSearch] = useState('')
-  const [q, setQ] = useState('')
-  const [status, setStatus] = useState<RecipeStatus>('active')
-  const [page, setPage] = useState(1)
-  const [showForm, setShowForm] = useState(false)
-  const { role } = useActiveRole()
-  const canCreate = role != null && roleAtLeast(role, 'chef')
+  const [search, setSearch] = useState('');
+  const [q, setQ] = useState('');
+  const [status, setStatus] = useState<RecipeStatus>('active');
+  const [page, setPage] = useState(1);
+  const [showForm, setShowForm] = useState(false);
+  const { role } = useActiveRole();
+  const canCreate = role != null && roleAtLeast(role, 'chef');
 
-  const { data: tree } = useTenantTree()
+  const { data: tree } = useTenantTree();
   const { data, error, isLoading } = useQuery({
     queryKey: ['recipes', ...recipesScopeKey(), 'list', { q, page, status }],
     queryFn: async () => {
-      const result = await listRecipes({ q, page, status })
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await listRecipes({ q, page, status });
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
-  })
+  });
 
-  if (error) return <ErrorNote>{error.message}</ErrorNote>
+  if (error) return <ErrorNote>{error.message}</ErrorNote>;
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-3">
         <form
           onSubmit={(e) => {
-            e.preventDefault()
-            setPage(1)
-            setQ(search)
+            e.preventDefault();
+            setPage(1);
+            setQ(search);
           }}
           className="relative max-w-md flex-1"
         >
@@ -310,8 +313,8 @@ function Browser() {
               ariaLabel="Recipe status"
               value={status}
               onChange={(next) => {
-                setStatus(next)
-                setPage(1)
+                setStatus(next);
+                setPage(1);
               }}
               options={[
                 { id: 'active', label: 'Active' },
@@ -358,7 +361,11 @@ function Browser() {
           }
           action={
             canCreate && !q ? (
-              <button type="button" onClick={() => setShowForm(true)} className={primaryButtonClass}>
+              <button
+                type="button"
+                onClick={() => setShowForm(true)}
+                className={primaryButtonClass}
+              >
                 <Plus className="size-4" aria-hidden />
                 Create the first recipe
               </button>
@@ -382,7 +389,7 @@ function Browser() {
 
       {data && <Pager page={data.page} totalPages={data.totalPages} onPage={setPage} />}
     </div>
-  )
+  );
 }
 
 export function RecipesTable() {
@@ -390,5 +397,5 @@ export function RecipesTable() {
     <QueryProvider>
       <Browser />
     </QueryProvider>
-  )
+  );
 }

@@ -1,7 +1,7 @@
-import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query'
-import { Image } from 'expo-image'
-import { Link, Redirect, router } from 'expo-router'
-import type { RecipeSummary, TrainingSummary } from '@rit/shared'
+import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query';
+import { Image } from 'expo-image';
+import { Link, Redirect, router } from 'expo-router';
+import type { RecipeSummary, TrainingSummary } from '@rit/shared';
 import {
   BookOpen,
   Building2,
@@ -13,8 +13,8 @@ import {
   ShieldAlert,
   ShieldCheck,
   X,
-} from 'lucide-react-native'
-import { useState } from 'react'
+} from 'lucide-react-native';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -24,15 +24,15 @@ import {
   TextInput,
   View,
   useWindowDimensions,
-} from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { useAnimatedStyle, withTiming } from 'react-native-reanimated'
-import { listRecipes, recipesScopeKey } from '../api/recipes'
-import { listTrainings, trainingsScopeKey } from '../api/trainings'
-import { Animated, ScreenTransition, appear, popIn, popOut } from '../components/motion'
-import { Chip, EmptyState, ErrorNote, Segmented, Skeleton, cardClass } from '../components/ui'
-import { useSession } from '../lib/useSession'
-import colors from '../theme/colors.js'
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAnimatedStyle, withTiming } from 'react-native-reanimated';
+import { listRecipes, recipesScopeKey } from '../api/recipes';
+import { listTrainings, trainingsScopeKey } from '../api/trainings';
+import { Animated, ScreenTransition, appear, popIn, popOut } from '../components/motion';
+import { Chip, EmptyState, ErrorNote, Segmented, Skeleton, cardClass } from '../components/ui';
+import { useSession } from '../lib/useSession';
+import colors from '../theme/colors.js';
 
 /**
  * The reader's shelf: everything the line may cook from or study, and nothing
@@ -45,16 +45,16 @@ import colors from '../theme/colors.js'
  * for the same 24-a-page API.
  */
 
-type Shelf = 'recipes' | 'training'
+type Shelf = 'recipes' | 'training';
 
-const PAGE_SIZE = 24
+const PAGE_SIZE = 24;
 
 function VerifiedChip({ verified }: { verified: boolean }) {
   return verified ? (
     <Chip tone="basil" icon={ShieldCheck} label="Verified" />
   ) : (
     <Chip tone="citron" icon={ShieldAlert} label="Unverified" />
-  )
+  );
 }
 
 /** Photo area shared by both tiles: image, or a soft placeholder icon. */
@@ -63,9 +63,9 @@ function TileArt({
   placeholder: Placeholder,
   children,
 }: {
-  url: string | null
-  placeholder: typeof BookOpen
-  children?: React.ReactNode
+  url: string | null;
+  placeholder: typeof BookOpen;
+  children?: React.ReactNode;
 }) {
   return (
     <View className="aspect-[4/3] w-full overflow-hidden bg-salt-100">
@@ -78,7 +78,7 @@ function TileArt({
       )}
       {children}
     </View>
-  )
+  );
 }
 
 function RecipeTile({ recipe }: { recipe: RecipeSummary }) {
@@ -100,11 +100,11 @@ function RecipeTile({ recipe }: { recipe: RecipeSummary }) {
         </View>
       </Pressable>
     </Link>
-  )
+  );
 }
 
 function TrainingTile({ training }: { training: TrainingSummary }) {
-  const done = training.myCompletion != null
+  const done = training.myCompletion != null;
 
   return (
     <Link href={{ pathname: '/training/[id]', params: { id: training._id } }} asChild>
@@ -140,7 +140,7 @@ function TrainingTile({ training }: { training: TrainingSummary }) {
         </View>
       </Pressable>
     </Link>
-  )
+  );
 }
 
 function SkeletonGrid({ columns }: { columns: number }) {
@@ -160,17 +160,17 @@ function SkeletonGrid({ columns }: { columns: number }) {
         </View>
       ))}
     </View>
-  )
+  );
 }
 
 export default function ShelfScreen() {
-  const session = useSession()
-  const { width } = useWindowDimensions()
-  const [shelf, setShelf] = useState<Shelf>('recipes')
-  const [search, setSearch] = useState('')
-  const [q, setQ] = useState('')
+  const session = useSession();
+  const { width } = useWindowDimensions();
+  const [shelf, setShelf] = useState<Shelf>('recipes');
+  const [search, setSearch] = useState('');
+  const [q, setQ] = useState('');
 
-  const columns = width >= 1024 ? 4 : width >= 768 ? 3 : 2
+  const columns = width >= 1024 ? 4 : width >= 768 ? 3 : 2;
 
   const recipes = useInfiniteQuery({
     queryKey: ['recipes', ...recipesScopeKey(), 'reader', { q }],
@@ -181,9 +181,9 @@ export default function ShelfScreen() {
         limit: PAGE_SIZE,
         status: 'active',
         live: true,
-      })
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      });
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     initialPageParam: 1,
     getNextPageParam: (last) => (last.page < last.totalPages ? last.page + 1 : undefined),
@@ -191,178 +191,187 @@ export default function ShelfScreen() {
     // no skeleton flash between one query and the next.
     placeholderData: keepPreviousData,
     enabled: session.token != null && session.scope != null && shelf === 'recipes',
-  })
+  });
 
   const trainings = useInfiniteQuery({
     queryKey: ['trainings', ...trainingsScopeKey(), 'reader', { q }],
     queryFn: async ({ pageParam }) => {
-      const result = await listTrainings({ q, page: pageParam, limit: PAGE_SIZE, status: 'published' })
-      if (result.error) throw new Error(result.error.message)
-      return result.data
+      const result = await listTrainings({
+        q,
+        page: pageParam,
+        limit: PAGE_SIZE,
+        status: 'published',
+      });
+      if (result.error) throw new Error(result.error.message);
+      return result.data;
     },
     initialPageParam: 1,
     getNextPageParam: (last) => (last.page < last.totalPages ? last.page + 1 : undefined),
     placeholderData: keepPreviousData,
     enabled: session.token != null && session.scope != null && shelf === 'training',
-  })
+  });
 
-  const active = shelf === 'recipes' ? recipes : trainings
+  const active = shelf === 'recipes' ? recipes : trainings;
   const items: (RecipeSummary | TrainingSummary)[] =
     shelf === 'recipes'
       ? (recipes.data?.pages.flatMap((page) => page.items) ?? [])
-      : (trainings.data?.pages.flatMap((page) => page.items) ?? [])
+      : (trainings.data?.pages.flatMap((page) => page.items) ?? []);
 
   // A search or refetch in flight (not pagination — the footer spinner owns
   // that). The grid dims while stale results wait to be replaced.
-  const refreshingResults = active.isFetching && !active.isFetchingNextPage && !active.isLoading
+  const refreshingResults = active.isFetching && !active.isFetchingNextPage && !active.isLoading;
   const gridDim = useAnimatedStyle(
     () => ({ flex: 1, opacity: withTiming(refreshingResults ? 0.45 : 1, { duration: 180 }) }),
-    [refreshingResults]
-  )
+    [refreshingResults],
+  );
 
-  if (!session.token) return <Redirect href="/login" />
-  if (!session.scope) return <Redirect href="/scope" />
+  if (!session.token) return <Redirect href="/login" />;
+  if (!session.scope) return <Redirect href="/scope" />;
 
   return (
     <SafeAreaView className="flex-1 bg-salt-100" edges={['top', 'left', 'right']}>
       <ScreenTransition>
-      <View className="gap-4 px-4 pb-3 pt-2">
-        <View className="flex-row items-center justify-between gap-3">
-          <View className="min-w-0 flex-1">
-            <Text className="font-sans-semibold text-xs uppercase tracking-widest text-ember-600">
-              Reader
-            </Text>
-            <Text className="font-sans-bold text-2xl tracking-tight text-steel-900">
-              On the line
-            </Text>
+        <View className="gap-4 px-4 pb-3 pt-2">
+          <View className="flex-row items-center justify-between gap-3">
+            <View className="min-w-0 flex-1">
+              <Text className="font-sans-semibold text-xs uppercase tracking-widest text-ember-600">
+                Reader
+              </Text>
+              <Text className="font-sans-bold text-2xl tracking-tight text-steel-900">
+                On the line
+              </Text>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Switch workspace"
+              onPress={() => router.push('/scope')}
+              className="size-11 items-center justify-center rounded-full border border-salt-200 bg-white active:bg-salt-50"
+            >
+              <Building2 size={18} color={colors.steel[700]} />
+            </Pressable>
           </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Switch workspace"
-            onPress={() => router.push('/scope')}
-            className="size-11 items-center justify-center rounded-full border border-salt-200 bg-white active:bg-salt-50"
-          >
-            <Building2 size={18} color={colors.steel[700]} />
-          </Pressable>
-        </View>
 
-        <View className="gap-3">
-          <Segmented
-            value={shelf}
-            onChange={(next) => setShelf(next)}
-            options={[
-              { id: 'recipes', label: 'Recipes', icon: BookOpen },
-              { id: 'training', label: 'Training', icon: GraduationCap },
-            ]}
-          />
-          <View className="min-h-touch flex-row items-center gap-2.5 rounded-full border border-salt-300 bg-white px-4">
-            <Search size={16} color={colors.salt[500]} />
-            <TextInput
-              value={search}
-              onChangeText={setSearch}
-              onSubmitEditing={() => setQ(search)}
-              returnKeyType="search"
-              placeholder={shelf === 'recipes' ? 'Search recipes…' : 'Search trainings…'}
-              placeholderTextColor={colors.salt[500]}
-              className="min-h-touch flex-1 rounded-full font-sans text-base text-steel-900"
-              // On web the underlying <input> paints a rectangular focus
-              // outline that fights the pill shape; the container border is
-              // the field's visual boundary, so drop it.
-              style={Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : undefined}
+          <View className="gap-3">
+            <Segmented
+              value={shelf}
+              onChange={(next) => setShelf(next)}
+              options={[
+                { id: 'recipes', label: 'Recipes', icon: BookOpen },
+                { id: 'training', label: 'Training', icon: GraduationCap },
+              ]}
             />
-            {search.length > 0 && (
-              <Animated.View entering={popIn} exiting={popOut}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Clear search"
-                  onPress={() => {
-                    setSearch('')
-                    setQ('')
-                  }}
-                  hitSlop={12}
-                  className="size-5 items-center justify-center rounded-full bg-salt-300 active:bg-salt-400"
-                >
-                  <X size={12} color={colors.steel[700]} strokeWidth={3} />
-                </Pressable>
-              </Animated.View>
-            )}
-          </View>
-        </View>
-      </View>
-
-      {active.error ? (
-        <View className="px-4">
-          <ErrorNote>{(active.error as Error).message}</ErrorNote>
-        </View>
-      ) : active.isLoading ? (
-        <SkeletonGrid columns={columns} />
-      ) : (
-        // Keyed by shelf + query so a tab switch or new search fades the
-        // grid in (and resets scroll) instead of snapping. The inner layer
-        // owns the fetch-dim so it never fights the entering fade.
-        <Animated.View key={`${shelf}-${q}`} entering={appear} style={{ flex: 1 }}>
-          <Animated.View style={gridDim}>
-            <FlatList
-              key={`${shelf}-${columns}`}
-              data={items}
-              numColumns={columns}
-              keyExtractor={(item) => item._id}
-              renderItem={({ item }) => (
-                // maxWidth keeps a lone tile in the last row at column width
-                // instead of stretching across the screen.
-                <View style={{ flex: 1, maxWidth: `${100 / columns}%` }}>
-                  {'title' in item ? <TrainingTile training={item} /> : <RecipeTile recipe={item} />}
-                </View>
+            <View className="min-h-touch flex-row items-center gap-2.5 rounded-full border border-salt-300 bg-white px-4">
+              <Search size={16} color={colors.salt[500]} />
+              <TextInput
+                value={search}
+                onChangeText={setSearch}
+                onSubmitEditing={() => setQ(search)}
+                returnKeyType="search"
+                placeholder={shelf === 'recipes' ? 'Search recipes…' : 'Search trainings…'}
+                placeholderTextColor={colors.salt[500]}
+                className="min-h-touch flex-1 rounded-full font-sans text-base text-steel-900"
+                // On web the underlying <input> paints a rectangular focus
+                // outline that fights the pill shape; the container border is
+                // the field's visual boundary, so drop it.
+                style={Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : undefined}
+              />
+              {search.length > 0 && (
+                <Animated.View entering={popIn} exiting={popOut}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Clear search"
+                    onPress={() => {
+                      setSearch('');
+                      setQ('');
+                    }}
+                    hitSlop={12}
+                    className="size-5 items-center justify-center rounded-full bg-salt-300 active:bg-salt-400"
+                  >
+                    <X size={12} color={colors.steel[700]} strokeWidth={3} />
+                  </Pressable>
+                </Animated.View>
               )}
-              columnWrapperStyle={{ gap: 12, paddingHorizontal: 16 }}
-              contentContainerStyle={{ gap: 12, paddingBottom: 32 }}
-              onEndReached={() => {
-                if (active.hasNextPage && !active.isFetchingNextPage) void active.fetchNextPage()
-              }}
-              onEndReachedThreshold={0.4}
-              // isPlaceholderData excluded: a new search is dimmed by the
-              // grid, not announced by the pull-to-refresh spinner.
-              refreshing={
-                active.isRefetching && !active.isFetchingNextPage && !active.isPlaceholderData
-              }
-              onRefresh={() => void active.refetch()}
-              ListEmptyComponent={
-                <View className="px-0">
-                  {shelf === 'recipes' ? (
-                    <EmptyState
-                      icon={BookOpen}
-                      title={q ? `No recipes matching “${q}”` : 'Nothing live yet'}
-                      hint={
-                        q
-                          ? 'Try a different search, or clear it to see everything in this scope.'
-                          : 'Recipes appear here once a chef sets a version live.'
-                      }
-                    />
-                  ) : (
-                    <EmptyState
-                      icon={GraduationCap}
-                      title={q ? `No trainings matching “${q}”` : 'No trainings yet'}
-                      hint={
-                        q
-                          ? 'Try a different search, or clear it to see everything in this scope.'
-                          : 'Training modules appear here the moment they are published.'
-                      }
-                    />
-                  )}
-                </View>
-              }
-              ListFooterComponent={
-                active.isFetchingNextPage ? (
-                  <View className="items-center py-4">
-                    <ActivityIndicator size="small" color={colors.ember[600]} />
+            </View>
+          </View>
+        </View>
+
+        {active.error ? (
+          <View className="px-4">
+            <ErrorNote>{(active.error as Error).message}</ErrorNote>
+          </View>
+        ) : active.isLoading ? (
+          <SkeletonGrid columns={columns} />
+        ) : (
+          // Keyed by shelf + query so a tab switch or new search fades the
+          // grid in (and resets scroll) instead of snapping. The inner layer
+          // owns the fetch-dim so it never fights the entering fade.
+          <Animated.View key={`${shelf}-${q}`} entering={appear} style={{ flex: 1 }}>
+            <Animated.View style={gridDim}>
+              <FlatList
+                key={`${shelf}-${columns}`}
+                data={items}
+                numColumns={columns}
+                keyExtractor={(item) => item._id}
+                renderItem={({ item }) => (
+                  // maxWidth keeps a lone tile in the last row at column width
+                  // instead of stretching across the screen.
+                  <View style={{ flex: 1, maxWidth: `${100 / columns}%` }}>
+                    {'title' in item ? (
+                      <TrainingTile training={item} />
+                    ) : (
+                      <RecipeTile recipe={item} />
+                    )}
                   </View>
-                ) : null
-              }
-            />
+                )}
+                columnWrapperStyle={{ gap: 12, paddingHorizontal: 16 }}
+                contentContainerStyle={{ gap: 12, paddingBottom: 32 }}
+                onEndReached={() => {
+                  if (active.hasNextPage && !active.isFetchingNextPage) void active.fetchNextPage();
+                }}
+                onEndReachedThreshold={0.4}
+                // isPlaceholderData excluded: a new search is dimmed by the
+                // grid, not announced by the pull-to-refresh spinner.
+                refreshing={
+                  active.isRefetching && !active.isFetchingNextPage && !active.isPlaceholderData
+                }
+                onRefresh={() => void active.refetch()}
+                ListEmptyComponent={
+                  <View className="px-0">
+                    {shelf === 'recipes' ? (
+                      <EmptyState
+                        icon={BookOpen}
+                        title={q ? `No recipes matching “${q}”` : 'Nothing live yet'}
+                        hint={
+                          q
+                            ? 'Try a different search, or clear it to see everything in this scope.'
+                            : 'Recipes appear here once a chef sets a version live.'
+                        }
+                      />
+                    ) : (
+                      <EmptyState
+                        icon={GraduationCap}
+                        title={q ? `No trainings matching “${q}”` : 'No trainings yet'}
+                        hint={
+                          q
+                            ? 'Try a different search, or clear it to see everything in this scope.'
+                            : 'Training modules appear here the moment they are published.'
+                        }
+                      />
+                    )}
+                  </View>
+                }
+                ListFooterComponent={
+                  active.isFetchingNextPage ? (
+                    <View className="items-center py-4">
+                      <ActivityIndicator size="small" color={colors.ember[600]} />
+                    </View>
+                  ) : null
+                }
+              />
+            </Animated.View>
           </Animated.View>
-        </Animated.View>
-      )}
+        )}
       </ScreenTransition>
     </SafeAreaView>
-  )
+  );
 }

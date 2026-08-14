@@ -15,7 +15,7 @@ await run(async () => {
   const user = await User.findOneAndUpdate(
     { email: email.toLowerCase() },
     { emailVerified: true, $unset: { emailVerificationToken: 1 } },
-    { new: true }
+    { new: true },
   )
     .select('email emailVerified')
     .lean();
