@@ -6,7 +6,8 @@
     "moduleResolution": "Bundler",
     "noEmit": true,
     "allowImportingTsExtensions": true,
-    "baseUrl": ".",
+    // No baseUrl: it is deprecated in TS 6 and removed in 7. Path mappings
+    // resolve relative to this file without it.
     "paths": {
       "@api/*": ["../api/src/*"]
     }
