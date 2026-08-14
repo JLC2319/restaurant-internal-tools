@@ -21,7 +21,10 @@ import { uploadPhoto } from '../api/media'
 import { getScope } from '../api/client'
 import { useActiveRole } from './useActiveRole'
 import { QueryProvider } from './QueryProvider'
-import { TranslationPublishingCard } from './TranslationPublishing'
+import {
+  TrainingTranslationPublishingCard,
+  TranslationPublishingCard,
+} from './TranslationPublishing'
 import { RecipePublishingCard } from './RecipePublishing'
 import { OrgMembersSection } from './OrgMembers'
 import { SettingsShell } from './SettingsShell'
@@ -500,7 +503,14 @@ function Settings() {
       // Overrides stay editable for a property-scoped admin — the API confines
       // them to their own subtree — even though the org default does not.
       render: () => (
-        <TranslationPublishingCard org={data} canEditOrg={canEdit} canEditOverrides={isAdmin} />
+        <div className="space-y-6">
+          <TranslationPublishingCard org={data} canEditOrg={canEdit} canEditOverrides={isAdmin} />
+          <TrainingTranslationPublishingCard
+            org={data}
+            canEditOrg={canEdit}
+            canEditOverrides={isAdmin}
+          />
+        </div>
       ),
     },
     {

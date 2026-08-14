@@ -9,7 +9,7 @@ import type {
   MoveRecipeInput,
   PaginatedResponse,
   PublishRecipeInput,
-  RecipeAccessCandidate,
+  AccessCandidate,
   RecipeContentInput,
   RecipeContentView,
   RecipeDetail,
@@ -37,10 +37,10 @@ import {
 import { assertPhotosAttachable, resolveAssets, widenAssetsToCover } from '../media/media.service';
 import {
   assertAccessListValid,
-  canBypassRecipeAccess,
+  canBypassPersonAccess,
   dedupeAccessUserIds,
-  recipeAccessFilter,
-} from './recipeAccess';
+  personAccessFilter,
+} from '../tenancy/personAccess';
 import { Membership } from '../tenancy/membership.model';
 import { User } from '../auth/auth.model';
 import {
@@ -264,13 +264,13 @@ async function validateSubRefs(
   // name to this recipe's whole audience. Exempt ids skip the check, so
   // restricting a recipe never bricks resaves of recipes already using it.
   // Same 404 as above: out-of-access and nonexistent are indistinguishable.
-  if (!canBypassRecipeAccess(ctx)) {
+  if (!canBypassPersonAccess(ctx)) {
     const newIds = refIds.filter((id) => !accessExemptIds?.has(id));
     if (newIds.length > 0) {
       const readable = await Recipe.find({
         _id: { $in: newIds },
         ...scopeReadFilter(ctx),
-        ...recipeAccessFilter(ctx),
+        ...personAccessFilter(ctx),
       })
         .select('_id')
         .lean();
@@ -475,7 +475,7 @@ function shapeVersionSummary(v: LeanVersion, activeVersionId: unknown): RecipeVe
  * `contents`. Deliberately unscoped and ungated by the person-level ACL: an
  * ingredient line is part of the *consuming* recipe, and rendering
  * "Demi-glace" there is an approved name-only disclosure (see AGENTS.md and
- * recipeAccess.ts) — the restricted recipe's content stays unreachable, and
+ * personAccess.ts) — the restricted recipe's content stays unreachable, and
  * clicking through to it 404s.
  */
 async function subNamesFor(contents: Array<IRecipeContent | null | undefined>): Promise<Map<string, string>> {
@@ -534,7 +534,7 @@ async function shapeDetail(ctx: TenantContext, head: LeanRecipe): Promise<Recipe
       ? Recipe.exists({
           _id: head.forkedFrom.recipeId,
           ...scopeReadFilter(ctx),
-          ...recipeAccessFilter(ctx),
+          ...personAccessFilter(ctx),
         })
       : null,
   ]);
@@ -583,7 +583,7 @@ export async function listRecipes(
     ...scopeReadFilter(ctx),
     // One filter drives the rows, the total AND the ?q= name regex, so a
     // person-restricted recipe neither lists, counts, nor answers name probes.
-    ...recipeAccessFilter(ctx),
+    ...personAccessFilter(ctx),
     // Readers never see archived lineages or unpublished work-in-progress.
     status: reader ? 'active' : query.status,
   };
@@ -643,7 +643,7 @@ export async function getRecipe(ctx: TenantContext, id: string): Promise<RecipeD
   const head = await Recipe.findOne({
     _id: id,
     ...scopeReadFilter(ctx),
-    ...recipeAccessFilter(ctx),
+    ...personAccessFilter(ctx),
   }).lean();
   if (!head) throw new AppError('Not found', 404);
   // Unpublished or archived work is invisible to readers, not forbidden —
@@ -702,7 +702,7 @@ async function loadForWrite(ctx: TenantContext, id: string, allowArchived = fals
   const head = await Recipe.findOne({
     _id: id,
     ...scopeReadFilter(ctx),
-    ...recipeAccessFilter(ctx),
+    ...personAccessFilter(ctx),
   });
   if (!head) throw new AppError('Not found', 404);
   const scope = shapeScope(head.scope);
@@ -839,7 +839,7 @@ export async function updateRecipeAccess(
 export async function listAccessCandidates(
   ctx: TenantContext,
   id: string
-): Promise<RecipeAccessCandidate[]> {
+): Promise<AccessCandidate[]> {
   assertRole(ctx, 'chef');
   // Archived allowed: this read only supports the panel, it mutates nothing.
   const head = await loadForWrite(ctx, id, true);
@@ -855,7 +855,7 @@ export async function listAccessCandidates(
 
   // One entry per person — a user may hold several rows (org-wide plus a
   // location, say) — and none for deleted accounts.
-  const byUser = new Map<string, RecipeAccessCandidate>();
+  const byUser = new Map<string, AccessCandidate>();
   for (const row of rows) {
     const user = row.userId as unknown as Pick<IUser, '_id' | 'name' | 'email' | 'jobTitle'> | null;
     if (!user) continue;
@@ -887,7 +887,7 @@ export async function saveVersion(
   // into the errorHandler's 409. A failed create leaves a numbering gap, which
   // is harmless: numbers order history, they don't count it.
   const head = await Recipe.findOneAndUpdate(
-    { _id: id, ...scopeReadFilter(ctx), ...recipeAccessFilter(ctx) },
+    { _id: id, ...scopeReadFilter(ctx), ...personAccessFilter(ctx) },
     { $inc: { currentVersion: 1 } },
     { new: true }
   ).lean();
@@ -970,7 +970,7 @@ export async function listVersions(ctx: TenantContext, id: string): Promise<Reci
   const head = await Recipe.findOne({
     _id: id,
     ...scopeReadFilter(ctx),
-    ...recipeAccessFilter(ctx),
+    ...personAccessFilter(ctx),
   })
     .select('activeVersionId')
     .lean();
@@ -991,7 +991,7 @@ export async function getVersion(
   const head = await Recipe.findOne({
     _id: id,
     ...scopeReadFilter(ctx),
-    ...recipeAccessFilter(ctx),
+    ...personAccessFilter(ctx),
   })
     .select('activeVersionId')
     .lean();
@@ -1104,7 +1104,7 @@ export async function forkRecipe(
   const source = await Recipe.findOne({
     _id: id,
     ...scopeReadFilter(ctx),
-    ...recipeAccessFilter(ctx),
+    ...personAccessFilter(ctx),
   }).lean();
   if (!source) throw new AppError('Not found', 404);
 

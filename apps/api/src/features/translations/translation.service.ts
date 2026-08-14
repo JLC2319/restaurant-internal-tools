@@ -24,7 +24,7 @@ import { anthropic } from '../../lib/anthropic';
 import { AppError } from '../../lib/AppError';
 import { assertCanWriteAt, assertRole, scopeReadFilter } from '../../lib/scope';
 import { Recipe } from '../recipes/recipe.model';
-import { recipeAccessFilter } from '../recipes/recipeAccess';
+import { personAccessFilter } from '../tenancy/personAccess';
 import { RecipeVersion } from '../recipes/recipeVersion.model';
 import { Organization } from '../tenancy/organization.model';
 import { Property } from '../tenancy/property.model';
@@ -263,7 +263,7 @@ async function loadHead(ctx: TenantContext, recipeId: string): Promise<LeanRecip
   const head = await Recipe.findOne({
     _id: recipeId,
     ...scopeReadFilter(ctx),
-    ...recipeAccessFilter(ctx),
+    ...personAccessFilter(ctx),
   }).lean();
   if (!head) throw new AppError('Not found', 404);
   return head;
@@ -283,7 +283,7 @@ async function loadHeadForManage(ctx: TenantContext, recipeId: string): Promise<
 
 // ── Publish mode (org → property → location settings) ─────────────────────────
 
-interface PublishConfig {
+export interface PublishConfig {
   mode: TranslationPublishMode;
   /** Locales the org publishes into, minus the authoring one. */
   targets: TargetLocale[];
@@ -297,8 +297,16 @@ interface PublishConfig {
  * `TenantContext`: a property's shared recipe book must behave the same way
  * whoever publishes into it, and a chef switching their active scope must not
  * change what "Set live" does to a recipe they did not move.
+ *
+ * Exported for trainingTranslation.service — the settings cascade is
+ * entity-agnostic, and both features must resolve it identically. `setting`
+ * names which column governs: recipes and trainings each carry their own
+ * (an org may auto-publish one and hand-review the other).
  */
-async function loadPublishConfig(scope: IScope): Promise<PublishConfig> {
+export async function loadPublishConfig(
+  scope: IScope,
+  setting: 'translationPublishMode' | 'trainingTranslationPublishMode' = 'translationPublishMode'
+): Promise<PublishConfig> {
   const [org, property, location] = await Promise.all([
     Organization.findById(scope.orgId).select('settings locales').lean(),
     scope.propertyId ? Property.findById(scope.propertyId).select('settings').lean() : null,
@@ -308,9 +316,9 @@ async function loadPublishConfig(scope: IScope): Promise<PublishConfig> {
   const locales = org?.locales ?? [];
   return {
     mode: resolveTranslationPublishMode(
-      org?.settings?.translationPublishMode ?? DEFAULT_TRANSLATION_PUBLISH_MODE,
-      property?.settings?.translationPublishMode ?? null,
-      location?.settings?.translationPublishMode ?? null
+      org?.settings?.[setting] ?? DEFAULT_TRANSLATION_PUBLISH_MODE,
+      property?.settings?.[setting] ?? null,
+      location?.settings?.[setting] ?? null
     ),
     targets: targetLocaleValues.filter((locale) => locales.includes(locale)),
   };

@@ -3,6 +3,9 @@ import type {
   RecipeTranslationState,
   RecipeTranslationView,
   TargetLocale,
+  TrainingTranslationPayloadInput,
+  TrainingTranslationState,
+  TrainingTranslationView,
   TranslationPayloadInput,
 } from '@rit/shared'
 import { apiRequest } from './client'
@@ -62,4 +65,66 @@ export function rejectRecipeTranslation(
     method: 'POST',
     body: JSON.stringify({ locale }),
   })
+}
+
+/**
+ * Training-module translations — the same five-call contract, per module. The
+ * GET is role-aware in exactly the recipe way; the POST spends money behind
+ * the same LLM rate limiter.
+ */
+
+export function getTrainingTranslation(
+  trainingId: string,
+  locale: TargetLocale = 'es'
+): Promise<ApiResult<TrainingTranslationState>> {
+  return apiRequest<TrainingTranslationState>(
+    `/api/translations/trainings/${trainingId}?locale=${locale}`
+  )
+}
+
+export function machineTranslateTraining(
+  trainingId: string,
+  locale: TargetLocale = 'es'
+): Promise<ApiResult<TrainingTranslationView>> {
+  return apiRequest<TrainingTranslationView>(`/api/translations/trainings/${trainingId}`, {
+    method: 'POST',
+    body: JSON.stringify({ locale }),
+  })
+}
+
+export function updateTrainingTranslation(
+  trainingId: string,
+  payload: TrainingTranslationPayloadInput,
+  locale: TargetLocale = 'es'
+): Promise<ApiResult<TrainingTranslationView>> {
+  return apiRequest<TrainingTranslationView>(`/api/translations/trainings/${trainingId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ locale, payload }),
+  })
+}
+
+export function approveTrainingTranslation(
+  trainingId: string,
+  locale: TargetLocale = 'es'
+): Promise<ApiResult<TrainingTranslationView>> {
+  return apiRequest<TrainingTranslationView>(
+    `/api/translations/trainings/${trainingId}/approve`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ locale }),
+    }
+  )
+}
+
+export function rejectTrainingTranslation(
+  trainingId: string,
+  locale: TargetLocale = 'es'
+): Promise<ApiResult<TrainingTranslationView>> {
+  return apiRequest<TrainingTranslationView>(
+    `/api/translations/trainings/${trainingId}/reject`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ locale }),
+    }
+  )
 }

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { targetLocaleValues } from '../types/domain.js';
+import { MAX_TRAINING_BLOCKS, targetLocaleValues } from '../types/domain.js';
 
 /**
  * Recipe translation payloads. A translation carries only the *text* of a
@@ -39,7 +39,37 @@ export const updateTranslationSchema = z.object({
   payload: translationPayloadSchema,
 });
 
+// ── Training translations ─────────────────────────────────────────────────────
+
+/**
+ * One translated training block, aligned by index with the module's blocks.
+ * `text` is the translated plain text of a `text` block (null for every other
+ * kind); `caption` is the translated caption of a media/embed block (null when
+ * the source block has none). Media itself never translates — the assets and
+ * embeds always render from the source module.
+ */
+export const translatedTrainingBlockSchema = z.object({
+  text: z.string().trim().min(1).max(25000).nullable(),
+  caption: z.string().trim().min(1).max(400).nullable(),
+});
+
+/** Ceilings run past the source fields' (140/500/300/20000), as for recipes. */
+export const trainingTranslationPayloadSchema = z.object({
+  title: z.string().trim().min(1, 'Translated title is required').max(180),
+  description: z.string().trim().max(700),
+  blocks: z.array(translatedTrainingBlockSchema).max(MAX_TRAINING_BLOCKS),
+});
+
+/** Save a reviewer's edits to a machine training translation. */
+export const updateTrainingTranslationSchema = z.object({
+  locale: z.enum(targetLocaleValues).default('es'),
+  payload: trainingTranslationPayloadSchema,
+});
+
 export type TranslatedIngredientInput = z.infer<typeof translatedIngredientSchema>;
 export type TranslationPayloadInput = z.infer<typeof translationPayloadSchema>;
 export type TranslationLocaleInput = z.infer<typeof translationLocaleSchema>;
 export type UpdateTranslationInput = z.infer<typeof updateTranslationSchema>;
+export type TranslatedTrainingBlockInput = z.infer<typeof translatedTrainingBlockSchema>;
+export type TrainingTranslationPayloadInput = z.infer<typeof trainingTranslationPayloadSchema>;
+export type UpdateTrainingTranslationInput = z.infer<typeof updateTrainingTranslationSchema>;

@@ -1,15 +1,19 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { TrainingBlockView, TrainingDetail as TrainingDetailData } from '@rit/shared'
+import { roleAtLeast } from '@rit/shared'
 import {
   Archive,
   ArchiveRestore,
+  Building2,
   CheckCircle2,
   ChevronDown,
   Clock,
   Film,
   GraduationCap,
   Layers,
+  Lock,
+  LockOpen,
   Pencil,
   Radio,
   RotateCcw,
@@ -20,19 +24,27 @@ import {
   completeTraining,
   getTraining,
   listCompletions,
+  listTrainingAccessCandidates,
+  moveTraining,
   publishTraining,
   trainingsScopeKey,
   unarchiveTraining,
   uncompleteTraining,
   unpublishTraining,
+  updateTrainingAccess,
 } from '../api/trainings'
+import { useActiveRole } from './useActiveRole'
+import { ScopePicker, scopeDisplayLabel, useTenantTree } from './ScopePicker'
+import type { ScopeSelection } from './ScopePicker'
 import { QueryProvider } from './QueryProvider'
 import { RichText } from './RichText'
+import { TrainingTranslationPanel } from './TrainingTranslationPanel'
 import {
   Badge,
   ErrorNote,
   Skeleton,
   cardClass,
+  inputClass,
   primaryButtonClass,
   subtleButtonClass,
 } from './ui'
@@ -368,7 +380,298 @@ function ManagePanel({ training }: { training: TrainingDetailData }) {
   )
 }
 
+/**
+ * Where the module lives — and, for managers, the lever to move it. Moving
+ * re-validates everything placement touches server-side (media blocks, the
+ * allow-list) and rewrites every denormalised copy.
+ */
+function PlacementPanel({ training }: { training: TrainingDetailData }) {
+  const queryClient = useQueryClient()
+  const [editing, setEditing] = useState(false)
+  const [scope, setScope] = useState<ScopeSelection>({ propertyId: '', locationId: '' })
+  const [error, setError] = useState<string | null>(null)
+  const { data: tree } = useTenantTree()
+
+  const move = useMutation({
+    mutationFn: async () => {
+      const result = await moveTraining(training._id, {
+        propertyId: scope.propertyId || null,
+        locationId: scope.locationId || null,
+      })
+      if (result.error) throw new Error(result.error.message)
+      return result.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['trainings'] })
+      setEditing(false)
+    },
+    onError: (err: Error) => setError(err.message),
+  })
+
+  function startEditing() {
+    setScope({
+      propertyId: training.scope.propertyId ?? '',
+      locationId: training.scope.locationId ?? '',
+    })
+    setError(null)
+    setEditing(true)
+  }
+
+  const label = scopeDisplayLabel(training.scope, tree) ?? 'the whole organization'
+
+  return (
+    <section className={`${cardClass} space-y-3 p-5`}>
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="flex items-center gap-2 font-semibold text-steel-900">
+          <Building2 className="size-4 text-ember-600" aria-hidden />
+          Placement
+        </h3>
+        {!editing && (
+          <button type="button" onClick={startEditing} className={subtleButtonClass}>
+            Move
+          </button>
+        )}
+      </div>
+
+      {error && <ErrorNote>{error}</ErrorNote>}
+
+      {!editing && (
+        <p className="text-sm text-salt-600">
+          Lives at <strong className="font-semibold text-steel-800">{label}</strong> — every
+          kitchen there (and members above it) sees it.
+        </p>
+      )}
+
+      {editing && (
+        <div className="space-y-3">
+          <div className="grid gap-3 phablet:grid-cols-2">
+            <ScopePicker idPrefix="move-training" value={scope} onChange={setScope} />
+          </div>
+          <p className="text-xs leading-relaxed text-salt-500">
+            Moving changes who sees this training everywhere — the list, the module, completion
+            rosters — the moment it lands. Media blocks and the allow-list are re-checked against
+            the new home first.
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                if (!window.confirm('Move this training? Who can see it changes immediately.')) return
+                setError(null)
+                move.mutate()
+              }}
+              disabled={move.isPending}
+              className={primaryButtonClass}
+            >
+              <Building2 className="size-4" aria-hidden />
+              {move.isPending ? 'Moving…' : 'Move training'}
+            </button>
+            <button type="button" onClick={() => setEditing(false)} className={subtleButtonClass}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
+  )
+}
+
+/**
+ * Who may see this training. Rendered only for managers of it — the server
+ * returns `access` under exactly the same condition, and listed viewers are
+ * deliberately not shown who else is trusted.
+ */
+function AccessPanel({ training }: { training: TrainingDetailData }) {
+  const queryClient = useQueryClient()
+  const [editing, setEditing] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [filter, setFilter] = useState('')
+  const [error, setError] = useState<string | null>(null)
+
+  // Fetched lazily — the roster is only needed once the picker opens.
+  const { data: candidates, isLoading } = useQuery({
+    queryKey: ['trainings', ...trainingsScopeKey(), 'access-candidates', training._id],
+    queryFn: async () => {
+      const result = await listTrainingAccessCandidates(training._id)
+      if (result.error) throw new Error(result.error.message)
+      return result.data
+    },
+    enabled: editing,
+  })
+
+  const save = useMutation({
+    mutationFn: async (access: { userIds: string[] } | null) => {
+      const result = await updateTrainingAccess(training._id, { access })
+      if (result.error) throw new Error(result.error.message)
+      return result.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['trainings'] })
+      setEditing(false)
+    },
+    onError: (err: Error) => setError(err.message),
+  })
+
+  function startEditing() {
+    setSelected(new Set(training.access?.userIds ?? []))
+    setFilter('')
+    setError(null)
+    setEditing(true)
+  }
+
+  function toggle(userId: string) {
+    setSelected((current) => {
+      const next = new Set(current)
+      if (next.has(userId)) next.delete(userId)
+      else next.add(userId)
+      return next
+    })
+  }
+
+  const listedUsers = training.access?.users ?? []
+  // Stored ids that no longer resolve to an account — kept server-side so a
+  // save never silently drops them, surfaced here so someone prunes them.
+  const formerCount = (training.access?.userIds.length ?? 0) - listedUsers.length
+  const needle = filter.trim().toLowerCase()
+  const shown = (candidates ?? []).filter(
+    (candidate) =>
+      !needle ||
+      `${candidate.name.first} ${candidate.name.last} ${candidate.email}`
+        .toLowerCase()
+        .includes(needle)
+  )
+
+  return (
+    <section className={`${cardClass} space-y-3 p-5`}>
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="flex items-center gap-2 font-semibold text-steel-900">
+          <Lock className="size-4 text-ember-600" aria-hidden />
+          Access
+        </h3>
+        {!editing && (
+          <button type="button" onClick={startEditing} className={subtleButtonClass}>
+            {training.restricted ? 'Edit' : 'Restrict'}
+          </button>
+        )}
+      </div>
+
+      {error && <ErrorNote>{error}</ErrorNote>}
+
+      {!editing && !training.restricted && (
+        <p className="text-sm text-salt-600">
+          Everyone who can see this training&rsquo;s scope can open it.
+        </p>
+      )}
+
+      {!editing && training.restricted && (
+        <div className="space-y-3">
+          <p className="text-sm text-salt-600">
+            Only the people below can open it. Admins, owners and the training&rsquo;s creator
+            always keep access.
+          </p>
+          {listedUsers.length === 0 ? (
+            <p className="text-sm text-salt-500 italic">
+              Nobody is listed — creator and admins only.
+            </p>
+          ) : (
+            <ul className="space-y-1.5">
+              {listedUsers.map((user) => (
+                <li key={user._id} className="flex min-w-0 items-baseline gap-2 text-sm">
+                  <span className="shrink-0 font-medium text-steel-900">
+                    {user.name.first} {user.name.last}
+                  </span>
+                  <span className="truncate text-xs text-salt-500">{user.email}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {formerCount > 0 && (
+            <p className="text-xs text-salt-500">
+              {formerCount} entr{formerCount === 1 ? 'y' : 'ies'} belong to accounts that no longer
+              exist — edit the list to prune them.
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              setError(null)
+              save.mutate(null)
+            }}
+            disabled={save.isPending}
+            className={subtleButtonClass}
+          >
+            <LockOpen className="size-4" aria-hidden />
+            {save.isPending ? 'Opening…' : 'Remove restriction'}
+          </button>
+        </div>
+      )}
+
+      {editing && (
+        <div className="space-y-3">
+          <p className="text-sm text-salt-600">
+            Pick who may open this training. Admins, owners and the creator always keep access;
+            everyone else will no longer see it anywhere.
+          </p>
+          <input
+            type="search"
+            placeholder="Filter people…"
+            value={filter}
+            onChange={(event) => setFilter(event.target.value)}
+            className={inputClass}
+          />
+          {isLoading ? (
+            <Skeleton className="h-24" />
+          ) : (
+            <ul className="max-h-64 space-y-0.5 overflow-y-auto">
+              {shown.map((candidate) => (
+                <li key={candidate._id}>
+                  <label className="flex min-h-touch cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-salt-50">
+                    <input
+                      type="checkbox"
+                      checked={selected.has(candidate._id)}
+                      onChange={() => toggle(candidate._id)}
+                      className="size-4 shrink-0 accent-ember-600"
+                    />
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium text-steel-900">
+                        {candidate.name.first} {candidate.name.last}
+                        {candidate.jobTitle && (
+                          <span className="font-normal text-salt-500"> · {candidate.jobTitle}</span>
+                        )}
+                      </span>
+                      <span className="block truncate text-xs text-salt-500">{candidate.email}</span>
+                    </span>
+                  </label>
+                </li>
+              ))}
+              {shown.length === 0 && <li className="px-2 text-sm text-salt-500">No matches.</li>}
+            </ul>
+          )}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setError(null)
+                save.mutate({ userIds: [...selected] })
+              }}
+              disabled={save.isPending}
+              className={primaryButtonClass}
+            >
+              <Lock className="size-4" aria-hidden />
+              {save.isPending ? 'Saving…' : 'Save access'}
+            </button>
+            <button type="button" onClick={() => setEditing(false)} className={subtleButtonClass}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
+  )
+}
+
 function Detail({ trainingId }: { trainingId: string }) {
+  const { role } = useActiveRole()
   const { data: training, error, isLoading } = useQuery({
     queryKey: ['trainings', ...trainingsScopeKey(), 'detail', trainingId],
     queryFn: async () => {
@@ -391,6 +694,7 @@ function Detail({ trainingId }: { trainingId: string }) {
   const visibleBlocks = training.blocks.filter(
     (block) => block.kind === 'text' || block.kind === 'embed' || block.media != null
   )
+  const isManager = role != null && roleAtLeast(role, 'manager')
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 tablet:space-y-8">
@@ -432,6 +736,9 @@ function Detail({ trainingId }: { trainingId: string }) {
       </header>
 
       {training.canManage && <ManagePanel training={training} />}
+      {training.canManage && isManager && <PlacementPanel training={training} />}
+      {training.canManage && <AccessPanel training={training} />}
+      {training.canManage && <TrainingTranslationPanel training={training} />}
 
       {visibleBlocks.length === 0 ? (
         <p className="rounded-2xl bg-salt-50 px-4 py-12 text-center text-sm text-salt-500 ring-1 ring-salt-200 ring-inset">

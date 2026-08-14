@@ -1,6 +1,11 @@
 import { Router } from 'express';
-import { translationLocaleSchema, updateTranslationSchema } from '@rit/shared';
+import {
+  translationLocaleSchema,
+  updateTrainingTranslationSchema,
+  updateTranslationSchema,
+} from '@rit/shared';
 import * as translationController from './translation.controller';
+import * as trainingTranslationController from './trainingTranslation.controller';
 import { authenticate } from '../../middleware/authenticate';
 import { resolveTenant, requireRole } from '../../middleware/resolveTenant';
 import { llmRateLimiter } from '../../middleware/rateLimiter';
@@ -44,6 +49,42 @@ translationRouter.post(
   requireRole('chef'),
   validate(translationLocaleSchema),
   translationController.rejectTranslation
+);
+
+// ── Training modules — the same five-route contract, per module ───────────────
+
+translationRouter.get(
+  '/trainings/:trainingId',
+  validateQuery(translationLocaleSchema),
+  trainingTranslationController.getTrainingTranslationState
+);
+
+// The one training route that spends money — llmRateLimiter is the cost control.
+translationRouter.post(
+  '/trainings/:trainingId',
+  requireRole('chef'),
+  llmRateLimiter,
+  validate(translationLocaleSchema),
+  trainingTranslationController.requestTrainingTranslation
+);
+
+translationRouter.patch(
+  '/trainings/:trainingId',
+  requireRole('chef'),
+  validate(updateTrainingTranslationSchema),
+  trainingTranslationController.updateTrainingTranslation
+);
+translationRouter.post(
+  '/trainings/:trainingId/approve',
+  requireRole('chef'),
+  validate(translationLocaleSchema),
+  trainingTranslationController.approveTrainingTranslation
+);
+translationRouter.post(
+  '/trainings/:trainingId/reject',
+  requireRole('chef'),
+  validate(translationLocaleSchema),
+  trainingTranslationController.rejectTrainingTranslation
 );
 
 export { translationRouter };

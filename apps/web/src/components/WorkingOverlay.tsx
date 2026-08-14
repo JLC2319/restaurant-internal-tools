@@ -90,6 +90,17 @@ export const DRAFTING_MESSAGES = [
   'Writing it all up, chef…',
 ] as const
 
+/** Status lines for drafting training modules from descriptions and documents. */
+export const TRAINING_DRAFTING_MESSAGES = [
+  'Reading the handbook cover to cover…',
+  'Flipping through the binder…',
+  'Sorting the must-knows from the nice-to-knows…',
+  'Splitting it into teachable sections…',
+  'Trimming the corporate speak…',
+  'Double-checking the safety bits…',
+  'Writing it up for the team…',
+] as const
+
 /** Status lines for machine translation. */
 export const TRANSLATING_MESSAGES = [
   'Warming up the kitchen Spanish…',

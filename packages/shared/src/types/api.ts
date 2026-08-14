@@ -269,26 +269,26 @@ export interface ForkedFromRef {
   version: number;
 }
 
-/** One person on a recipe's allow-list, resolved for display. */
-export interface RecipeAccessUserView {
+/** One person on an allow-list, resolved for display. */
+export interface AccessUserView {
   _id: string;
   name: UserName;
   email: string;
 }
 
 /**
- * A recipe's person-level allow-list. `userIds` is the full stored list;
- * `users` resolves only the ids that still map to an account, so the UI can
- * badge the remainder as former members without a save round-trip ever
+ * A person-level allow-list (recipes, trainings). `userIds` is the full stored
+ * list; `users` resolves only the ids that still map to an account, so the UI
+ * can badge the remainder as former members without a save round-trip ever
  * silently dropping them.
  */
-export interface RecipeAccessView {
+export interface AccessListView {
   userIds: string[];
-  users: RecipeAccessUserView[];
+  users: AccessUserView[];
 }
 
-/** One eligible person for the access picker — their membership can see the recipe's scope. */
-export interface RecipeAccessCandidate {
+/** One eligible person for the access picker — their membership can see the document's scope. */
+export interface AccessCandidate {
   _id: string;
   name: UserName;
   email: string;
@@ -340,7 +340,7 @@ export interface RecipeDetail extends RecipeSummary {
    * may manage it. Everyone else — including listed viewers — gets null: who
    * else is trusted is itself managed information.
    */
-  access: RecipeAccessView | null;
+  access: AccessListView | null;
   /**
    * `recipePublishMode` resolved for *this recipe's* scope, so the editor offers
    * the publish-on-save shortcut on exactly the recipes the server would accept
@@ -459,6 +459,64 @@ export interface RecipePublishModeView {
   mode: RecipePublishMode;
 }
 
+// ── Training translations ─────────────────────────────────────────────────────
+
+/**
+ * The translated *text* of a training module. `blocks` aligns by index with
+ * the module's blocks: `text` for text blocks (rendered as plain paragraphs —
+ * formatting starts fresh in translation), `caption` for media/embed blocks
+ * that carry one, null everywhere else. Media assets and embeds always render
+ * from the source module.
+ */
+export interface TrainingTranslationPayloadView {
+  title: string;
+  description: string;
+  blocks: { text: string | null; caption: string | null }[];
+}
+
+/** One training module's translation into one locale, with its review state. */
+export interface TrainingTranslationView {
+  _id: string;
+  trainingId: string;
+  locale: Locale;
+  /** SAFETY: only `approved` (and not stale) may be shown to staff. */
+  status: ApprovalStatus;
+  /** `machine` until a reviewer edits it; drives the "AI-assisted" badge. */
+  origin: ContentOrigin;
+  /**
+   * True when the module's text has changed since this translation was
+   * produced. Trainings have no version history, so this is purely the
+   * content-hash check. A stale translation never reaches the reader.
+   */
+  stale: boolean;
+  payload: TrainingTranslationPayloadView;
+  /** The LLM that produced the current machine text. */
+  model: string | null;
+  requestedBy: string;
+  requestedAt: string;
+  approvedBy: string | null;
+  approvedAt: string | null;
+  /** SAFETY: `approved` reached via `auto_publish`, with no human signature. */
+  autoApproved: boolean;
+  modifiedAt: string;
+}
+
+/**
+ * Role-aware translation state for one training+locale — the same contract as
+ * `RecipeTranslationState`: staff get `translation` only when it is approved
+ * and current, reviewers get the full document plus `stale`.
+ */
+export interface TrainingTranslationState {
+  enabled: boolean;
+  canManage: boolean;
+  publishMode: TranslationPublishMode;
+  /** An automatic translation is running for this module right now. */
+  autoTranslating: boolean;
+  /** The last automatic run errored or its process died. */
+  autoTranslationFailed: boolean;
+  translation: TrainingTranslationView | null;
+}
+
 // ── AI recipe drafting ────────────────────────────────────────────────────────
 
 /**
@@ -493,6 +551,32 @@ export interface DraftRecipesResponse {
 /** Response of GET /api/drafts/config. */
 export interface DraftConfigView {
   enabled: boolean;
+}
+
+/**
+ * One training module drafted from a text description, photos and/or PDFs.
+ * Nothing here is persisted — the caller reviews a proposal and explicitly
+ * creates a module from it (which lands as an ordinary unpublished draft).
+ * `sections` are plain text, one per content block; the create flow turns
+ * each into a rich-text block. Submitted files are reference material for the
+ * one model call only — they are never stored, so a proposal carries no media
+ * blocks.
+ */
+export interface TrainingDraftProposal {
+  title: string;
+  description: string;
+  sections: string[];
+  /** What the model could not read or had to adapt — shown to the reviewer. */
+  notes: string | null;
+}
+
+/** Response of POST /api/drafts/trainings. */
+export interface DraftTrainingsResponse {
+  proposals: TrainingDraftProposal[];
+  /** Batch-level commentary (an unreadable page, a file that isn't training material). */
+  notes: string | null;
+  /** Which model produced the proposals, for the audit trail. */
+  model: string;
 }
 
 // ── Training ──────────────────────────────────────────────────────────────────
@@ -532,6 +616,11 @@ export interface TrainingSummary {
   videoCount: number;
   /** When the caller completed this module (any location), ISO — null if never. */
   myCompletion: string | null;
+  /**
+   * True when the module carries a person-level allow-list. Anyone who can see
+   * the module may see this flag; it names nobody.
+   */
+  restricted: boolean;
   publishedAt: string | null;
   createdAt: string;
   modifiedAt: string;
@@ -544,6 +633,11 @@ export interface TrainingDetail extends TrainingSummary {
   canManage: boolean;
   /** Completions across the caller's scope. Null for callers below chef. */
   completedCount: number | null;
+  /**
+   * The allow-list, present only when the module is restricted AND the caller
+   * may manage it — same disclosure rule as recipes.
+   */
+  access: AccessListView | null;
 }
 
 /** The caller's completion state, returned by the complete/uncomplete calls. */

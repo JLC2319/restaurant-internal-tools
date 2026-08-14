@@ -27,6 +27,16 @@ per-user-per-location completion records. Mounted at `/api/training`.
   are the seed of the Phase 2 productivity tracking; the tenant ids are flat
   (facts about people, not scoped content) and reads narrow them with
   `completionReadFilter`.
+- **Ownership** — the same two axes as recipes. Placement: `PUT /:id/scope`
+  (manager+) moves a module across the tenant tree; far simpler than a recipe
+  move (no versions, no reference graph) — write-tier at both homes, allow-list
+  re-validated at the new home, block media widened via `widenAssetsToCover`,
+  translations' denormalised scope updated copies-first. Person-level access:
+  `access: { userIds } | null` gated everywhere by `personAccessFilter` from
+  `tenancy/personAccess` (creator and admin+ always see; `null` means everyone
+  in scope, no backfill), managed via `PUT /:id/access` +
+  `GET /:id/access/candidates` — the same disclosure rules as recipes
+  (`restricted` is public to viewers, the list itself only to managers).
 
 ## Roles
 
@@ -42,9 +52,25 @@ body to R2 with bounded memory (`media/videoStorage.ts`) — never through
 multer's memory storage. Playback streams straight from the R2 CDN origin via
 HTTP range requests; the API is not in that path at all.
 
+## Translation
+
+Wired through the `translations` feature (`trainingTranslation.service`), the
+same five-route contract as recipes at `/api/translations/trainings/:id`.
+Modules have no versions, so staleness is a content hash of the translatable
+projection (title + description + per-block text/captions) — any edit to a
+published module hides its approved Spanish until re-translated or
+re-approved. Publishing (or editing while published) fires the same detached
+auto-translate pattern recipes use, with the `autoTranslation` marker living
+on the module. Text blocks translate as plain text — formatting does not
+survive translation.
+
+## AI drafting
+
+`POST /api/drafts/trainings` (see `features/drafting/trainingDraft.service`)
+turns a written description plus photos/PDFs into text-section proposals.
+Nothing persists from the model — the chef reviews and creates an ordinary
+unpublished draft; submitted files are material for the one model call only.
+
 ## Still open
 
-- Translation gate: training content is "the other half of what gets
-  auto-translated" — wire through the `translations` feature when it lands,
-  reusing `ApprovalStatus` / `ContentOrigin` unchanged.
 - Completion analytics (Phase 2): the records exist; the reporting does not.

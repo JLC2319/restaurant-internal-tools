@@ -2,6 +2,8 @@ import { Router } from 'express';
 import {
   createTrainingSchema,
   listTrainingsQuerySchema,
+  moveTrainingSchema,
+  updateTrainingAccessSchema,
   updateTrainingSchema,
 } from '@rit/shared';
 import * as trainingController from './trainingModule.controller';
@@ -29,6 +31,34 @@ trainingRouter.patch(
   requireRole('chef'),
   validate(updateTrainingSchema),
   trainingController.updateTraining
+);
+
+// ── Placement ─────────────────────────────────────────────────────────────────
+
+// Managers only: where a module lives decides which kitchens see it. The
+// service re-validates the allow-list and widens block media before saving.
+trainingRouter.put(
+  '/:id/scope',
+  requireRole('manager'),
+  validate(moveTrainingSchema),
+  trainingController.moveTraining
+);
+
+// ── Person-level access ───────────────────────────────────────────────────────
+
+// PUT: the allow-list is replaced wholesale — idempotent, no merge semantics.
+// The service enforces that only someone who can currently read AND manage the
+// module may change its list; role alone is not enough.
+trainingRouter.put(
+  '/:id/access',
+  requireRole('chef'),
+  validate(updateTrainingAccessSchema),
+  trainingController.updateTrainingAccess
+);
+trainingRouter.get(
+  '/:id/access/candidates',
+  requireRole('chef'),
+  trainingController.listAccessCandidates
 );
 
 // ── Publish gate ──────────────────────────────────────────────────────────────

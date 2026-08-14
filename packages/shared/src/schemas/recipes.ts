@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { objectIdSchema, paginationSchema } from './common.js';
+import { accessListSchema, objectIdSchema, paginationSchema } from './common.js';
 import {
   MAX_RECIPE_PHOTOS,
   allergenValues,
@@ -64,16 +64,6 @@ export const recipeContentSchema = z.object({
     .optional(),
 });
 
-/**
- * A recipe's person-level allow-list. An object rather than a bare id array so
- * named groups (`groupIds`) can join later without reshaping stored requests.
- * The cap is a sanity bound, not a product limit — a list approaching it
- * should be a scope change, not an ACL.
- */
-export const recipeAccessSchema = z.object({
-  userIds: z.array(objectIdSchema).max(200).default([]),
-});
-
 // ── Requests ──────────────────────────────────────────────────────────────────
 
 /**
@@ -88,7 +78,7 @@ export const createRecipeSchema = z
     propertyId: objectIdSchema.nullish(),
     locationId: objectIdSchema.nullish(),
     /** Optional person-level allow-list, so a recipe can be born restricted. */
-    access: recipeAccessSchema.nullish(),
+    access: accessListSchema.nullish(),
   })
   .refine((v) => !v.locationId || !!v.propertyId, {
     message: 'A location-scoped recipe must also name its property',
@@ -155,7 +145,7 @@ export const moveRecipeSchema = z
 
 /** Replace the allow-list wholesale. `access: null` clears the restriction. */
 export const updateRecipeAccessSchema = z.object({
-  access: recipeAccessSchema.nullable(),
+  access: accessListSchema.nullable(),
 });
 
 /** Sign off allergen tags. Omitting `allergens` approves every pending tag. */
@@ -186,7 +176,6 @@ export type SaveVersionInput = z.infer<typeof saveVersionSchema>;
 export type PublishRecipeInput = z.infer<typeof publishRecipeSchema>;
 export type ForkRecipeInput = z.infer<typeof forkRecipeSchema>;
 export type MoveRecipeInput = z.infer<typeof moveRecipeSchema>;
-export type RecipeAccessInput = z.infer<typeof recipeAccessSchema>;
 export type UpdateRecipeAccessInput = z.infer<typeof updateRecipeAccessSchema>;
 export type ApproveAllergensInput = z.infer<typeof approveAllergensSchema>;
 export type ListRecipesQuery = z.infer<typeof listRecipesQuerySchema>;

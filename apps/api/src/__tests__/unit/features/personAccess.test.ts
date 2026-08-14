@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { TenantContext, TenantRole } from '@rit/shared';
-import { canBypassRecipeAccess, recipeAccessFilter } from '../../../features/recipes/recipeAccess';
+import { canBypassPersonAccess, personAccessFilter } from '../../../features/tenancy/personAccess';
 
 const USER = 'user-1';
 
@@ -17,7 +17,7 @@ function ctx(overrides: Partial<TenantContext> = {}): TenantContext {
   };
 }
 
-describe('canBypassRecipeAccess', () => {
+describe('canBypassPersonAccess', () => {
   // The product decision, pinned: admin-or-above only. Director and manager
   // sit between admin and chef in rank and are deliberately NOT bypassers.
   const expected: Record<TenantRole, boolean> = {
@@ -31,20 +31,20 @@ describe('canBypassRecipeAccess', () => {
 
   for (const [role, bypasses] of Object.entries(expected) as [TenantRole, boolean][]) {
     it(`${role} ${bypasses ? 'bypasses' : 'does not bypass'} the allow-list`, () => {
-      expect(canBypassRecipeAccess(ctx({ role }))).toBe(bypasses);
+      expect(canBypassPersonAccess(ctx({ role }))).toBe(bypasses);
     });
   }
 
   it('platform staff bypass regardless of the resolved role', () => {
-    expect(canBypassRecipeAccess(ctx({ role: 'staff', isPlatformAdmin: true }))).toBe(true);
+    expect(canBypassPersonAccess(ctx({ role: 'staff', isPlatformAdmin: true }))).toBe(true);
   });
 });
 
-describe('recipeAccessFilter', () => {
+describe('personAccessFilter', () => {
   it('is a no-op for bypassers', () => {
-    expect(recipeAccessFilter(ctx({ role: 'admin' }))).toEqual({});
-    expect(recipeAccessFilter(ctx({ role: 'owner' }))).toEqual({});
-    expect(recipeAccessFilter(ctx({ role: 'staff', isPlatformAdmin: true }))).toEqual({});
+    expect(personAccessFilter(ctx({ role: 'admin' }))).toEqual({});
+    expect(personAccessFilter(ctx({ role: 'owner' }))).toEqual({});
+    expect(personAccessFilter(ctx({ role: 'staff', isPlatformAdmin: true }))).toEqual({});
   });
 
   // The exact three branches: unrestricted (null matches a missing field too,
@@ -54,9 +54,9 @@ describe('recipeAccessFilter', () => {
     const expected = {
       $or: [{ access: null }, { 'access.userIds': USER }, { createdBy: USER }],
     };
-    expect(recipeAccessFilter(ctx({ role: 'chef' }))).toEqual(expected);
-    expect(recipeAccessFilter(ctx({ role: 'staff' }))).toEqual(expected);
-    expect(recipeAccessFilter(ctx({ role: 'manager' }))).toEqual(expected);
-    expect(recipeAccessFilter(ctx({ role: 'director' }))).toEqual(expected);
+    expect(personAccessFilter(ctx({ role: 'chef' }))).toEqual(expected);
+    expect(personAccessFilter(ctx({ role: 'staff' }))).toEqual(expected);
+    expect(personAccessFilter(ctx({ role: 'manager' }))).toEqual(expected);
+    expect(personAccessFilter(ctx({ role: 'director' }))).toEqual(expected);
   });
 });

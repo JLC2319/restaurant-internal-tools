@@ -12,8 +12,8 @@ import { recipeContentSchema } from './recipe.model';
  *
  * ACCESS INVARIANT: the head's `access` allow-list is deliberately NOT
  * denormalised here — it mutates, so copies would go stale. Every read of a
- * version must therefore first load the head through `recipeAccessFilter`
- * (see recipeAccess.ts); a standalone RecipeVersion query is an ACL bypass by
+ * version must therefore first load the head through `personAccessFilter`
+ * (see tenancy/personAccess.ts); a standalone RecipeVersion query is an ACL bypass by
  * construction.
  */
 

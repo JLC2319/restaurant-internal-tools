@@ -30,6 +30,13 @@ export const orgSettingsSchema = new Schema<ITenantSettings>(
       // have: translating is a deliberate act until someone says otherwise.
       default: DEFAULT_TRANSLATION_PUBLISH_MODE,
     },
+    trainingTranslationPublishMode: {
+      type: String,
+      enum: translationPublishModeValues,
+      // Independent of the recipe setting on purpose: an org may want Spanish
+      // recipes immediately but a human review on training material.
+      default: DEFAULT_TRANSLATION_PUBLISH_MODE,
+    },
     recipePublishMode: {
       type: String,
       enum: recipePublishModeValues,
@@ -48,6 +55,11 @@ export const orgSettingsSchema = new Schema<ITenantSettings>(
 export const settingsOverrideSchema = new Schema<ITenantSettingsOverride>(
   {
     translationPublishMode: {
+      type: String,
+      enum: [...translationPublishModeValues, null],
+      default: null,
+    },
+    trainingTranslationPublishMode: {
       type: String,
       enum: [...translationPublishModeValues, null],
       default: null,

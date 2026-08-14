@@ -5,8 +5,14 @@
 
 // ── Schemas ───────────────────────────────────────────────────────────────────
 
-export { objectIdSchema, paginationSchema, slugSchema, toSlug } from './schemas/common.js';
-export type { PaginationInput } from './schemas/common.js';
+export {
+  accessListSchema,
+  objectIdSchema,
+  paginationSchema,
+  slugSchema,
+  toSlug,
+} from './schemas/common.js';
+export type { AccessListInput, PaginationInput } from './schemas/common.js';
 
 export {
   registerSchema,
@@ -60,7 +66,6 @@ export {
   publishRecipeSchema,
   forkRecipeSchema,
   moveRecipeSchema,
-  recipeAccessSchema,
   updateRecipeAccessSchema,
   approveAllergensSchema,
   listRecipesQuerySchema,
@@ -75,7 +80,6 @@ export type {
   PublishRecipeInput,
   ForkRecipeInput,
   MoveRecipeInput,
-  RecipeAccessInput,
   UpdateRecipeAccessInput,
   ApproveAllergensInput,
   ListRecipesQuery,
@@ -86,16 +90,22 @@ export {
   translationPayloadSchema,
   translationLocaleSchema,
   updateTranslationSchema,
+  translatedTrainingBlockSchema,
+  trainingTranslationPayloadSchema,
+  updateTrainingTranslationSchema,
 } from './schemas/translations.js';
 export type {
   TranslatedIngredientInput,
   TranslationPayloadInput,
   TranslationLocaleInput,
   UpdateTranslationInput,
+  TranslatedTrainingBlockInput,
+  TrainingTranslationPayloadInput,
+  UpdateTrainingTranslationInput,
 } from './schemas/translations.js';
 
-export { draftRecipesSchema } from './schemas/drafting.js';
-export type { DraftRecipesInput } from './schemas/drafting.js';
+export { draftRecipesSchema, draftTrainingsSchema } from './schemas/drafting.js';
+export type { DraftRecipesInput, DraftTrainingsInput } from './schemas/drafting.js';
 
 export {
   richTextDocSchema,
@@ -116,6 +126,8 @@ export {
   trainingBlockSchema,
   createTrainingSchema,
   updateTrainingSchema,
+  moveTrainingSchema,
+  updateTrainingAccessSchema,
   listTrainingsQuerySchema,
 } from './schemas/training.js';
 export type {
@@ -123,6 +135,8 @@ export type {
   TrainingBlockInput,
   CreateTrainingInput,
   UpdateTrainingInput,
+  MoveTrainingInput,
+  UpdateTrainingAccessInput,
   ListTrainingsQuery,
 } from './schemas/training.js';
 
@@ -175,6 +189,7 @@ export {
   MAX_PHOTO_BYTES,
   MAX_DRAFT_PHOTOS,
   MAX_DRAFT_TOTAL_BYTES,
+  MAX_DRAFT_FILES,
   MAX_VIDEO_BYTES,
   trainingStatusValues,
   trainingBlockKindValues,
@@ -248,9 +263,9 @@ export type {
   AllergenTagView,
   RecipeContentView,
   ForkedFromRef,
-  RecipeAccessUserView,
-  RecipeAccessView,
-  RecipeAccessCandidate,
+  AccessUserView,
+  AccessListView,
+  AccessCandidate,
   RecipeSummary,
   RecipeDetail,
   RecipeVersionSummary,
@@ -262,9 +277,14 @@ export type {
   RecipeDraftProposal,
   DraftRecipesResponse,
   DraftConfigView,
+  TrainingDraftProposal,
+  DraftTrainingsResponse,
   TrainingBlockView,
   TrainingSummary,
   TrainingDetail,
   TrainingCompletionState,
   TrainingCompletionRow,
+  TrainingTranslationPayloadView,
+  TrainingTranslationView,
+  TrainingTranslationState,
 } from './types/api.js';

@@ -11,13 +11,18 @@ import {
   Clock,
   GraduationCap,
   Layers,
+  Lock,
   PenLine,
   Play,
   Plus,
   Search,
+  Sparkles,
   X,
 } from 'lucide-react'
 import { createTraining, listTrainings, trainingsScopeKey } from '../api/trainings'
+import { getDraftConfig } from '../api/drafts'
+import { ScopePicker, defaultScopeSelection } from './ScopePicker'
+import type { ScopeSelection } from './ScopePicker'
 import { useActiveRole } from './useActiveRole'
 import { QueryProvider } from './QueryProvider'
 import {
@@ -36,11 +41,18 @@ import {
 function NewTrainingForm({ onClose }: { onClose: () => void }) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  const [scope, setScope] = useState<ScopeSelection>(defaultScopeSelection)
   const [error, setError] = useState<string | null>(null)
 
   const create = useMutation({
     mutationFn: async () => {
-      const result = await createTraining({ title, description, blocks: [] })
+      const result = await createTraining({
+        title,
+        description,
+        blocks: [],
+        propertyId: scope.propertyId || null,
+        locationId: scope.locationId || null,
+      })
       if (result.error) throw new Error(result.error.message)
       return result.data
     },
@@ -105,6 +117,14 @@ function NewTrainingForm({ onClose }: { onClose: () => void }) {
         />
       </div>
 
+      <div className="grid gap-4 tablet:grid-cols-3">
+        <ScopePicker idPrefix="new-training" value={scope} onChange={setScope} />
+        <p className="self-end pb-1 text-xs leading-relaxed text-salt-500">
+          Where a training lives decides who sees it: the whole organization, one property&rsquo;s
+          kitchens, or a single location. Sibling properties never see each other&rsquo;s.
+        </p>
+      </div>
+
       <button type="submit" disabled={create.isPending} className={primaryButtonClass}>
         <Plus className="size-4" aria-hidden />
         {create.isPending ? 'Creating…' : 'Create and add content'}
@@ -157,9 +177,19 @@ function TrainingCard({ training, index }: { training: TrainingSummary; index: n
         </div>
 
         <div className="flex flex-1 flex-col gap-3 p-5">
-          <h2 className="font-semibold text-steel-900 transition-colors group-hover:text-ember-700">
-            {training.title}
-          </h2>
+          <div className="flex items-start justify-between gap-2">
+            <h2 className="font-semibold text-steel-900 transition-colors group-hover:text-ember-700">
+              {training.title}
+            </h2>
+            {training.restricted && (
+              <span
+                title="Restricted to specific people"
+                className="flex size-7 shrink-0 items-center justify-center rounded-full bg-steel-50 text-steel-500 ring-1 ring-steel-200 ring-inset"
+              >
+                <Lock className="size-3.5" aria-hidden />
+              </span>
+            )}
+          </div>
           {training.description && (
             <p className="-mt-1 line-clamp-2 text-sm text-salt-600">{training.description}</p>
           )}
@@ -207,6 +237,18 @@ function Browser() {
   const [showForm, setShowForm] = useState(false)
   const { role } = useActiveRole()
   const canCreate = role != null && roleAtLeast(role, 'chef')
+
+  // Only to decide whether the AI-drafting link earns a spot in the toolbar —
+  // the draft page itself re-checks and explains when drafting is off.
+  const { data: draftConfig } = useQuery({
+    queryKey: ['drafts', ...trainingsScopeKey(), 'config'],
+    queryFn: async () => {
+      const result = await getDraftConfig()
+      if (result.error) throw new Error(result.error.message)
+      return result.data
+    },
+    enabled: canCreate,
+  })
 
   const { data, error, isLoading } = useQuery({
     queryKey: ['trainings', ...trainingsScopeKey(), 'list', { q, page, status }],
@@ -273,14 +315,22 @@ function Browser() {
                 },
               ]}
             />
-            <button
-              type="button"
-              onClick={() => setShowForm((v) => !v)}
-              className={`${primaryButtonClass} ml-auto`}
-            >
-              <Plus className="size-4" aria-hidden />
-              New training
-            </button>
+            <div className="ml-auto flex flex-wrap items-center gap-3">
+              {draftConfig?.enabled && (
+                <a href="/training/draft" className={subtleButtonClass}>
+                  <Sparkles className="size-4 text-ember-600" aria-hidden />
+                  Draft with AI
+                </a>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowForm((v) => !v)}
+                className={primaryButtonClass}
+              >
+                <Plus className="size-4" aria-hidden />
+                New training
+              </button>
+            </div>
           </>
         )}
       </div>

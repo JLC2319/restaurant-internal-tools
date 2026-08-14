@@ -1,12 +1,15 @@
 import type {
+  AccessCandidate,
   ApiResult,
   CreateTrainingInput,
+  MoveTrainingInput,
   PaginatedResponse,
   TrainingCompletionRow,
   TrainingCompletionState,
   TrainingDetail,
   TrainingStatus,
   TrainingSummary,
+  UpdateTrainingAccessInput,
   UpdateTrainingInput,
 } from '@rit/shared'
 import { apiRequest, getScope } from './client'
@@ -100,4 +103,31 @@ export function uncompleteTraining(id: string): Promise<ApiResult<TrainingComple
 
 export function listCompletions(id: string): Promise<ApiResult<TrainingCompletionRow[]>> {
   return apiRequest<TrainingCompletionRow[]>(`/api/training/${id}/completions`)
+}
+
+/** Move the module to a new home in the tree; the server re-validates everything placement touches. */
+export function moveTraining(
+  id: string,
+  input: MoveTrainingInput
+): Promise<ApiResult<TrainingDetail>> {
+  return apiRequest<TrainingDetail>(`/api/training/${id}/scope`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  })
+}
+
+/** Replace the person-level allow-list wholesale; `access: null` clears it. */
+export function updateTrainingAccess(
+  id: string,
+  input: UpdateTrainingAccessInput
+): Promise<ApiResult<TrainingDetail>> {
+  return apiRequest<TrainingDetail>(`/api/training/${id}/access`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  })
+}
+
+/** Everyone the allow-list may name: members whose scope covers this module. */
+export function listTrainingAccessCandidates(id: string): Promise<ApiResult<AccessCandidate[]>> {
+  return apiRequest<AccessCandidate[]>(`/api/training/${id}/access/candidates`)
 }

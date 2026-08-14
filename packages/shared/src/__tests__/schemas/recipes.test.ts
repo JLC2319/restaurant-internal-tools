@@ -5,11 +5,11 @@ import {
   ingredientLineSchema,
   listRecipesQuerySchema,
   publishRecipeSchema,
-  recipeAccessSchema,
   recipeContentSchema,
   updateRecipeAccessSchema,
   updateRecipeSchema,
 } from '../../schemas/recipes.js';
+import { accessListSchema } from '../../schemas/common.js';
 import { MAX_RECIPE_PHOTOS } from '../../types/domain.js';
 
 const OID = '507f1f77bcf86cd799439011';
@@ -126,21 +126,21 @@ describe('createRecipeSchema', () => {
   });
 });
 
-describe('recipeAccessSchema', () => {
+describe('accessListSchema', () => {
   it('defaults userIds so an empty object is a valid (empty) list', () => {
-    const result = recipeAccessSchema.safeParse({});
+    const result = accessListSchema.safeParse({});
     expect(result.success).toBe(true);
     expect(result.data?.userIds).toEqual([]);
   });
 
   it('rejects a userId that is not an ObjectId', () => {
-    const result = recipeAccessSchema.safeParse({ userIds: ['not-an-id'] });
+    const result = accessListSchema.safeParse({ userIds: ['not-an-id'] });
     expect(result.success).toBe(false);
   });
 
   it('caps the list at 200 — beyond that it should be a scope, not an ACL', () => {
     const userIds = Array.from({ length: 201 }, () => OID);
-    const result = recipeAccessSchema.safeParse({ userIds });
+    const result = accessListSchema.safeParse({ userIds });
     expect(result.success).toBe(false);
   });
 });

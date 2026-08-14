@@ -1,6 +1,12 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { MAX_DRAFT_PHOTOS, MAX_PHOTO_BYTES, draftRecipesSchema } from '@rit/shared';
+import {
+  MAX_DRAFT_FILES,
+  MAX_DRAFT_PHOTOS,
+  MAX_PHOTO_BYTES,
+  draftRecipesSchema,
+  draftTrainingsSchema,
+} from '@rit/shared';
 import * as draftController from './draft.controller';
 import { authenticate } from '../../middleware/authenticate';
 import { resolveTenant, requireRole } from '../../middleware/resolveTenant';
@@ -33,6 +39,25 @@ draftRouter.post(
   draftUpload.array('photos', MAX_DRAFT_PHOTOS),
   validate(draftRecipesSchema),
   draftController.draftRecipes
+);
+
+/**
+ * Training drafting takes photos AND PDFs in one `files` field — the service
+ * sniffs each file's bytes to decide its lane. Same memory-only lifecycle as
+ * drafting photos: material for one model call, never stored.
+ */
+const trainingDraftUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_PHOTO_BYTES, files: MAX_DRAFT_FILES },
+});
+
+draftRouter.post(
+  '/trainings',
+  requireRole('chef'),
+  llmRateLimiter,
+  trainingDraftUpload.array('files', MAX_DRAFT_FILES),
+  validate(draftTrainingsSchema),
+  draftController.draftTrainings
 );
 
 export { draftRouter };

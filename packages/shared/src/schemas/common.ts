@@ -17,6 +17,19 @@ export const paginationSchema = z.object({
 export type PaginationInput = z.infer<typeof paginationSchema>;
 
 /**
+ * A person-level allow-list, shared by every entity that supports one (recipes,
+ * trainings). An object rather than a bare id array so named groups
+ * (`groupIds`) can join later without reshaping stored requests. The cap is a
+ * sanity bound, not a product limit — a list approaching it should be a scope
+ * change, not an ACL.
+ */
+export const accessListSchema = z.object({
+  userIds: z.array(objectIdSchema).max(200).default([]),
+});
+
+export type AccessListInput = z.infer<typeof accessListSchema>;
+
+/**
  * A URL-safe slug. Used for org/property/location so links and imports can
  * reference a tenant without leaking database ids.
  */

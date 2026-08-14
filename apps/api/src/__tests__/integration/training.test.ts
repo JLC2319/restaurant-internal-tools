@@ -118,16 +118,42 @@ async function addMember(
   ownerToken: string,
   orgId: string,
   email: string,
-  role: string
+  role: string,
+  scope: { propertyId?: string; locationId?: string } = {}
 ): Promise<{ token: string; userId: string }> {
   const account = await registerAndLogin(email);
   const invited = await request(app)
     .post('/api/tenancy/members')
     .set('Authorization', `Bearer ${ownerToken}`)
     .set('X-Org-Id', orgId)
-    .send({ email, role });
+    .send({ email, role, ...scope });
   expect(invited.status).toBe(201);
   return account;
+}
+
+async function createProperty(ownerToken: string, orgId: string, name: string): Promise<string> {
+  const response = await request(app)
+    .post('/api/tenancy/properties')
+    .set('Authorization', `Bearer ${ownerToken}`)
+    .set('X-Org-Id', orgId)
+    .send({ name });
+  expect(response.status).toBe(201);
+  return response.body._id;
+}
+
+async function createLocation(
+  ownerToken: string,
+  orgId: string,
+  propertyId: string,
+  name: string
+): Promise<string> {
+  const response = await request(app)
+    .post('/api/tenancy/locations')
+    .set('Authorization', `Bearer ${ownerToken}`)
+    .set('X-Org-Id', orgId)
+    .send({ propertyId, name });
+  expect(response.status).toBe(201);
+  return response.body._id;
 }
 
 interface Scope {
@@ -147,6 +173,7 @@ function as(token: string, orgId: string, scope: Scope = {}) {
     get: (path: string) => decorate(request(app).get(path)),
     post: (path: string) => decorate(request(app).post(path)),
     patch: (path: string) => decorate(request(app).patch(path)),
+    put: (path: string) => decorate(request(app).put(path)),
     delete: (path: string) => decorate(request(app).delete(path)),
   };
 }
@@ -549,6 +576,383 @@ describe('training completion', () => {
 
     expect((await as(chef.token, orgId).post(`/api/training/${id}/complete`)).status).toBe(409);
     expect((await as(staff.token, orgId).post(`/api/training/${id}/complete`)).status).toBe(404);
+  });
+});
+
+// ── Person-level access restriction ───────────────────────────────────────────
+
+describe('person-level access restriction', () => {
+  let owner: { token: string; userId: string };
+  let admin: { token: string; userId: string };
+  let manager: { token: string; userId: string };
+  let chefCreator: { token: string; userId: string };
+  let chefListed: { token: string; userId: string };
+  let chefOutsider: { token: string; userId: string };
+  let staffListed: { token: string; userId: string };
+  let staffOutsider: { token: string; userId: string };
+  let p2Chef: { token: string; userId: string };
+  let orgId: string;
+  let p1: string;
+  let p2: string;
+  let l1: string;
+  let secretId: string;
+
+  async function restrict(
+    token: string,
+    trainingId: string,
+    userIds: string[]
+  ): Promise<request.Response> {
+    return as(token, orgId).put(`/api/training/${trainingId}/access`).send({ access: { userIds } });
+  }
+
+  beforeAll(async () => {
+    owner = await registerAndLogin('t-acl-owner@example.com');
+    orgId = await createOrg(owner.token, 'Training ACL Org');
+    p1 = await createProperty(owner.token, orgId, 'Sixty Vines');
+    p2 = await createProperty(owner.token, orgId, 'Whiskey Cake');
+    l1 = await createLocation(owner.token, orgId, p1, 'Sixty Vines Dallas');
+
+    admin = await addMember(owner.token, orgId, 't-acl-admin@example.com', 'admin');
+    manager = await addMember(owner.token, orgId, 't-acl-manager@example.com', 'manager');
+    chefCreator = await addMember(owner.token, orgId, 't-acl-creator@example.com', 'chef');
+    chefListed = await addMember(owner.token, orgId, 't-acl-listed@example.com', 'chef');
+    chefOutsider = await addMember(owner.token, orgId, 't-acl-outsider@example.com', 'chef');
+    staffListed = await addMember(owner.token, orgId, 't-acl-staff-listed@example.com', 'staff', {
+      propertyId: p1,
+      locationId: l1,
+    });
+    staffOutsider = await addMember(owner.token, orgId, 't-acl-staff-out@example.com', 'staff');
+    p2Chef = await addMember(owner.token, orgId, 't-acl-p2-chef@example.com', 'chef', {
+      propertyId: p2,
+    });
+
+    // The fixture: an org-level module, published so staff can read it, then
+    // restricted to one chef and one location-tier staff member. The creator
+    // deliberately leaves themselves off the list.
+    const created = await as(chefCreator.token, orgId)
+      .post('/api/training')
+      .send({ title: 'Secret Procedures', blocks: [textBlock('The safe combination.')] });
+    expect(created.status).toBe(201);
+    secretId = created.body._id;
+    expect((await as(chefCreator.token, orgId).post(`/api/training/${secretId}/publish`)).status).toBe(
+      200
+    );
+
+    const restricted = await restrict(chefCreator.token, secretId, [
+      chefListed.userId,
+      staffListed.userId,
+    ]);
+    expect(restricted.status).toBe(200);
+    expect(restricted.body.restricted).toBe(true);
+  }, 120_000);
+
+  it('shows a restricted module to listed members, disclosing the list only to its managers', async () => {
+    const chefList = await as(chefListed.token, orgId).get('/api/training');
+    const chefRow = chefList.body.items.find((t: { _id: string }) => t._id === secretId);
+    expect(chefRow).toBeTruthy();
+    expect(chefRow.restricted).toBe(true);
+    // An org-tier chef manages the module, so the allow-list resolves for them.
+    const chefDetail = await as(chefListed.token, orgId).get(`/api/training/${secretId}`);
+    expect(chefDetail.status).toBe(200);
+    expect(chefDetail.body.access.userIds).toEqual(
+      expect.arrayContaining([chefListed.userId, staffListed.userId])
+    );
+
+    // Listed staff read it — blocks and all — but never learn who else is on
+    // the list.
+    const staffDetail = await as(staffListed.token, orgId).get(`/api/training/${secretId}`);
+    expect(staffDetail.status).toBe(200);
+    expect(staffDetail.body.restricted).toBe(true);
+    expect(staffDetail.body.blocks).toHaveLength(1);
+    expect(staffDetail.body.access).toBeNull();
+
+    const staffList = await as(staffListed.token, orgId).get('/api/training');
+    expect(staffList.body.items.map((t: { _id: string }) => t._id)).toContain(secretId);
+  });
+
+  it('hides it entirely from unlisted members — list, detail, writes, completion', async () => {
+    const list = await as(chefOutsider.token, orgId).get('/api/training');
+    expect(list.body.items.map((t: { _id: string }) => t._id)).not.toContain(secretId);
+
+    expect((await as(chefOutsider.token, orgId).get(`/api/training/${secretId}`)).status).toBe(404);
+    expect(
+      (
+        await as(chefOutsider.token, orgId)
+          .patch(`/api/training/${secretId}`)
+          .send({ title: 'Stolen Procedures' })
+      ).status
+    ).toBe(404);
+    expect((await restrict(chefOutsider.token, secretId, [chefOutsider.userId])).status).toBe(404);
+
+    const staffList = await as(staffOutsider.token, orgId).get('/api/training');
+    expect(staffList.body.items.map((t: { _id: string }) => t._id)).not.toContain(secretId);
+    expect((await as(staffOutsider.token, orgId).get(`/api/training/${secretId}`)).status).toBe(404);
+    // A completion attempt reveals nothing either.
+    expect((await as(staffOutsider.token, orgId).post(`/api/training/${secretId}/complete`)).status).toBe(
+      404
+    );
+  });
+
+  it('does not answer title probes through ?q= for unlisted members', async () => {
+    const probe = await as(chefOutsider.token, orgId).get('/api/training?q=Secret');
+    expect(probe.body.total).toBe(0);
+    const listed = await as(chefListed.token, orgId).get('/api/training?q=Secret');
+    expect(listed.body.total).toBe(1);
+  });
+
+  it('always keeps the creator in, even when they left themselves off the list', async () => {
+    const detail = await as(chefCreator.token, orgId).get(`/api/training/${secretId}`);
+    expect(detail.status).toBe(200);
+    expect(detail.body.access.userIds).toEqual(
+      expect.arrayContaining([chefListed.userId, staffListed.userId])
+    );
+    const rename = await as(chefCreator.token, orgId)
+      .patch(`/api/training/${secretId}`)
+      .send({ title: 'Secret Procedures' });
+    expect(rename.status).toBe(200);
+  });
+
+  it('lets admins and owners through, but not managers', async () => {
+    const adminDetail = await as(admin.token, orgId).get(`/api/training/${secretId}`);
+    expect(adminDetail.status).toBe(200);
+    expect(adminDetail.body.restricted).toBe(true);
+    expect(adminDetail.body.access).not.toBeNull();
+
+    // Idempotent re-PUT of the same list: proves admins may manage access.
+    const rePut = await restrict(admin.token, secretId, [chefListed.userId, staffListed.userId]);
+    expect(rePut.status).toBe(200);
+
+    expect((await as(owner.token, orgId).get(`/api/training/${secretId}`)).status).toBe(200);
+    expect((await as(manager.token, orgId).get(`/api/training/${secretId}`)).status).toBe(404);
+  });
+
+  it('refuses access edits from listed members below chef', async () => {
+    const attempt = await restrict(staffListed.token, secretId, [staffListed.userId]);
+    expect(attempt.status).toBe(403);
+  });
+
+  it('rejects allow-list entries whose membership cannot see the module scope', async () => {
+    const created = await as(owner.token, orgId)
+      .post('/api/training')
+      .send({ title: 'P1 House Rules', propertyId: p1, blocks: [textBlock('House rules.')] });
+    expect(created.status).toBe(201);
+    const p1Module = created.body._id;
+
+    // A sibling property's chef never sees a P1 module — listing them lies.
+    const sibling = await restrict(owner.token, p1Module, [p2Chef.userId]);
+    expect(sibling.status).toBe(400);
+    expect(sibling.body.message).toMatch(/cannot see/);
+
+    // Someone from another org entirely, ditto — even on an org-level module.
+    const strangerOwner = await registerAndLogin('t-acl-stranger@example.com');
+    await createOrg(strangerOwner.token, 'Training ACL Other Org');
+    expect((await restrict(owner.token, secretId, [strangerOwner.userId])).status).toBe(400);
+
+    // A location member below the module's property, and an org-wide member,
+    // are both genuinely covered — accepted.
+    const valid = await restrict(owner.token, p1Module, [staffListed.userId, chefOutsider.userId]);
+    expect(valid.status).toBe(200);
+    expect(valid.body.access.userIds).toHaveLength(2);
+  });
+
+  it('offers exactly the coverable people as picker candidates', async () => {
+    const created = await as(owner.token, orgId)
+      .post('/api/training')
+      .send({ title: 'P1 Staff Meal Training', propertyId: p1 });
+    const p1Module = created.body._id;
+
+    const candidates = await as(owner.token, orgId).get(
+      `/api/training/${p1Module}/access/candidates`
+    );
+    expect(candidates.status).toBe(200);
+    const emails = candidates.body.map((c: { email: string }) => c.email);
+    expect(emails).toContain('t-acl-outsider@example.com'); // org-wide member
+    expect(emails).toContain('t-acl-staff-listed@example.com'); // L1 under P1
+    expect(emails).not.toContain('t-acl-p2-chef@example.com'); // sibling property
+
+    // The endpoint is gated like any other read of the module…
+    expect(
+      (await as(chefOutsider.token, orgId).get(`/api/training/${secretId}/access/candidates`))
+        .status
+    ).toBe(404);
+    // …and by role.
+    expect(
+      (await as(staffListed.token, orgId).get(`/api/training/${secretId}/access/candidates`))
+        .status
+    ).toBe(403);
+  });
+
+  it('clears the restriction with access: null', async () => {
+    const created = await as(chefCreator.token, orgId)
+      .post('/api/training')
+      .send({ title: 'Sometimes Secret', blocks: [textBlock('Now you see it.')] });
+    const id = created.body._id;
+    expect((await restrict(chefCreator.token, id, [])).status).toBe(200);
+    expect((await as(chefOutsider.token, orgId).get(`/api/training/${id}`)).status).toBe(404);
+
+    const cleared = await as(chefCreator.token, orgId)
+      .put(`/api/training/${id}/access`)
+      .send({ access: null });
+    expect(cleared.status).toBe(200);
+    expect(cleared.body.restricted).toBe(false);
+    expect((await as(chefOutsider.token, orgId).get(`/api/training/${id}`)).status).toBe(200);
+  });
+});
+
+// ── Placement ─────────────────────────────────────────────────────────────────
+
+describe('placement', () => {
+  let owner: { token: string; userId: string };
+  let manager: { token: string; userId: string };
+  let chef: { token: string; userId: string };
+  let p1Staff: { token: string; userId: string };
+  let p2Staff: { token: string; userId: string };
+  let orgId: string;
+  let p1: string;
+  let p2: string;
+  let l1: string;
+
+  beforeAll(async () => {
+    owner = await registerAndLogin('t-move-owner@example.com');
+    orgId = await createOrg(owner.token, 'Training Placement Org');
+    p1 = await createProperty(owner.token, orgId, 'Harbour House');
+    p2 = await createProperty(owner.token, orgId, 'Canal Street');
+    l1 = await createLocation(owner.token, orgId, p1, 'Harbour House North');
+
+    manager = await addMember(owner.token, orgId, 't-move-manager@example.com', 'manager');
+    chef = await addMember(owner.token, orgId, 't-move-chef@example.com', 'chef');
+    p1Staff = await addMember(owner.token, orgId, 't-move-p1-staff@example.com', 'staff', {
+      propertyId: p1,
+    });
+    p2Staff = await addMember(owner.token, orgId, 't-move-p2-staff@example.com', 'staff', {
+      propertyId: p2,
+    });
+  }, 120_000);
+
+  async function createPublished(
+    title: string,
+    body: Record<string, unknown> = {}
+  ): Promise<string> {
+    const created = await as(chef.token, orgId)
+      .post('/api/training')
+      .send({ title, blocks: [textBlock('Follow the checklist.')], ...body });
+    expect(created.status).toBe(201);
+    const id = created.body._id;
+    expect((await as(chef.token, orgId).post(`/api/training/${id}/publish`)).status).toBe(200);
+    return id;
+  }
+
+  it('moves a module across the tree, and its audience follows', async () => {
+    const id = await createPublished('Traveling Module', { propertyId: p1 });
+
+    // At P1: its own staff see it, the sibling property's do not.
+    expect((await as(p1Staff.token, orgId).get(`/api/training/${id}`)).status).toBe(200);
+    expect((await as(p2Staff.token, orgId).get(`/api/training/${id}`)).status).toBe(404);
+
+    // Property → sibling property.
+    const toP2 = await as(manager.token, orgId)
+      .put(`/api/training/${id}/scope`)
+      .send({ propertyId: p2 });
+    expect(toP2.status).toBe(200);
+    expect(toP2.body.scope).toMatchObject({ propertyId: p2, locationId: null });
+    expect((await as(p2Staff.token, orgId).get(`/api/training/${id}`)).status).toBe(200);
+    expect((await as(p1Staff.token, orgId).get(`/api/training/${id}`)).status).toBe(404);
+
+    // Property → org: everyone sees it.
+    const toOrg = await as(manager.token, orgId).put(`/api/training/${id}/scope`).send({});
+    expect(toOrg.status).toBe(200);
+    expect(toOrg.body.scope).toMatchObject({ propertyId: null, locationId: null });
+    expect((await as(p1Staff.token, orgId).get(`/api/training/${id}`)).status).toBe(200);
+    expect((await as(p2Staff.token, orgId).get(`/api/training/${id}`)).status).toBe(200);
+
+    // Org → location: only that location's branch of the tree sees it.
+    const toL1 = await as(manager.token, orgId)
+      .put(`/api/training/${id}/scope`)
+      .send({ propertyId: p1, locationId: l1 });
+    expect(toL1.status).toBe(200);
+    expect(toL1.body.scope).toMatchObject({ propertyId: p1, locationId: l1 });
+    expect((await as(p1Staff.token, orgId).get(`/api/training/${id}`)).status).toBe(200);
+    expect((await as(p2Staff.token, orgId).get(`/api/training/${id}`)).status).toBe(404);
+  });
+
+  it('refuses the move below manager', async () => {
+    const id = await createPublished('Immovable Module');
+    expect(
+      (await as(chef.token, orgId).put(`/api/training/${id}/scope`).send({ propertyId: p1 })).status
+    ).toBe(403);
+    expect(
+      (await as(p1Staff.token, orgId).put(`/api/training/${id}/scope`).send({ propertyId: p1 }))
+        .status
+    ).toBe(403);
+  });
+
+  it('refuses a move that would strand the allow-list', async () => {
+    const id = await createPublished('Restricted Traveler');
+    const restricted = await as(chef.token, orgId)
+      .put(`/api/training/${id}/access`)
+      .send({ access: { userIds: [p1Staff.userId] } });
+    expect(restricted.status).toBe(200);
+
+    // A manager holds the moving role but does not bypass the person ACL, so
+    // a restricted module they are not listed on answers 404 — before the
+    // stranding question even comes up.
+    expect(
+      (await as(manager.token, orgId).put(`/api/training/${id}/scope`).send({ propertyId: p2 }))
+        .status
+    ).toBe(404);
+
+    // The owner bypasses, and hits the real refusal: a P2 home would strand
+    // the listed P1 staff member.
+    const stranded = await as(owner.token, orgId)
+      .put(`/api/training/${id}/scope`)
+      .send({ propertyId: p2 });
+    expect(stranded.status).toBe(400);
+    expect(stranded.body.message).toMatch(/cannot see/);
+
+    // Nothing moved, and the listed member still reads it.
+    const detail = await as(owner.token, orgId).get(`/api/training/${id}`);
+    expect(detail.body.scope).toMatchObject({ propertyId: null, locationId: null });
+    expect((await as(p1Staff.token, orgId).get(`/api/training/${id}`)).status).toBe(200);
+  });
+
+  it('widens location-scoped block media as the module moves wider', async () => {
+    const photo = await uploadPhoto(owner.token, orgId, { propertyId: p1, locationId: l1 });
+    expect(photo.status).toBe(201);
+
+    const id = await createPublished('Illustrated Module', {
+      propertyId: p1,
+      locationId: l1,
+      blocks: [
+        { kind: 'image', mediaId: photo.body._id, caption: 'Station setup' },
+        textBlock('Set the station like the photo.'),
+      ],
+    });
+
+    const { Media } = await import('../../features/media/media.model');
+
+    // Location → own property: the asset widens to the property, not the org.
+    expect(
+      (await as(manager.token, orgId).put(`/api/training/${id}/scope`).send({ propertyId: p1 }))
+        .status
+    ).toBe(200);
+    let asset = await Media.findById(photo.body._id).lean();
+    expect(String(asset!.scope.propertyId)).toBe(p1);
+    expect(asset!.scope.locationId).toBeNull();
+
+    // Property → sibling property: no common home below the org, so org-wide.
+    expect(
+      (await as(manager.token, orgId).put(`/api/training/${id}/scope`).send({ propertyId: p2 }))
+        .status
+    ).toBe(200);
+    asset = await Media.findById(photo.body._id).lean();
+    expect(asset!.scope.propertyId).toBeNull();
+    expect(asset!.scope.locationId).toBeNull();
+
+    // The moved module renders for its new audience, image intact.
+    const detail = await as(p2Staff.token, orgId).get(`/api/training/${id}`);
+    expect(detail.status).toBe(200);
+    expect(detail.body.blocks[0].media).not.toBeNull();
+    expect(detail.body.blocks[0].media.url).toBe(photo.body.url);
   });
 });
 

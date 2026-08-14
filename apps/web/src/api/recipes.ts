@@ -6,7 +6,7 @@ import type {
   PaginatedResponse,
   MoveRecipeInput,
   PublishRecipeInput,
-  RecipeAccessCandidate,
+  AccessCandidate,
   RecipeDetail,
   RecipePublishModeView,
   RecipeStatus,
@@ -169,8 +169,8 @@ export function updateRecipeAccess(
 }
 
 /** Everyone the allow-list may name: members whose scope covers this recipe. */
-export function listAccessCandidates(id: string): Promise<ApiResult<RecipeAccessCandidate[]>> {
-  return apiRequest<RecipeAccessCandidate[]>(`/api/recipes/${id}/access/candidates`)
+export function listAccessCandidates(id: string): Promise<ApiResult<AccessCandidate[]>> {
+  return apiRequest<AccessCandidate[]>(`/api/recipes/${id}/access/candidates`)
 }
 
 export function approveAllergens(

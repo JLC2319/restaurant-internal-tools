@@ -101,7 +101,7 @@ const recipeSchema = new Schema<IRecipe>(
       default: null,
     },
     // Optional person-level allow-list that narrows visibility *within* the
-    // scope — it can never widen it (see recipeAccess.ts, which composes with
+    // scope — it can never widen it (see tenancy/personAccess.ts, which composes with
     // scopeReadFilter rather than replacing it). null — and, on documents that
     // predate the field, absent, which Mongo's `{access: null}` also matches —
     // means everyone in scope, so no backfill is ever needed. An object rather

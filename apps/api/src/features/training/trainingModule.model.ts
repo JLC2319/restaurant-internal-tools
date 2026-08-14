@@ -53,6 +53,31 @@ const trainingModuleSchema = new Schema<ITrainingModule>(
     status: { type: String, enum: trainingStatusValues, default: 'draft' },
     blocks: { type: [blockSchema], default: [] },
     publishedAt: { type: Date, default: null },
+    // Optional person-level allow-list narrowing visibility *within* the
+    // scope — same contract as recipes (see tenancy/personAccess.ts): null,
+    // and on pre-feature documents absent, means everyone in scope, so no
+    // backfill. No index: gated queries are _id-keyed or bounded by the
+    // org-prefixed list index below.
+    access: {
+      type: new Schema(
+        { userIds: [{ type: Schema.Types.ObjectId, ref: 'User' }] },
+        { _id: false }
+      ),
+      default: null,
+    },
+    // Set before the detached translation job starts and cleared when it
+    // finishes, so the module page can show "translating…" instead of a button
+    // that would start the same work twice. See trainingTranslation.service.
+    autoTranslation: {
+      type: new Schema(
+        {
+          status: { type: String, enum: ['running', 'failed'], required: true },
+          startedAt: { type: Date, required: true },
+        },
+        { _id: false }
+      ),
+      default: null,
+    },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   },
   { timestamps: { createdAt: 'createdAt', updatedAt: 'modifiedAt' } }

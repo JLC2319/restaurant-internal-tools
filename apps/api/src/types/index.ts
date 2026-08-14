@@ -93,6 +93,7 @@ export interface IOrgContact {
  */
 export interface ITenantSettings {
   translationPublishMode: TranslationPublishMode;
+  trainingTranslationPublishMode: TranslationPublishMode;
   recipePublishMode: RecipePublishMode;
 }
 
@@ -103,6 +104,7 @@ export interface ITenantSettings {
  */
 export interface ITenantSettingsOverride {
   translationPublishMode: TranslationPublishMode | null;
+  trainingTranslationPublishMode: TranslationPublishMode | null;
   recipePublishMode: RecipePublishMode | null;
 }
 
@@ -241,11 +243,12 @@ export interface IForkedFrom {
 }
 
 /**
- * A recipe's person-level allow-list. Lives only on the lineage head — never
- * denormalised onto versions (unlike `scope`, it mutates), so every version
- * read must go through a gated head load. See recipeAccess.ts.
+ * A person-level allow-list (recipes, trainings). On recipes it lives only on
+ * the lineage head — never denormalised onto versions (unlike `scope`, it
+ * mutates), so every version read must go through a gated head load. See
+ * tenancy/personAccess.ts.
  */
-export interface IRecipeAccess {
+export interface IPersonAccess {
   userIds: Types.ObjectId[];
 }
 
@@ -281,7 +284,7 @@ export interface IRecipe extends Document {
   activeVersion: number | null;
   forkedFrom: IForkedFrom | null;
   /** Null (or absent on pre-feature docs) = everyone in scope may read. */
-  access: IRecipeAccess | null;
+  access: IPersonAccess | null;
   /** Null whenever no automatic translation is running or recently failed. */
   autoTranslation: IAutoTranslation | null;
   createdBy: Types.ObjectId;
@@ -351,6 +354,44 @@ export interface IRecipeTranslation extends Document {
 }
 
 /**
+ * The translated text of one training module, aligned by index with the
+ * module's blocks. `blocks[i].text` is null for non-text blocks;
+ * `blocks[i].caption` is null where the source block carries no caption.
+ */
+export interface ITrainingTranslationPayload {
+  title: string;
+  description: string;
+  blocks: { text: string | null; caption: string | null }[];
+}
+
+/**
+ * One training module's translation into one locale. Same review contract as
+ * `IRecipeTranslation`, minus the version pointers — modules are edited in
+ * place, so staleness is derived from `sourceHash` alone (see
+ * trainingTranslation.service.ts).
+ */
+export interface ITrainingTranslation extends Document {
+  scope: IScope;
+  trainingId: Types.ObjectId;
+  locale: Locale;
+  status: ApprovalStatus;
+  origin: ContentOrigin;
+  /** Hash of the translatable projection, the entire staleness check. */
+  sourceHash: string;
+  payload: ITrainingTranslationPayload;
+  /** LLM model id that produced the machine text. Named to dodge Document#model(). */
+  llmModel: string | null;
+  requestedBy: Types.ObjectId;
+  requestedAt: Date;
+  approvedBy: Types.ObjectId | null;
+  approvedAt: Date | null;
+  /** SAFETY: see IRecipeTranslation.autoApproved — same rule. */
+  autoApproved: boolean;
+  createdAt: Date;
+  modifiedAt: Date;
+}
+
+/**
  * One training content block, in its Mongoose form. Like ingredient lines the
  * union is enforced by Zod at the boundary; Mongoose stores one loose shape
  * where only the fields for the block's `kind` are set.
@@ -384,6 +425,14 @@ export interface ITrainingModule extends Document {
   status: TrainingStatus;
   blocks: ITrainingBlock[];
   publishedAt: Date | null;
+  /** Optional person-level allow-list — same contract as recipes. */
+  access: IPersonAccess | null;
+  /**
+   * The background translation run kicked off by the last publish (or by an
+   * edit to a published module). Same marker contract as `IAutoTranslation`
+   * on recipes, minus the version pointer — modules have no versions.
+   */
+  autoTranslation: { status: 'running' | 'failed'; startedAt: Date } | null;
   createdBy: Types.ObjectId;
   createdAt: Date;
   modifiedAt: Date;

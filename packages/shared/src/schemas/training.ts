@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { objectIdSchema, paginationSchema } from './common.js';
+import { accessListSchema, objectIdSchema, paginationSchema } from './common.js';
 import { docToPlainText, richTextDocSchema } from './richtext.js';
 import { MAX_TRAINING_BLOCKS, trainingStatusValues } from '../types/domain.js';
 import type { VideoEmbedProvider } from '../types/domain.js';
@@ -124,6 +124,8 @@ export const createTrainingSchema = z
     blocks: z.array(trainingBlockSchema).max(MAX_TRAINING_BLOCKS).default([]),
     propertyId: objectIdSchema.nullish(),
     locationId: objectIdSchema.nullish(),
+    /** Optional person-level allow-list, so a module can be born restricted. */
+    access: accessListSchema.nullish(),
   })
   .refine((v) => !v.locationId || !!v.propertyId, {
     message: 'A location-scoped training must also name its property',
@@ -148,7 +150,29 @@ export const listTrainingsQuerySchema = paginationSchema.extend({
   status: z.enum(trainingStatusValues).default('published'),
 });
 
+/**
+ * Move a module to a new home in the tree. A full placement statement, not a
+ * patch — both ids, null meaning the wider tier — because "where does this
+ * live" only makes sense whole.
+ */
+export const moveTrainingSchema = z
+  .object({
+    propertyId: objectIdSchema.nullish(),
+    locationId: objectIdSchema.nullish(),
+  })
+  .refine((v) => !v.locationId || !!v.propertyId, {
+    message: 'A location-scoped training must also name its property',
+    path: ['propertyId'],
+  });
+
+/** Replace the allow-list wholesale. `access: null` clears the restriction. */
+export const updateTrainingAccessSchema = z.object({
+  access: accessListSchema.nullable(),
+});
+
 export type TrainingBlockInput = z.infer<typeof trainingBlockSchema>;
 export type CreateTrainingInput = z.infer<typeof createTrainingSchema>;
 export type UpdateTrainingInput = z.infer<typeof updateTrainingSchema>;
+export type MoveTrainingInput = z.infer<typeof moveTrainingSchema>;
+export type UpdateTrainingAccessInput = z.infer<typeof updateTrainingAccessSchema>;
 export type ListTrainingsQuery = z.infer<typeof listTrainingsQuerySchema>;

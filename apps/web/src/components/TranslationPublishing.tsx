@@ -14,43 +14,97 @@ import {
 import { ErrorNote, SectionCard } from './ui'
 
 /**
- * Where a tenant decides what publishing a recipe does to its Spanish.
- *
- * The setting lives at all three tiers — organization, property, location —
- * and resolves narrowest-first, so a group can default to review-everything
- * while one fast-casual brand runs automatic. The org row is always concrete;
- * the rows below it start at "inherit". The picker, override rows and PATCH
- * wiring are shared with the other publishing settings — see
+ * Where a tenant decides what publishing does to the Spanish — one card for
+ * recipes, one for training modules. The two are independent settings with
+ * identical modes and cascade (organization → property → location, resolved
+ * narrowest-first), so a group can auto-publish menu Spanish while keeping a
+ * human review on training material, or the reverse. The picker, override
+ * rows and PATCH wiring are shared with the other publishing settings — see
  * `PublishModeSettings`.
  *
  * SAFETY: `auto_publish` is the one setting in the product that lets
- * machine-written text reach kitchen staff with nobody reading it first. It is
+ * machine-written text reach staff with nobody reading it first. It is
  * presented as the deliberate exception it is, and the warning below only
  * appears once it is actually chosen.
  */
 
-const MODE_META: Record<TranslationPublishMode, ModeMeta> = {
-  manual: {
-    label: 'Manual',
-    icon: UserCheck,
-    summary: 'Nothing happens automatically',
-    detail:
-      'A chef presses “Translate to Spanish” on the recipe, reviews it, and approves. This is how the app behaves today.',
+type TranslationSettingsKey = 'translationPublishMode' | 'trainingTranslationPublishMode'
+
+/** Everything that differs between the recipe card and the training card. */
+interface Variant {
+  settingsKey: TranslationSettingsKey
+  title: string
+  hint: string
+  ariaLabel: string
+  meta: Record<TranslationPublishMode, ModeMeta>
+  warning: string
+  labelFor: (name: string) => string
+}
+
+const RECIPE_VARIANT: Variant = {
+  settingsKey: 'translationPublishMode',
+  title: 'Translation publishing — recipes',
+  hint: "What happens to a recipe's Spanish when a version goes live",
+  ariaLabel: 'Organization recipe translation publishing',
+  meta: {
+    manual: {
+      label: 'Manual',
+      icon: UserCheck,
+      summary: 'Nothing happens automatically',
+      detail:
+        'A chef presses “Translate to Spanish” on the recipe, reviews it, and approves. This is how the app behaves today.',
+    },
+    auto_review: {
+      label: 'Automatic, then review',
+      icon: Sparkles,
+      summary: 'Translates on publish, waits for a chef',
+      detail:
+        'Setting a version live starts the translation in the background. It lands awaiting review — staff see nothing until a chef reads it and approves.',
+    },
+    auto_publish: {
+      label: 'Automatic, straight to staff',
+      icon: ShieldAlert,
+      summary: 'Translates on publish, no review',
+      detail:
+        'Setting a version live translates and publishes it to the reader immediately. Nobody reads the Spanish before your line cooks do.',
+    },
   },
-  auto_review: {
-    label: 'Automatic, then review',
-    icon: Sparkles,
-    summary: 'Translates on publish, waits for a chef',
-    detail:
-      'Setting a version live starts the translation in the background. It lands awaiting review — staff see nothing until a chef reads it and approves.',
+  warning:
+    'Machine-translated text will reach kitchen staff with no human review. A mistranslated allergen note or temperature becomes a food-safety incident, not a typo. The reader marks these recipes as unreviewed, and any chef can still open one and correct it.',
+  labelFor: (name) => `Recipe translation publishing for ${name}`,
+}
+
+const TRAINING_VARIANT: Variant = {
+  settingsKey: 'trainingTranslationPublishMode',
+  title: 'Translation publishing — training',
+  hint: "What happens to a training module's Spanish when it is published",
+  ariaLabel: 'Organization training translation publishing',
+  meta: {
+    manual: {
+      label: 'Manual',
+      icon: UserCheck,
+      summary: 'Nothing happens automatically',
+      detail:
+        'A chef presses “Translate to Spanish” on the training, reviews it, and approves. Nothing is translated until then.',
+    },
+    auto_review: {
+      label: 'Automatic, then review',
+      icon: Sparkles,
+      summary: 'Translates on publish, waits for a chef',
+      detail:
+        'Publishing a module (or editing a published one) starts the translation in the background. It lands awaiting review — staff see nothing until a chef reads it and approves.',
+    },
+    auto_publish: {
+      label: 'Automatic, straight to staff',
+      icon: ShieldAlert,
+      summary: 'Translates on publish, no review',
+      detail:
+        'Publishing a module translates and publishes it to the reader immediately. Nobody reads the Spanish before your staff do.',
+    },
   },
-  auto_publish: {
-    label: 'Automatic, straight to staff',
-    icon: ShieldAlert,
-    summary: 'Translates on publish, no review',
-    detail:
-      'Setting a version live translates and publishes it to the reader immediately. Nobody reads the Spanish before your line cooks do.',
-  },
+  warning:
+    'Machine-translated training will reach staff with no human review. A mistranslated safety procedure, temperature or hold time becomes an incident on the floor, not a typo. The reader marks these modules as unreviewed, and any chef can still open one and correct it.',
+  labelFor: (name) => `Training translation publishing for ${name}`,
 }
 
 /** The chrome for the option list. Citron reads “review” across the app. */
@@ -73,36 +127,40 @@ function iconTone(mode: TranslationPublishMode): string {
 /**
  * SAFETY: shown only while auto-publish is the live choice. Chili is the
  * product's "someone could get hurt" colour and this is the one settings
- * decision that earns it — an unreviewed allergen note reaching the line.
+ * decision that earns it — unreviewed machine text reaching the line.
  */
-function AutoPublishWarning() {
+function AutoPublishWarning({ children }: { children: string }) {
   return (
     <p
       role="alert"
       className="flex items-start gap-2.5 rounded-xl bg-chili-50 px-4 py-3 text-sm text-chili-700 ring-1 ring-chili-200 ring-inset"
     >
       <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
-      <span>
-        Machine-translated text will reach kitchen staff with no human review. A mistranslated
-        allergen note or temperature becomes a food-safety incident, not a typo. The reader marks
-        these recipes as unreviewed, and any chef can still open one and correct it.
-      </span>
+      <span>{children}</span>
     </p>
   )
 }
 
 // ── The org-wide default ──────────────────────────────────────────────────────
 
-function OrgDefault({ org, canEdit }: { org: OrganizationProfile; canEdit: boolean }) {
+function OrgDefault({
+  org,
+  canEdit,
+  variant,
+}: {
+  org: OrganizationProfile
+  canEdit: boolean
+  variant: Variant
+}) {
   const queryClient = useQueryClient()
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
 
-  const mode = org.settings.translationPublishMode
+  const mode = org.settings[variant.settingsKey]
 
   const save = useMutation({
     mutationFn: async (next: TranslationPublishMode) => {
-      const result = await updateOrganization({ settings: { translationPublishMode: next } })
+      const result = await updateOrganization({ settings: { [variant.settingsKey]: next } })
       if (result.error) throw new Error(result.error.message)
       return result.data
     },
@@ -118,9 +176,9 @@ function OrgDefault({ org, canEdit }: { org: OrganizationProfile; canEdit: boole
       {error && <ErrorNote>{error}</ErrorNote>}
 
       <ModeRadioGroup
-        ariaLabel="Organization translation publishing"
+        ariaLabel={variant.ariaLabel}
         modes={translationPublishModeValues}
-        meta={MODE_META}
+        meta={variant.meta}
         value={mode}
         disabled={!canEdit || save.isPending}
         onSelect={(next) => {
@@ -133,7 +191,7 @@ function OrgDefault({ org, canEdit }: { org: OrganizationProfile; canEdit: boole
         iconTone={iconTone}
       />
 
-      {mode === 'auto_publish' && <AutoPublishWarning />}
+      {mode === 'auto_publish' && <AutoPublishWarning>{variant.warning}</AutoPublishWarning>}
 
       <div className="flex items-center gap-3">
         <SavedTick show={saved && !save.isPending} />
@@ -143,25 +201,23 @@ function OrgDefault({ org, canEdit }: { org: OrganizationProfile; canEdit: boole
   )
 }
 
-// ── The card ──────────────────────────────────────────────────────────────────
+// ── The cards ─────────────────────────────────────────────────────────────────
 
-export function TranslationPublishingCard({
+function TranslationCard({
   org,
   canEditOrg,
   canEditOverrides,
+  variant,
 }: {
   org: OrganizationProfile
   canEditOrg: boolean
   canEditOverrides: boolean
+  variant: Variant
 }) {
   const spanish = org.locales.includes('es')
 
   return (
-    <SectionCard
-      icon={Languages}
-      title="Translation publishing"
-      hint="What happens to a recipe's Spanish when a version goes live"
-    >
+    <SectionCard icon={Languages} title={variant.title} hint={variant.hint}>
       <PublishModeBody
         notice={
           !spanish && (
@@ -171,19 +227,35 @@ export function TranslationPublishingCard({
             </p>
           )
         }
-        picker={<OrgDefault org={org} canEdit={canEditOrg} />}
+        picker={<OrgDefault org={org} canEdit={canEditOrg} variant={variant} />}
         overrides={
           <OverrideRows
-            settingsKey="translationPublishMode"
+            settingsKey={variant.settingsKey}
             modes={translationPublishModeValues}
-            meta={MODE_META}
-            orgMode={org.settings.translationPublishMode}
+            meta={variant.meta}
+            orgMode={org.settings[variant.settingsKey]}
             resolve={resolveTranslationPublishMode}
             canEdit={canEditOverrides}
-            labelFor={(name) => `Translation publishing for ${name}`}
+            labelFor={variant.labelFor}
           />
         }
       />
     </SectionCard>
   )
+}
+
+export function TranslationPublishingCard(props: {
+  org: OrganizationProfile
+  canEditOrg: boolean
+  canEditOverrides: boolean
+}) {
+  return <TranslationCard {...props} variant={RECIPE_VARIANT} />
+}
+
+export function TrainingTranslationPublishingCard(props: {
+  org: OrganizationProfile
+  canEditOrg: boolean
+  canEditOverrides: boolean
+}) {
+  return <TranslationCard {...props} variant={TRAINING_VARIANT} />
 }

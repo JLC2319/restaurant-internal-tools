@@ -1,8 +1,10 @@
 import { parseVideoEmbed, plainTextToDoc, roleAtLeast } from '@rit/shared';
 import type {
+  AccessCandidate,
   CreateTrainingInput,
   ListTrainingsQuery,
   MediaAssetView,
+  MoveTrainingInput,
   PaginatedResponse,
   RichTextDoc,
   TenantContext,
@@ -13,17 +15,37 @@ import type {
   TrainingCompletionState,
   TrainingDetail,
   TrainingSummary,
+  UpdateTrainingAccessInput,
   UpdateTrainingInput,
 } from '@rit/shared';
 import { Types } from 'mongoose';
 import type { Document } from 'mongoose';
 import { AppError } from '../../lib/AppError';
 import { escapeRegex } from '../../lib/regex';
-import { assertCanWriteAt, assertRole, scopeForWrite, scopeReadFilter } from '../../lib/scope';
-import { assertAssetsAttachable, resolveAssets } from '../media/media.service';
+import {
+  assertCanWriteAt,
+  assertRole,
+  membershipReadersFilter,
+  scopeForWrite,
+  scopeReadFilter,
+} from '../../lib/scope';
+import {
+  assertAccessListValid,
+  dedupeAccessUserIds,
+  personAccessFilter,
+} from '../tenancy/personAccess';
+import { assertAssetsAttachable, resolveAssets, widenAssetsToCover } from '../media/media.service';
+import {
+  autoTranslateTrainingOnPublish,
+  beginAutoTrainingTranslation,
+  trainingSourceHashOf,
+  trainingTranslatableProjection,
+} from '../translations/trainingTranslation.service';
+import { TrainingTranslation } from '../translations/trainingTranslation.model';
 import { User, SAFE_USER_FIELDS } from '../auth/auth.model';
 import { Property } from '../tenancy/property.model';
 import { Location } from '../tenancy/location.model';
+import { Membership } from '../tenancy/membership.model';
 import { TrainingModule } from './trainingModule.model';
 import { TrainingCompletion } from './trainingCompletion.model';
 import type {
@@ -31,6 +53,7 @@ import type {
   ITrainingBlock,
   ITrainingCompletion,
   ITrainingModule,
+  IUser,
   UserName,
 } from '../../types/index';
 
@@ -46,6 +69,21 @@ type LeanTraining = Omit<ITrainingModule, keyof Document> & { _id: unknown };
 type LeanCompletion = Omit<ITrainingCompletion, keyof Document> & { _id: unknown };
 
 // ── Small helpers ─────────────────────────────────────────────────────────────
+
+/**
+ * Fire-and-forget automatic translation, mirroring recipe publication: the
+ * claim (`begin…`) is awaited so the module page can't offer a duplicate
+ * "Translate" button, while the LLM work itself stays detached — publishing
+ * the English must never wait on, or roll back for, the Spanish.
+ */
+async function scheduleAutoTranslation(trainingId: string, userId: string): Promise<void> {
+  const willRun = await beginAutoTrainingTranslation(trainingId);
+  if (!willRun) return;
+
+  void autoTranslateTrainingOnPublish(trainingId, userId).catch((err) => {
+    console.error('Automatic training translation could not be scheduled', err);
+  });
+}
 
 /** Readers (below chef) see published modules only. */
 function isReader(ctx: TenantContext): boolean {
@@ -244,6 +282,7 @@ function shapeSummary(
     blockCount: head.blocks.length,
     videoCount: head.blocks.filter((b) => b.kind === 'video' || b.kind === 'embed').length,
     myCompletion: myCompletionAt ? myCompletionAt.toISOString() : null,
+    restricted: head.access != null,
     publishedAt: head.publishedAt ? head.publishedAt.toISOString() : null,
     createdAt: head.createdAt.toISOString(),
     modifiedAt: head.modifiedAt.toISOString(),
@@ -257,7 +296,7 @@ async function shapeDetail(
 ): Promise<TrainingDetail> {
   const headId = String(head._id);
   const manage = canManage(ctx, shapeScope(head.scope));
-  const [media, myCompletion, completedCount] = await Promise.all([
+  const [media, myCompletion, completedCount, accessUsers] = await Promise.all([
     blockMediaFor(head.blocks),
     TrainingCompletion.findOne({ orgId: ctx.orgId, trainingId: headId, userId })
       .sort({ completedAt: -1 })
@@ -265,6 +304,14 @@ async function shapeDetail(
     manage
       ? TrainingCompletion.countDocuments({ ...completionReadFilter(ctx), trainingId: headId })
       : Promise.resolve(null),
+    // The allow-list resolves for managers of the module only: who else is
+    // trusted is itself managed information, not something a listed viewer
+    // (let alone staff) is told.
+    head.access && manage
+      ? User.find({ _id: { $in: head.access.userIds } })
+          .select('name email')
+          .lean()
+      : null,
   ]);
 
   return {
@@ -273,6 +320,17 @@ async function shapeDetail(
     createdBy: String(head.createdBy),
     canManage: manage,
     completedCount,
+    access:
+      head.access && accessUsers
+        ? {
+            userIds: head.access.userIds.map(String),
+            users: accessUsers.map((user) => ({
+              _id: String(user._id),
+              name: { first: user.name.first, last: user.name.last },
+              email: user.email,
+            })),
+          }
+        : null,
   };
 }
 
@@ -285,6 +343,9 @@ export async function listTrainings(
 ): Promise<PaginatedResponse<TrainingSummary>> {
   const filter: Record<string, unknown> = {
     ...scopeReadFilter(ctx),
+    // One filter drives the rows, the total AND the ?q= title regex, so a
+    // person-restricted module neither lists, counts, nor answers title probes.
+    ...personAccessFilter(ctx),
     // Readers never see drafts or archived modules, whatever they ask for.
     status: isReader(ctx) ? 'published' : query.status,
   };
@@ -326,7 +387,11 @@ export async function getTraining(
   userId: string,
   id: string
 ): Promise<TrainingDetail> {
-  const head = await TrainingModule.findOne({ _id: id, ...scopeReadFilter(ctx) }).lean();
+  const head = await TrainingModule.findOne({
+    _id: id,
+    ...scopeReadFilter(ctx),
+    ...personAccessFilter(ctx),
+  }).lean();
   if (!head) throw new AppError('Not found', 404);
   // Unpublished work is invisible to readers, not forbidden — existence
   // hiding, as everywhere else.
@@ -350,6 +415,15 @@ export async function createTraining(
   const blocks = buildBlocks(input.blocks);
   await assertBlockMediaAttachable(ctx, scope, blocks);
 
+  // Born restricted, when asked. An empty list is legitimate — it means the
+  // creator plus the standing bypass set (admin and up), nobody else.
+  let access: ITrainingModule['access'] = null;
+  if (input.access != null) {
+    const userIds = dedupeAccessUserIds(input.access.userIds);
+    await assertAccessListValid(scope, userIds);
+    access = { userIds: userIds.map((uid) => new Types.ObjectId(uid)) };
+  }
+
   const training = await TrainingModule.create({
     scope,
     title: input.title,
@@ -357,19 +431,26 @@ export async function createTraining(
     status: 'draft',
     blocks,
     publishedAt: null,
+    access,
     createdBy: userId,
   });
 
+  // The read-back always succeeds for the caller — `createdBy` is a bypass
+  // branch of the access filter, even when they left themselves off the list.
   return getTraining(ctx, userId, String(training._id));
 }
 
-/** Loads a module for mutation: scoped (404), write-tier checked (403), not archived (409). */
+/** Loads a module for mutation: scoped + person-ACL-gated (404), write-tier checked (403), not archived (409). */
 async function loadForWrite(
   ctx: TenantContext,
   id: string,
   allowArchived = false
 ): Promise<ITrainingModule> {
-  const head = await TrainingModule.findOne({ _id: id, ...scopeReadFilter(ctx) });
+  const head = await TrainingModule.findOne({
+    _id: id,
+    ...scopeReadFilter(ctx),
+    ...personAccessFilter(ctx),
+  });
   if (!head) throw new AppError('Not found', 404);
   const scope = shapeScope(head.scope);
   assertCanWriteAt(ctx, { propertyId: scope.propertyId, locationId: scope.locationId });
@@ -388,6 +469,13 @@ export async function updateTraining(
   assertRole(ctx, 'chef');
   const head = await loadForWrite(ctx, id);
 
+  // Modules are edited in place, so an edit to a published module reaches
+  // staff immediately — which makes it a source change for translations, the
+  // same way a live recipe's rename is. In an automatic scope it re-fires
+  // translation; otherwise editing a live module would quietly strip its
+  // Spanish (the stale-hash check hides it the moment the text differs).
+  const beforeHash = trainingSourceHashOf(trainingTranslatableProjection(head));
+
   if (input.title !== undefined) head.title = input.title;
   if (input.description !== undefined) head.description = input.description;
   if (input.blocks !== undefined) {
@@ -396,8 +484,150 @@ export async function updateTraining(
     head.blocks = blocks;
   }
 
+  const editedWhileLive =
+    head.status === 'published' &&
+    trainingSourceHashOf(trainingTranslatableProjection(head)) !== beforeHash;
+
+  await head.save();
+  const detail = await getTraining(ctx, userId, id);
+  if (editedWhileLive) await scheduleAutoTranslation(id, userId);
+  return detail;
+}
+
+// ── Placement ─────────────────────────────────────────────────────────────────
+
+/**
+ * Moves a module to a new home in the tenant tree. Far simpler than a recipe
+ * move — no version history to rewrite and no cross-module reference graph to
+ * re-validate — so this is: write-tier at both homes, allow-list still valid
+ * where it is going, block media widened to cover the new audience, one save.
+ */
+export async function moveTraining(
+  ctx: TenantContext,
+  userId: string,
+  id: string,
+  input: MoveTrainingInput
+): Promise<TrainingDetail> {
+  assertRole(ctx, 'manager');
+  const head = await loadForWrite(ctx, id, true);
+
+  const newScope: TenantScope = {
+    orgId: ctx.orgId,
+    propertyId: input.propertyId ?? null,
+    locationId: input.locationId ?? null,
+  };
+  if (newScope.locationId && !newScope.propertyId) {
+    throw new AppError('A location-scoped training must also name its property', 400);
+  }
+  assertCanWriteAt(ctx, newScope);
+  await assertScopeExists(newScope);
+
+  const oldScope = shapeScope(head.scope);
+  if (
+    oldScope.propertyId === newScope.propertyId &&
+    oldScope.locationId === newScope.locationId
+  ) {
+    return getTraining(ctx, userId, id);
+  }
+
+  // The allow-list must still make sense where the module is going.
+  if (head.access) {
+    await assertAccessListValid(newScope, head.access.userIds.map(String));
+  }
+
+  // Block media rides along — widen any asset that would no longer cover the
+  // new audience (never narrows; see widenAssetsToCover).
+  await widenAssetsToCover(
+    newScope,
+    head.blocks.filter((block) => block.mediaId).map((block) => String(block.mediaId))
+  );
+
+  const scopeDoc = {
+    orgId: head.scope.orgId,
+    propertyId: newScope.propertyId ? new Types.ObjectId(newScope.propertyId) : null,
+    locationId: newScope.locationId ? new Types.ObjectId(newScope.locationId) : null,
+  };
+  // Copies first, head last — a crashed half-move leaves the translations
+  // governed by the old home, and a retry is idempotent.
+  await TrainingTranslation.updateMany({ trainingId: head._id }, { $set: { scope: scopeDoc } });
+  head.scope = scopeDoc as IScope;
+  await head.save();
+
+  return getTraining(ctx, userId, id);
+}
+
+// ── Person-level access ───────────────────────────────────────────────────────
+
+/**
+ * Replaces the allow-list wholesale (PUT semantics), or clears it with null.
+ *
+ * `loadForWrite` is the entire gate: the caller must currently *read* the
+ * module (creator / listed / admin+, else 404), hold chef+ within its write
+ * tier (403), and the module must not be archived (409). Because only current
+ * readers may edit the list and creator + admin/owner always remain readers,
+ * no edit can ever lock everyone out.
+ */
+export async function updateTrainingAccess(
+  ctx: TenantContext,
+  userId: string,
+  id: string,
+  input: UpdateTrainingAccessInput
+): Promise<TrainingDetail> {
+  assertRole(ctx, 'chef');
+  const head = await loadForWrite(ctx, id);
+
+  if (input.access != null) {
+    const userIds = dedupeAccessUserIds(input.access.userIds);
+    await assertAccessListValid(shapeScope(head.scope), userIds);
+    head.access = { userIds: userIds.map((uid) => new Types.ObjectId(uid)) };
+  } else {
+    head.access = null;
+  }
+
   await head.save();
   return getTraining(ctx, userId, id);
+}
+
+/**
+ * The people the access picker may offer: every active member whose membership
+ * can see this module's scope — by construction exactly the set
+ * `assertAccessListValid` accepts. Same rationale as recipes: the tenancy
+ * roster endpoint is manager-gated and exact-scope, which would miss org-wide
+ * members and, for a property module, its locations' members.
+ */
+export async function listAccessCandidates(
+  ctx: TenantContext,
+  id: string
+): Promise<AccessCandidate[]> {
+  assertRole(ctx, 'chef');
+  // Archived allowed: this read only supports the panel, it mutates nothing.
+  const head = await loadForWrite(ctx, id, true);
+
+  const rows = await Membership.find({
+    orgId: head.scope.orgId,
+    status: 'active',
+    ...membershipReadersFilter(shapeScope(head.scope)),
+  })
+    .populate('userId', 'name email jobTitle')
+    .limit(500)
+    .lean();
+
+  // One entry per person — a user may hold several rows (org-wide plus a
+  // location, say) — and none for deleted accounts.
+  const byUser = new Map<string, AccessCandidate>();
+  for (const row of rows) {
+    const user = row.userId as unknown as Pick<IUser, '_id' | 'name' | 'email' | 'jobTitle'> | null;
+    if (!user) continue;
+    byUser.set(String(user._id), {
+      _id: String(user._id),
+      name: { first: user.name.first, last: user.name.last },
+      email: user.email,
+      jobTitle: user.jobTitle ?? null,
+    });
+  }
+  return [...byUser.values()].sort((a, b) =>
+    `${a.name.last} ${a.name.first}`.localeCompare(`${b.name.last} ${b.name.first}`)
+  );
 }
 
 // ── Lifecycle ─────────────────────────────────────────────────────────────────
@@ -418,7 +648,9 @@ export async function publishTraining(
   head.status = 'published';
   head.publishedAt = new Date();
   await head.save();
-  return getTraining(ctx, userId, id);
+  const detail = await getTraining(ctx, userId, id);
+  await scheduleAutoTranslation(id, userId);
+  return detail;
 }
 
 /** The recall lever: staff visibility drops the moment this commits. */
@@ -473,7 +705,11 @@ export async function completeTraining(
   userId: string,
   id: string
 ): Promise<TrainingCompletionState> {
-  const head = await TrainingModule.findOne({ _id: id, ...scopeReadFilter(ctx) })
+  const head = await TrainingModule.findOne({
+    _id: id,
+    ...scopeReadFilter(ctx),
+    ...personAccessFilter(ctx),
+  })
     .select('status')
     .lean();
   if (!head) throw new AppError('Not found', 404);
@@ -504,7 +740,11 @@ export async function uncompleteTraining(
   userId: string,
   id: string
 ): Promise<TrainingCompletionState> {
-  const head = await TrainingModule.findOne({ _id: id, ...scopeReadFilter(ctx) })
+  const head = await TrainingModule.findOne({
+    _id: id,
+    ...scopeReadFilter(ctx),
+    ...personAccessFilter(ctx),
+  })
     .select('_id')
     .lean();
   if (!head) throw new AppError('Not found', 404);
@@ -523,7 +763,11 @@ export async function listCompletions(
   id: string
 ): Promise<TrainingCompletionRow[]> {
   assertRole(ctx, 'chef');
-  const head = await TrainingModule.findOne({ _id: id, ...scopeReadFilter(ctx) })
+  const head = await TrainingModule.findOne({
+    _id: id,
+    ...scopeReadFilter(ctx),
+    ...personAccessFilter(ctx),
+  })
     .select('_id')
     .lean();
   if (!head) throw new AppError('Not found', 404);

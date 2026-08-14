@@ -146,15 +146,17 @@ while one restaurant's local menu never leaks sideways to another.
 **Never hand-roll a scope condition in a feature module.** A query that forgets
 `scopeReadFilter` returns every tenant's data, and it will look like it works.
 
-### Person-level recipe access (the layer under scope)
+### Person-level access (the layer under scope)
 
-A recipe may carry `access: { userIds } | null` — an allow-list that narrows
-visibility **within** its scope; `null` (or absent, on pre-feature docs) means
-everyone in scope. It never widens scope: `features/recipes/recipeAccess.ts`
-builds `recipeAccessFilter(ctx)`, which every recipe read composes **beside**
-`scopeReadFilter`. Fixed bypass set: the recipe's `createdBy`, roles
-admin-or-above at the scope (directors/managers do **not** bypass), and
-platform staff. Out-of-list reads 404 exactly like out-of-scope ones.
+A recipe or training module may carry `access: { userIds } | null` — an
+allow-list that narrows visibility **within** its scope; `null` (or absent, on
+pre-feature docs) means everyone in scope. It never widens scope:
+`features/tenancy/personAccess.ts` builds `personAccessFilter(ctx)`, which
+every gated read composes **beside** `scopeReadFilter` (the field contract:
+the model stores the list at `access` and its creator at `createdBy`). Fixed
+bypass set: the document's `createdBy`, roles admin-or-above at the scope
+(directors/managers do **not** bypass), and platform staff. Out-of-list reads
+404 exactly like out-of-scope ones.
 
 Rules that keep it sound:
 
@@ -486,7 +488,7 @@ relevant one before starting.
 | Recipe data model | `features/recipes` | **Done** — everything else reads from it. `POST /:id/publish` mints v1 and sets it live in one call for a lineage that has **never** been live, gated by per-scope `recipePublishMode` (§4); anything already live still goes save-version-then-activate |
 | LLM EN→ES translation + review gate | `features/translations` | **Done** — machine output lands `pending_review`; chef edits/approves; activating a different version (or renaming) makes approved text stale and staff-invisible; reader's Español toggle renders approved+current only. Per-scope `translationPublishMode` (§4) can fire the translation automatically on publish, and `auto_publish` can skip review entirely — the single exception in §10. An automatic run is claimed on `Recipe.autoTranslation` *before* the job detaches, so the recipe page polls (`autoTranslating`) instead of offering a button that would run it twice; a `running` marker older than three minutes reads as a failure, so a dead process can never leave a page polling forever |
 | AI recipe drafting | `features/drafting` | **Done** — photos → structured proposals (review-first; nothing persists until a chef creates each as an ordinary unpublished draft). Tags transcribed only, never inferred |
-| Training modules | `features/training` | **Done** — blocks + publish gate + completions; translation gate pending |
+| Training modules | `features/training` | **Done** — blocks + publish gate + completions, plus recipe-parity ownership (placement move + person-level access via `tenancy/personAccess`), the same EN→ES translation/review gate (`trainingTranslation.service`, hash-only staleness — no versions), and AI drafting from description/photos/PDFs (`drafting/trainingDraft.service`, review-first, files never stored) |
 | Media storage | `features/media` | **Photos & streamed video done**; transcoding still open |
 | Reader app | web only | **Done** — `/reader` browses live recipes + published training; detail views render only the live/published snapshot, even for chefs |
 

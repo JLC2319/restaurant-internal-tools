@@ -175,12 +175,20 @@ export const NEW_ORG_RECIPE_PUBLISH_MODE: RecipePublishMode = 'publish_on_save';
 /** Settings held at the top of the tree. Always concrete — nothing to inherit from. */
 export interface TenantSettings {
   translationPublishMode: TranslationPublishMode;
+  /**
+   * The same three modes, governing training modules independently — an org
+   * may want Spanish recipes on the line immediately but keep a human review
+   * on training material (or the reverse). Same values, same cascade, its own
+   * column.
+   */
+  trainingTranslationPublishMode: TranslationPublishMode;
   recipePublishMode: RecipePublishMode;
 }
 
 /** Settings at a property or location. `null` means "inherit from the parent". */
 export interface TenantSettingsOverride {
   translationPublishMode: TranslationPublishMode | null;
+  trainingTranslationPublishMode: TranslationPublishMode | null;
   recipePublishMode: RecipePublishMode | null;
 }
 
@@ -347,6 +355,14 @@ export const MAX_DRAFT_PHOTOS = 8;
  * stay comfortably under that.
  */
 export const MAX_DRAFT_TOTAL_BYTES = 20 * 1024 * 1024;
+
+/**
+ * Files per AI *training* drafting request — photos and PDFs combined. Same
+ * count as recipe drafting; the per-file and total byte ceilings are shared
+ * with it (`MAX_PHOTO_BYTES` / `MAX_DRAFT_TOTAL_BYTES`, which also keep a PDF
+ * inside the model's 32MB post-base64 request cap).
+ */
+export const MAX_DRAFT_FILES = 8;
 
 /**
  * Video formats accepted for training videos, matched against the *sniffed*

@@ -10,6 +10,12 @@ import {
   sourceHashOf,
   translatableProjection,
 } from '../../features/translations/translation.service';
+import { TrainingModule } from '../../features/training/trainingModule.model';
+import { TrainingTranslation } from '../../features/translations/trainingTranslation.model';
+import {
+  trainingSourceHashOf,
+  trainingTranslatableProjection,
+} from '../../features/translations/trainingTranslation.service';
 
 /**
  * Full HTTP round-trips for /api/translations (and the /api/drafts gates).
@@ -482,5 +488,381 @@ describe('automatic translation status', () => {
 
     const state = await readState(owner.token, orgId, recipeId);
     expect(state.autoTranslating).toBe(false);
+  });
+});
+
+// ── Training translations ─────────────────────────────────────────────────────
+//
+// The same contract as recipes, per module: no key → the money route answers
+// 503; documents are seeded with the service's own projection/hash helpers so
+// the review gate and staleness run without an LLM. Modules have no version
+// history, so the sourceHash of the module's text is the whole staleness story.
+
+/** A one-paragraph rich-text document — the minimal valid text block payload. */
+function textBlock(text: string): Record<string, unknown> {
+  return {
+    kind: 'text',
+    doc: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] },
+  };
+}
+
+/**
+ * Creates a training module — one text block, one captioned embed, so the
+ * translation payload exercises both the `text` and the `caption` half of a
+ * block — and publishes it. Returns the module id.
+ */
+async function createPublishedTraining(
+  token: string,
+  orgId: string,
+  title: string
+): Promise<string> {
+  const created = await as(token, orgId)
+    .post('/api/training')
+    .send({
+      title,
+      description: 'Why we hold hot food hot.',
+      blocks: [
+        textBlock('Hold hot food above 135F. Check every two hours.'),
+        {
+          kind: 'embed',
+          url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          caption: 'Watch the walkthrough',
+        },
+      ],
+    });
+  expect(created.status).toBe(201);
+  const trainingId = created.body._id as string;
+
+  const published = await as(token, orgId).post(`/api/training/${trainingId}/publish`).send();
+  expect(published.status).toBe(200);
+  return trainingId;
+}
+
+/**
+ * Seeds a machine training translation the way requestTrainingTranslation
+ * would store one, hashing the module's current text with the service's own
+ * projection helpers. Blocks align 1:1 with the module's, text-or-caption.
+ */
+async function seedTrainingTranslation(
+  trainingId: string,
+  requestedBy: string,
+  status: 'pending_review' | 'approved' = 'pending_review',
+  /** Seeds the auto_publish outcome: approved with nobody behind it. */
+  autoApproved = false
+): Promise<void> {
+  const head = await TrainingModule.findById(trainingId).lean();
+  const projection = trainingTranslatableProjection(head!);
+
+  await TrainingTranslation.create({
+    scope: head!.scope,
+    trainingId: head!._id,
+    locale: 'es',
+    status,
+    origin: 'machine',
+    sourceHash: trainingSourceHashOf(projection),
+    payload: {
+      title: 'Comida caliente, siempre caliente',
+      description: 'Por qué la comida caliente se mantiene caliente',
+      blocks: projection.blocks.map((block) => ({
+        text: block.text === null ? null : 'Mantenga la comida caliente por encima de 135F.',
+        caption: block.caption === null ? null : 'Vea el recorrido',
+      })),
+    },
+    llmModel: 'test-model',
+    requestedBy,
+    requestedAt: new Date(),
+    approvedBy: status === 'approved' && !autoApproved ? requestedBy : null,
+    approvedAt: status === 'approved' ? new Date() : null,
+    autoApproved,
+  });
+}
+
+describe('training LLM gating (no key configured in tests)', () => {
+  it('answers 503 on the translate trigger, but still serves reads', async () => {
+    const owner = await registerAndLogin('ttr-gate-owner@example.com');
+    const orgId = await createOrg(owner.token, 'Training Gate Org');
+    const trainingId = await createPublishedTraining(owner.token, orgId, 'Gate Module');
+
+    const trigger = await as(owner.token, orgId)
+      .post(`/api/translations/trainings/${trainingId}`)
+      .send({});
+    expect(trigger.status).toBe(503);
+
+    const state = await as(owner.token, orgId).get(`/api/translations/trainings/${trainingId}`);
+    expect(state.status).toBe(200);
+    expect(state.body.enabled).toBe(false);
+    expect(state.body.canManage).toBe(true);
+    expect(state.body.publishMode).toBe('manual');
+    expect(state.body.autoTranslating).toBe(false);
+    expect(state.body.autoTranslationFailed).toBe(false);
+    expect(state.body.translation).toBeNull();
+  });
+
+  it('answers 503 before the publish gate — the key check comes first', async () => {
+    // requestTrainingTranslation checks translationEnabled before it loads the
+    // module, so an unpublished module still answers 503, not 409. The 409
+    // publish gate is only observable with a key configured.
+    const owner = await registerAndLogin('ttr-draft-owner@example.com');
+    const orgId = await createOrg(owner.token, 'Training Draft Gate Org');
+    const created = await as(owner.token, orgId)
+      .post('/api/training')
+      .send({ title: 'Unpublished Module', blocks: [textBlock('Not yet live.')] });
+    expect(created.status).toBe(201);
+
+    const trigger = await as(owner.token, orgId)
+      .post(`/api/translations/trainings/${created.body._id}`)
+      .send({});
+    expect(trigger.status).toBe(503);
+  });
+
+  it('follows its own publish-mode setting, independent of the recipe one', async () => {
+    const owner = await registerAndLogin('ttr-setting-owner@example.com');
+    const orgId = await createOrg(owner.token, 'Training Setting Org');
+    const trainingId = await createPublishedTraining(owner.token, orgId, 'Setting Module');
+
+    // Flipping the RECIPE setting must not move the training's mode…
+    await as(owner.token, orgId)
+      .patch('/api/tenancy/organization')
+      .send({ settings: { translationPublishMode: 'auto_publish' } });
+    const unmoved = await as(owner.token, orgId).get(`/api/translations/trainings/${trainingId}`);
+    expect(unmoved.body.publishMode).toBe('manual');
+
+    // …and the training setting governs the training alone.
+    await as(owner.token, orgId)
+      .patch('/api/tenancy/organization')
+      .send({ settings: { trainingTranslationPublishMode: 'auto_review' } });
+    const moved = await as(owner.token, orgId).get(`/api/translations/trainings/${trainingId}`);
+    expect(moved.body.publishMode).toBe('auto_review');
+  });
+
+  it('refuses the money-spending route to staff outright', async () => {
+    const owner = await registerAndLogin('ttr-staff-owner@example.com');
+    const orgId = await createOrg(owner.token, 'Training Staff Gate Org');
+    const staff = await addMember(owner.token, orgId, 'ttr-staff@example.com', 'staff');
+    const trainingId = await createPublishedTraining(owner.token, orgId, 'Staff Gate Module');
+
+    expect(
+      (await as(staff.token, orgId).post(`/api/translations/trainings/${trainingId}`).send({}))
+        .status
+    ).toBe(403);
+    expect(
+      (
+        await as(staff.token, orgId)
+          .post(`/api/translations/trainings/${trainingId}/approve`)
+          .send({})
+      ).status
+    ).toBe(403);
+  });
+});
+
+describe('the training review gate', () => {
+  it('hides pending translations from staff and publishes only on approval', async () => {
+    const owner = await registerAndLogin('ttr-review-owner@example.com');
+    const orgId = await createOrg(owner.token, 'Training Review Org');
+    const staff = await addMember(owner.token, orgId, 'ttr-review-staff@example.com', 'staff');
+    const trainingId = await createPublishedTraining(owner.token, orgId, 'Review Module');
+    await seedTrainingTranslation(trainingId, owner.userId);
+
+    // Staff: nothing until a human approves.
+    const staffBefore = await as(staff.token, orgId).get(
+      `/api/translations/trainings/${trainingId}`
+    );
+    expect(staffBefore.status).toBe(200);
+    expect(staffBefore.body.canManage).toBe(false);
+    expect(staffBefore.body.translation).toBeNull();
+
+    // The reviewer sees the pending document.
+    const chefView = await as(owner.token, orgId).get(`/api/translations/trainings/${trainingId}`);
+    expect(chefView.body.translation.status).toBe('pending_review');
+    expect(chefView.body.translation.stale).toBe(false);
+    expect(chefView.body.translation.origin).toBe('machine');
+
+    // Approve, with the sign-off recorded.
+    const approved = await as(owner.token, orgId)
+      .post(`/api/translations/trainings/${trainingId}/approve`)
+      .send({});
+    expect(approved.status).toBe(200);
+    expect(approved.body.status).toBe('approved');
+    expect(approved.body.approvedBy).toBe(owner.userId);
+    expect(approved.body.autoApproved).toBe(false);
+
+    // Staff now read the Spanish, block-aligned: the text block carries text
+    // and no caption, the embed block a caption and no text.
+    const staffAfter = await as(staff.token, orgId).get(
+      `/api/translations/trainings/${trainingId}`
+    );
+    expect(staffAfter.body.translation).not.toBeNull();
+    expect(staffAfter.body.translation.payload.title).toBe('Comida caliente, siempre caliente');
+    expect(staffAfter.body.translation.payload.blocks).toEqual([
+      { text: 'Mantenga la comida caliente por encima de 135F.', caption: null },
+      { text: null, caption: 'Vea el recorrido' },
+    ]);
+  });
+
+  it('drops an edited translation back to pending review until re-approved', async () => {
+    const owner = await registerAndLogin('ttr-edit-owner@example.com');
+    const orgId = await createOrg(owner.token, 'Training Edit Org');
+    const staff = await addMember(owner.token, orgId, 'ttr-edit-staff@example.com', 'staff');
+    const trainingId = await createPublishedTraining(owner.token, orgId, 'Edit Module');
+    await seedTrainingTranslation(trainingId, owner.userId, 'approved');
+
+    const edited = await as(owner.token, orgId)
+      .patch(`/api/translations/trainings/${trainingId}`)
+      .send({
+        payload: {
+          title: 'Título editado',
+          description: 'Descripción editada',
+          blocks: [
+            { text: 'Texto editado del bloque.', caption: null },
+            { text: null, caption: 'Leyenda editada' },
+          ],
+        },
+      });
+    expect(edited.status).toBe(200);
+    expect(edited.body.status).toBe('pending_review');
+    expect(edited.body.origin).toBe('machine_edited');
+    expect(edited.body.approvedBy).toBeNull();
+
+    // The edit un-published it for staff.
+    const staffView = await as(staff.token, orgId).get(`/api/translations/trainings/${trainingId}`);
+    expect(staffView.body.translation).toBeNull();
+
+    // Misaligned edits are refused — they would caption the wrong blocks.
+    const misaligned = await as(owner.token, orgId)
+      .patch(`/api/translations/trainings/${trainingId}`)
+      .send({
+        payload: {
+          title: 'Título',
+          description: '',
+          blocks: [{ text: 'Un solo bloque.', caption: null }],
+        },
+      });
+    expect(misaligned.status).toBe(409);
+  });
+
+  it('serves auto-published text flagged unreviewed, until a chef signs it for real', async () => {
+    const owner = await registerAndLogin('ttr-auto-owner@example.com');
+    const orgId = await createOrg(owner.token, 'Training Auto Org');
+    const staff = await addMember(owner.token, orgId, 'ttr-auto-staff@example.com', 'staff');
+    const trainingId = await createPublishedTraining(owner.token, orgId, 'Auto Module');
+    await seedTrainingTranslation(trainingId, owner.userId, 'approved', true);
+
+    // SAFETY: auto-published text reaches staff — that is what the org chose —
+    // but flagged, with no approver forged onto it.
+    const asStaff = await as(staff.token, orgId).get(`/api/translations/trainings/${trainingId}`);
+    expect(asStaff.status).toBe(200);
+    expect(asStaff.body.translation).not.toBeNull();
+    expect(asStaff.body.translation.autoApproved).toBe(true);
+    expect(asStaff.body.translation.approvedBy).toBeNull();
+
+    const approved = await as(owner.token, orgId)
+      .post(`/api/translations/trainings/${trainingId}/approve`)
+      .send({});
+    expect(approved.status).toBe(200);
+    expect(approved.body.autoApproved).toBe(false);
+    expect(approved.body.approvedBy).toBe(owner.userId);
+  });
+
+  it('hides the translation state of an unpublished module from staff entirely', async () => {
+    const owner = await registerAndLogin('ttr-unpub-owner@example.com');
+    const orgId = await createOrg(owner.token, 'Training Unpublished Org');
+    const staff = await addMember(owner.token, orgId, 'ttr-unpub-staff@example.com', 'staff');
+    const trainingId = await createPublishedTraining(owner.token, orgId, 'Recalled Module');
+    await seedTrainingTranslation(trainingId, owner.userId, 'approved');
+
+    const recalled = await as(owner.token, orgId)
+      .post(`/api/training/${trainingId}/unpublish`)
+      .send();
+    expect(recalled.status).toBe(200);
+
+    // Existence hiding, mirroring the module itself: 404, not an empty state.
+    expect(
+      (await as(staff.token, orgId).get(`/api/translations/trainings/${trainingId}`)).status
+    ).toBe(404);
+    // The reviewer still sees the full state.
+    expect(
+      (await as(owner.token, orgId).get(`/api/translations/trainings/${trainingId}`)).status
+    ).toBe(200);
+  });
+});
+
+describe('training staleness', () => {
+  it('hides an approved translation the moment the published text changes', async () => {
+    const owner = await registerAndLogin('ttr-stale-owner@example.com');
+    const orgId = await createOrg(owner.token, 'Training Stale Org');
+    const staff = await addMember(owner.token, orgId, 'ttr-stale-staff@example.com', 'staff');
+    const trainingId = await createPublishedTraining(owner.token, orgId, 'Stale Module');
+    await seedTrainingTranslation(trainingId, owner.userId, 'approved');
+
+    // Approved and current: staff read it.
+    const before = await as(staff.token, orgId).get(`/api/translations/trainings/${trainingId}`);
+    expect(before.body.translation).not.toBeNull();
+
+    // Modules are edited in place — a title change IS the source change.
+    const edited = await as(owner.token, orgId)
+      .patch(`/api/training/${trainingId}`)
+      .send({ title: 'Stale Module, Revised' });
+    expect(edited.status).toBe(200);
+
+    // Read-time hash check: the reviewer sees the approval still standing but
+    // stale (nothing rewrote the document — the hash is the whole story)…
+    const chefView = await as(owner.token, orgId).get(`/api/translations/trainings/${trainingId}`);
+    expect(chefView.body.translation.status).toBe('approved');
+    expect(chefView.body.translation.stale).toBe(true);
+
+    // …and staff see nothing.
+    const staffView = await as(staff.token, orgId).get(`/api/translations/trainings/${trainingId}`);
+    expect(staffView.body.translation).toBeNull();
+
+    // Approving the stale text is refused outright.
+    const approve = await as(owner.token, orgId)
+      .post(`/api/translations/trainings/${trainingId}/approve`)
+      .send({});
+    expect(approve.status).toBe(409);
+  });
+
+  it('treats a caption edit as a text change too', async () => {
+    const owner = await registerAndLogin('ttr-caption-owner@example.com');
+    const orgId = await createOrg(owner.token, 'Training Caption Org');
+    const staff = await addMember(owner.token, orgId, 'ttr-caption-staff@example.com', 'staff');
+    const trainingId = await createPublishedTraining(owner.token, orgId, 'Caption Module');
+    await seedTrainingTranslation(trainingId, owner.userId, 'approved');
+
+    const edited = await as(owner.token, orgId)
+      .patch(`/api/training/${trainingId}`)
+      .send({
+        blocks: [
+          textBlock('Hold hot food above 135F. Check every two hours.'),
+          {
+            kind: 'embed',
+            url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+            caption: 'Watch the NEW walkthrough',
+          },
+        ],
+      });
+    expect(edited.status).toBe(200);
+
+    const staffView = await as(staff.token, orgId).get(`/api/translations/trainings/${trainingId}`);
+    expect(staffView.body.translation).toBeNull();
+  });
+});
+
+describe('training tenant isolation', () => {
+  it("never serves one org's training translation to another", async () => {
+    const ownerA = await registerAndLogin('ttr-iso-a@example.com');
+    const ownerB = await registerAndLogin('ttr-iso-b@example.com');
+    const orgA = await createOrg(ownerA.token, 'Training Translation Org A');
+    const orgB = await createOrg(ownerB.token, 'Training Translation Org B');
+    const trainingA = await createPublishedTraining(ownerA.token, orgA, 'A Secret Module');
+    await seedTrainingTranslation(trainingA, ownerA.userId, 'approved');
+
+    // Org B probing org A's module id: existence-hiding 404, both surfaces.
+    expect(
+      (await as(ownerB.token, orgB).get(`/api/translations/trainings/${trainingA}`)).status
+    ).toBe(404);
+    expect(
+      (await as(ownerB.token, orgB).post(`/api/translations/trainings/${trainingA}/approve`).send({}))
+        .status
+    ).toBe(404);
   });
 });

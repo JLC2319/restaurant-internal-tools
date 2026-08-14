@@ -24,6 +24,7 @@ export const addressSchema = z.object({
  */
 export const tenantSettingsSchema = z.object({
   translationPublishMode: z.enum(translationPublishModeValues).optional(),
+  trainingTranslationPublishMode: z.enum(translationPublishModeValues).optional(),
   recipePublishMode: z.enum(recipePublishModeValues).optional(),
 });
 
@@ -34,6 +35,7 @@ export const tenantSettingsSchema = z.object({
  */
 export const tenantSettingsOverrideSchema = z.object({
   translationPublishMode: z.enum(translationPublishModeValues).nullable().optional(),
+  trainingTranslationPublishMode: z.enum(translationPublishModeValues).nullable().optional(),
   recipePublishMode: z.enum(recipePublishModeValues).nullable().optional(),
 });
 

@@ -1,5 +1,11 @@
 import type { Request, Response } from 'express';
-import type { CreateTrainingInput, ListTrainingsQuery, UpdateTrainingInput } from '@rit/shared';
+import type {
+  CreateTrainingInput,
+  ListTrainingsQuery,
+  MoveTrainingInput,
+  UpdateTrainingAccessInput,
+  UpdateTrainingInput,
+} from '@rit/shared';
 import * as trainingService from './trainingModule.service';
 import { pathParam } from '../../lib/params';
 
@@ -34,6 +40,31 @@ export async function updateTraining(req: Request, res: Response): Promise<void>
     req.body as UpdateTrainingInput
   );
   res.status(200).json(training);
+}
+
+export async function moveTraining(req: Request, res: Response): Promise<void> {
+  const training = await trainingService.moveTraining(
+    req.tenant!,
+    req.userId!,
+    pathParam(req, 'id'),
+    req.body as MoveTrainingInput
+  );
+  res.status(200).json(training);
+}
+
+export async function updateTrainingAccess(req: Request, res: Response): Promise<void> {
+  const training = await trainingService.updateTrainingAccess(
+    req.tenant!,
+    req.userId!,
+    pathParam(req, 'id'),
+    req.body as UpdateTrainingAccessInput
+  );
+  res.status(200).json(training);
+}
+
+export async function listAccessCandidates(req: Request, res: Response): Promise<void> {
+  const candidates = await trainingService.listAccessCandidates(req.tenant!, pathParam(req, 'id'));
+  res.status(200).json(candidates);
 }
 
 export async function publishTraining(req: Request, res: Response): Promise<void> {

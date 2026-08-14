@@ -61,6 +61,8 @@ export function shapeOrg(org: Lean<{ name: string; slug: string; status: string 
 function shapeSettings(settings: Partial<TenantSettings> | null | undefined): TenantSettings {
   return {
     translationPublishMode: settings?.translationPublishMode ?? DEFAULT_TRANSLATION_PUBLISH_MODE,
+    trainingTranslationPublishMode:
+      settings?.trainingTranslationPublishMode ?? DEFAULT_TRANSLATION_PUBLISH_MODE,
     recipePublishMode: settings?.recipePublishMode ?? DEFAULT_RECIPE_PUBLISH_MODE,
   };
 }
@@ -71,6 +73,7 @@ function shapeSettingsOverride(
 ): TenantSettingsOverride {
   return {
     translationPublishMode: settings?.translationPublishMode ?? null,
+    trainingTranslationPublishMode: settings?.trainingTranslationPublishMode ?? null,
     recipePublishMode: settings?.recipePublishMode ?? null,
   };
 }
